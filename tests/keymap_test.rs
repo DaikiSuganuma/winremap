@@ -72,10 +72,11 @@ fn emacs_example_parses_and_resolves() {
     assert!(table.resolve("explorer.exe", combo("C-b")).is_none());
 }
 
-/// The personal config exercises all three v0.2 features at once:
-/// exclusion lists, macro outputs, and two-stroke sequences.
+/// The personal config exercises exclusion lists and macro outputs.
+/// Two-stroke sequences are currently commented out in the sample, so they
+/// are covered by the unit tests in src/config/tests.rs instead.
 #[test]
-fn suganuma_example_covers_exclude_macro_and_sequences() {
+fn suganuma_example_covers_exclude_and_macros() {
     let table = load_example("suganuma.toml");
     let exe = "notepad.exe";
 
@@ -84,7 +85,7 @@ fn suganuma_example_covers_exclude_macro_and_sequences() {
 
     // Global Emacs bindings apply...
     assert_eq!(chord_target(&table, exe, "C-h"), combo("Back"));
-    assert_eq!(chord_target(&table, exe, "C-2"), combo("F2"));
+    assert_eq!(chord_target(&table, exe, "A-f"), combo("C-f"));
     // ...but not in excluded apps (not_emacs_target equivalent).
     for excluded in ["Illustrator.exe", "photoshop.exe", "InDesign.exe"] {
         assert!(
@@ -93,7 +94,7 @@ fn suganuma_example_covers_exclude_macro_and_sequences() {
         );
     }
 
-    // Macro outputs (select word / open line / select all).
+    // Macro outputs (select word / open line).
     match table.resolve(exe, combo("C-t")) {
         Some(Resolution::Exact(Output::Seq(seq))) => {
             assert_eq!(seq.len(), 3);
@@ -103,31 +104,14 @@ fn suganuma_example_covers_exclude_macro_and_sequences() {
         other => panic!("expected macro for C-t, got {other:?}"),
     }
 
-    // Two-stroke sequences on the A-x prefix.
-    assert_eq!(table.resolve(exe, combo("A-x")), Some(Resolution::Prefix));
-    assert_eq!(
-        table.resolve_second(exe, combo("A-x"), combo("u")),
-        Some(&Output::Chord(combo("C-z")))
-    );
-    assert_eq!(
-        table.resolve_second(exe, combo("A-x"), combo("C-s")),
-        Some(&Output::Chord(combo("C-s")))
-    );
-    match table.resolve_second(exe, combo("A-x"), combo("h")) {
-        Some(Output::Seq(seq)) => assert_eq!(seq.len(), 2),
-        other => panic!("expected macro for A-x h, got {other:?}"),
-    }
-    // Undefined second stroke resolves to nothing (the hook swallows it).
-    assert_eq!(table.resolve_second(exe, combo("A-x"), combo("q")), None);
+    // Select-all maps to the native shortcut instead of a macro: injected
+    // events are never re-remapped, so emitting C-a cannot collide with the
+    // physical C-a -> Home binding.
+    assert_eq!(chord_target(&table, exe, "A-a"), combo("C-a"));
 
-    // Browser keymaps override the global macro with identity pass-through.
+    // Browser keymaps override the global rules with identity pass-through.
     assert_eq!(chord_target(&table, "chrome.exe", "C-t"), combo("C-t"));
     assert_eq!(chord_target(&table, "msedge.exe", "C-w"), combo("C-w"));
-    // The A-x prefix still reaches browsers from the global keymap.
-    assert_eq!(
-        table.resolve("chrome.exe", combo("A-x")),
-        Some(Resolution::Prefix)
-    );
 }
 
 #[test]

@@ -6,7 +6,7 @@
 #   変換 = IME オン」を割り当てて代替する。
 # - C-s は元設定（skip_settings_key）どおり意図的にリマップしない
 #   （ネイティブの保存のまま）。
-# - C-k（kill-line）は単一チョードで表現できないため未移植。
+# - C-k（kill-line）は単一コマンドで表現できないため未移植。
 
 # マクロの各ストローク間の待ち時間（ms、0-15）。WinUI 系アプリ（新しいメモ帳等）は
 # 一括注入のマクロを取りこぼすことがあるため 8ms を指定（実測で安定を確認）。
@@ -34,44 +34,48 @@ exclude = [
 "C-n" = "Down"
 "C-a" = "Home"
 "C-e" = "End"
-"C-v" = "PageDown"
-"A-v" = "PageUp"
-"A-b" = "C-Left"  # 単語単位で戻る
-"A-f" = "C-Right" # 単語単位で進む
+#"C-v" = "PageDown"
+#"A-v" = "PageUp"
+#"A-b" = "C-Left"  # 単語単位で戻る
+#"A-f" = "C-Right" # 単語単位で進む
 
 # 編集
 "C-h" = "Back"      # 1 文字後退削除（このプロジェクトの発端）
 "C-d" = "Delete"    # 1 文字前方削除
-"A-Back" = "C-Back" # 単語単位で後退削除
-"A-d" = "C-Delete"  # 単語単位で前方削除
-"C-m" = "Enter"
+#"A-Back" = "C-Back" # 単語単位で後退削除
+#"A-d" = "C-Delete"  # 単語単位で前方削除
+#"C-m" = "Enter"
 
 # キル/ヤンク（OS のクリップボード操作に対応付け）
-"C-w" = "C-x" # キル       → 切り取り
-"A-w" = "C-c" # コピー     → コピー
-"C-y" = "C-v" # ヤンク     → 貼り付け
+#"C-w" = "C-x" # キル       → 切り取り
+#"A-w" = "C-c" # コピー     → コピー
+#"C-y" = "C-v" # ヤンク     → 貼り付け
 
 # その他
 "C-g" = "Esc" # keyboard-quit → Esc
+"A-f" = "C-f" # incremental search -> app find
 
 # config_personal.py から移植したカスタムコマンド（マクロ出力）
-"C-t" = ["C-Right", "C-Left", "C-S-Right"] # 単語選択
+"C-t" = ["C-Right", "C-Left", "C-S-Right"] # 単語選択（ネイティブ単一ショートカットが無いためマクロで合成）
 "C-o" = ["Enter", "Up", "End"]             # 行を開く（open-line 相当）
-"A-a" = ["C-Home", "C-S-End"]              # 全選択（旧 M-a）
+
+# 全選択は Windows ネイティブの C-a をそのまま送る。注入イベントは再変換されない
+# （不変条件 1）ため、上の物理 C-a→Home リマップとは衝突しない。
+"A-a" = "C-a" # 全選択（旧 M-a）
 
 # ファンクションキーショートカット（config_personal.py の define_key2）
-"C-2" = "F2"
-"C-3" = "F3"
-"C-4" = "F4"
-"C-5" = "F5"
+#"C-2" = "F2"
+#"C-3" = "F3"
+#"C-4" = "F4"
+#"C-5" = "F5"
 
 # A-x プレフィックス（fc.ctl_x_prefix_key = "A-x" 相当）。
-# よく使う C-x 系バインドを追加していく。2 打鍵目はチョードも可。
-"A-x h" = ["C-Home", "C-S-End"] # C-x h   : バッファ全選択
-"A-x u" = "C-z"                 # C-x u   : 元に戻す
-"A-x C-s" = "C-s"               # C-x C-s : 保存
-"A-x C-f" = "C-o"               # C-x C-f : ファイルを開く
-"A-x k" = "C-F4"                # C-x k   : ドキュメント/タブを閉じる
+# よく使う C-x 系バインドを追加していく。2 打鍵目は修飾キー付きコマンドも可。
+#"A-x h" = "C-a"                 # C-x h   : バッファ全選択（ネイティブの全選択）
+#"A-x u" = "C-z"                 # C-x u   : 元に戻す
+#"A-x C-s" = "C-s"               # C-x C-s : 保存
+#"A-x C-f" = "C-o"               # C-x C-f : ファイルを開く
+#"A-x k" = "C-F4"                # C-x k   : ドキュメント/タブを閉じる
 
 # --- ブラウザはネイティブのショートカットを維持（emacs_exclusion_key 相当） ---
 # アプリ別ルールはグローバルより優先されるため、恒等リマップで実質素通しになる。
