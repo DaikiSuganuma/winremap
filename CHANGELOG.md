@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Owner-designed keyboard icon (`assets/`), embedded as exe resources for both the tray (enabled/disabled states) and the executable itself.
 - `exclude` lists for global keymaps (fakeymacs `not_emacs_target` equivalent), macro outputs (`"C-t" = ["C-Right", ...]`, up to 8 chords per press), and Emacs-style two-stroke prefix sequences (`"A-x u" = "C-z"`). New `examples/suganuma.toml` exercising all three.
 
+- Japanese/English UI (tray, console messages, CLI help) auto-selected from the system language, with a `--lang en|ja` override.
+- `--debug` flag: prints each foreground app's full path, the exact `application` value for the config, and the keymaps that would apply.
+
 ### Changed
 
 - `examples/minimal.toml` now targets Notepad, which doubles as a quick way to verify winremap is active.
+- Restructured `keymap`/`config` into folder modules with tests split into `tests.rs` (see guidelines §5).

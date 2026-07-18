@@ -21,6 +21,8 @@ A per-application key remapper for Windows, written in Rust — inspired by
 - **Two-stroke sequences** (`"A-x h"`, Emacs-style prefix keys) and **macro
   outputs** (`"C-t" = ["C-Right", "C-Left", "C-S-Right"]`)
 - **Task tray resident**: enable/disable toggle, config hot-reload, quit
+- **Japanese and English UI**, auto-detected from the system language
+  (`--lang en|ja` to override)
 - **Single binary, no runtime dependencies**
 - The hook callback runs in pure Rust with no heap allocation, locking, or
   I/O. Compared to script-driven remappers this improves worst-case latency
@@ -83,6 +85,10 @@ complete examples.
 
 The full specification lives in
 [docs/04_config-spec.md](docs/04_config-spec.md) (Japanese).
+
+Not sure what to put in `application`? Run `winremap.exe --debug` and switch
+windows: it prints each foreground app's full path, the exact `application`
+value to use, and which of your keymaps would apply.
 
 ## Limitations
 
