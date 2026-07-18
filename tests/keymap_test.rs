@@ -34,6 +34,33 @@ fn minimal_example_fixes_ctrl_h_in_listed_apps_only() {
     assert!(table.resolve("phpstorm64.exe", combo("h")).is_none());
 }
 
+/// The Emacs sample must stay parseable and keep its core semantics: chords
+/// remap to navigation/editing keys, targets may carry modifiers.
+#[test]
+fn emacs_example_parses_and_resolves() {
+    let source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/emacs.toml"))
+            .unwrap();
+    let table = config::parse_str(&source).unwrap();
+
+    let exe = "notepad.exe";
+    assert_eq!(
+        table.resolve(exe, combo("C-b")).unwrap().target,
+        combo("Left")
+    );
+    assert_eq!(
+        table.resolve(exe, combo("C-h")).unwrap().target,
+        combo("Back")
+    );
+    // Targets with modifiers (word motion -> Ctrl+Arrow).
+    assert_eq!(
+        table.resolve(exe, combo("A-f")).unwrap().target,
+        combo("C-Right")
+    );
+    // Not listed -> untouched.
+    assert!(table.resolve("explorer.exe", combo("C-b")).is_none());
+}
+
 #[test]
 fn app_specific_keymap_beats_global_regardless_of_order() {
     // The global section is defined first on purpose: definition order must

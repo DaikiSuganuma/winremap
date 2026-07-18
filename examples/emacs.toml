@@ -1,0 +1,41 @@
+# Emacs-style keybindings for winremap (inspired by fakeymacs).
+#
+# v0.1 supports single-chord remaps only: no key sequences (C-x C-c), no
+# mark mode (C-Space), and no app exclusion lists yet. Because of that, list
+# the applications you want Emacs bindings in explicitly — a global ["*"]
+# section would also affect terminals and IDEs that already have their own
+# Emacs-style handling.
+
+[[keymap]]
+name = "emacs-basics"
+application = ["notepad.exe"] # add your applications here
+
+[keymap.remap]
+# --- Cursor movement ---
+"C-b" = "Left"
+"C-f" = "Right"
+"C-p" = "Up"
+"C-n" = "Down"
+"C-a" = "Home"
+"C-e" = "End"
+"C-v" = "PageDown" # shadows the usual Paste shortcut; use C-y instead
+"A-v" = "PageUp"
+"A-b" = "C-Left"  # word backward
+"A-f" = "C-Right" # word forward
+
+# --- Editing ---
+"C-h" = "Back"      # delete backward char
+"C-d" = "Delete"    # delete forward char
+"A-Back" = "C-Back" # delete word backward
+"A-d" = "C-Delete"  # delete word forward
+"C-m" = "Enter"
+"C-i" = "Tab"
+
+# --- Kill/yank mapped to the OS clipboard ---
+"C-w" = "C-x" # kill region  -> cut
+"A-w" = "C-c" # copy region  -> copy
+"C-y" = "C-v" # yank         -> paste
+
+# --- Misc ---
+"C-s" = "C-f" # incremental search -> app find
+"C-g" = "Esc" # keyboard-quit      -> escape
