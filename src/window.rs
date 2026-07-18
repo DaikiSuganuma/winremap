@@ -130,6 +130,9 @@ unsafe extern "system" fn on_foreground_changed(
     // HWND: events can arrive out of order and the latest state is what the
     // next key event will actually be delivered to.
     refresh_foreground_cache();
+    // IME indicator touch point: show the panel when focus lands on a window
+    // whose IME is on (ADR 0020). No-op unless the feature is enabled.
+    crate::ime_indicator::notify_foreground_changed();
 }
 
 /// Full image path for the process owning `hwnd`, or `None` when it cannot

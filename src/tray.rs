@@ -115,6 +115,9 @@ impl Tray {
                 // Atomic swap: in-flight key events keep the old table, the
                 // next event sees the new one — no gap (ADR 0003).
                 hook::REMAP_TABLE.store(Some(Arc::new(table)));
+                // IME indicator touch point: pick up the reloaded
+                // [ime_indicator] section (ADR 0020).
+                crate::ime_indicator::sync_with_config();
                 self.keymap_count.set(count);
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
                 println!("{}", i18n::reload_ok(count));

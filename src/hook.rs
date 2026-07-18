@@ -403,6 +403,13 @@ fn handle_event(message: u32, event: &KBDLLHOOKSTRUCT) -> bool {
         return false;
     }
 
+    if down {
+        // IME indicator poke on toggle-candidate keys; bounded and
+        // non-blocking, and the key always passes through unchanged
+        // (invariant 2 exception 3, ADR 0020).
+        crate::ime_indicator::notify_toggle_keydown(vk);
+    }
+
     if let Some(bit) = sender::side_bit(vk) {
         // Modifier keys are not remappable (config rejects them as inputs),
         // so they only feed the chord state used to match other keys.

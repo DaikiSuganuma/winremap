@@ -6,6 +6,7 @@
 
 mod hook;
 mod i18n;
+mod ime_indicator;
 mod sender;
 mod tray;
 mod window;
@@ -48,6 +49,9 @@ fn main() -> anyhow::Result<()> {
     let keyboard_hook = hook::install().context("failed to install keyboard hook")?;
     let tray = tray::init(config_path, keymap_count, cli.macro_delay_ms)
         .context("failed to set up tray")?;
+    // IME indicator touch point: starts its thread only when the config
+    // enables the feature (ADR 0020).
+    ime_indicator::sync_with_config();
     println!("{}", i18n::t().remapping_active);
 
     hook::run_message_loop(|| {
@@ -59,6 +63,7 @@ fn main() -> anyhow::Result<()> {
 
     hook::uninstall(keyboard_hook);
     window::uninstall_foreground_watch(event_hook);
+    ime_indicator::stop();
     Ok(())
 }
 

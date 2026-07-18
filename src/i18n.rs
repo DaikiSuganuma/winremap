@@ -129,6 +129,17 @@ pub fn reload_failed(error: &str) -> String {
     }
 }
 
+/// The IME indicator could not start (or died); remapping keeps running.
+/// `error` stays in English on purpose (diagnostics policy above).
+pub fn ime_indicator_failed(error: &str) -> String {
+    match lang() {
+        Lang::En => format!("IME indicator unavailable (remapping is unaffected): {error}"),
+        Lang::Ja => {
+            format!("IME インジケーターを利用できません（リマップ動作には影響ありません）: {error}")
+        }
+    }
+}
+
 pub fn no_config_file(path: &Path) -> String {
     match lang() {
         Lang::En => format!(
