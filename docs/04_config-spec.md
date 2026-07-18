@@ -69,7 +69,11 @@ application = ["phpstorm64.exe"]
 | ロック | `CapsLock` | 0x14 |
 | 修飾キー単体 | `LShift`, `RShift`, `LCtrl`（`LControl`）, `RCtrl`（`RControl`）, `LAlt`, `RAlt`, `LWin`, `RWin`, `Apps`（`Menu`） | 0xA0-0xA5, 0x5B, 0x5C, 0x5D |
 
-**v0.1 の制限**: 記号キー（`;` `,` `-` 等の OEM キー）は非対応。VK コードがキーボードレイアウト依存（特に JP 配列）のため、v0.2 で ADR を書いて対応を判断する。IME 関連キー（変換・無変換・かな）は Non-goal（ブリーフ §3.3）。
+**v0.1 の制限**:
+
+- 記号キー（`;` `,` `-` 等の OEM キー）は非対応。VK コードがキーボードレイアウト依存（特に JP 配列）のため、v0.2 で ADR を書いて対応を判断する
+- IME 関連キー（変換・無変換・かな）は Non-goal（ブリーフ §3.3）
+- **修飾キー（`LCtrl` / `LShift` 等）を入力側（LHS）にすることはできない**（設定エラー）。フックが修飾キーをチョード判定の状態管理に使うため。出力側（RHS）には使える（`"CapsLock" = "LCtrl"`）
 
 ## 3. マッチングと置換の意味論
 
@@ -78,8 +82,9 @@ application = ["phpstorm64.exe"]
 ### 3.1 修飾キー付きルール（例 `"C-h" = "Back"`）
 
 - **完全一致**で判定する。`C-h` は「Ctrl のみが押されている状態で H」にマッチし、Ctrl+Shift+H にはマッチしない
-- 置換時は**修飾キー状態も RHS に合わせる**。`"C-h" = "Back"` は物理 Ctrl が押下中でも、アプリには修飾なしの Backspace が届く（sender が修飾キーを一時的に解放する。ADR 0005 予定）
+- 置換時は**修飾キー状態も RHS に合わせる**。`"C-h" = "Back"` は物理 Ctrl が押下中でも、アプリには修飾なしの Backspace が届く（sender が修飾キーを一時的に解放・復元する。[ADR 0005](./decisions/0005-modifier-lift-restore.md)）
 - RHS には修飾キーを付けられる（例 `"C-i" = "S-Tab"`）
+- 既知の制限: **Alt / Win を含むチョードの置換**では、メニューバー活性化・スタートメニューの誤発動が起こる場合がある（ADR 0005）
 
 ### 3.2 単キールール（例 `"CapsLock" = "LCtrl"`）
 
