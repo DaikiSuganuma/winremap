@@ -42,7 +42,7 @@
 
 ### タスク
 
-1. 検証用バイナリ `examples/ime_probe.rs` を作成（`cargo run --example ime_probe` で実行）
+1. ~~検証用バイナリ `examples/ime_probe.rs` を作成~~ — 済（2026-07-19。`cargo run --example ime_probe` で実行。起動と照会動作は確認済み、µs オーダーで応答）
    - 1 秒間隔でフォアグラウンドウィンドウの IME 状態を照会（`ImmGetDefaultIMEWnd` → `SendMessageTimeoutW(WM_IME_CONTROL, IMC_GETOPENSTATUS)`）し、exe 名・HWND・戻り値・所要時間をコンソールに表示する
    - 本体のフック・設定には一切触れない独立コード（検証後も回帰確認用に残す）
 2. オーナー環境（Windows 11 Pro + 常用 IME）で以下を記録する:
