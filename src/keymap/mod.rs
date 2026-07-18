@@ -23,6 +23,10 @@ pub use table::{AppFilter, Keymap, Output, RemapTable, Resolution};
 /// (ADR 0012). Raising this requires revisiting the stack budget in sender.rs.
 pub const MAX_MACRO_LEN: usize = 8;
 
+/// Upper bound for the per-stroke macro pacing delay (ADR 0018): even an
+/// 8-stroke macro must stay far below the low-level-hook timeout.
+pub const MAX_MACRO_DELAY_MS: u32 = 15;
+
 /// Modifier set as a bitflag. Hand-rolled instead of the `bitflags` crate to
 /// keep dependencies minimal for such a tiny surface.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Debug)]

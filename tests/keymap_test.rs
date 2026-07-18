@@ -79,6 +79,9 @@ fn suganuma_example_covers_exclude_macro_and_sequences() {
     let table = load_example("suganuma.toml");
     let exe = "notepad.exe";
 
+    // Macro pacing for WinUI apps (ADR 0019) must survive edits.
+    assert_eq!(table.macro_delay_ms, 8);
+
     // Global Emacs bindings apply...
     assert_eq!(chord_target(&table, exe, "C-h"), combo("Back"));
     assert_eq!(chord_target(&table, exe, "C-2"), combo("F2"));

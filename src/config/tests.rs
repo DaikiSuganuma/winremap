@@ -74,6 +74,23 @@ exclude = ["Zed.exe"]
 }
 
 #[test]
+fn parses_top_level_macro_delay() {
+    let table = parse_str("macro_delay_ms = 8\n[[keymap]]\napplication = [\"*\"]\n").unwrap();
+    assert_eq!(table.macro_delay_ms, 8);
+    // Absent -> burst mode.
+    let table = parse_str("[[keymap]]\napplication = [\"*\"]\n").unwrap();
+    assert_eq!(table.macro_delay_ms, 0);
+}
+
+#[test]
+fn rejects_overlong_macro_delay() {
+    let found = issues("macro_delay_ms = 99\n[[keymap]]\napplication = [\"*\"]\n");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].message.contains("macro_delay_ms"));
+    assert_eq!(found[0].line, 1);
+}
+
+#[test]
 fn reports_syntax_error_from_toml() {
     let err = parse_str("[[keymap]\n").unwrap_err();
     assert!(matches!(err, ConfigError::Toml(_)));

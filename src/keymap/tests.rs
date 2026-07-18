@@ -96,6 +96,7 @@ fn parses_input_patterns() {
 fn table_with(keymap: Keymap) -> RemapTable {
     RemapTable {
         keymaps: vec![keymap],
+        macro_delay_ms: 0,
     }
 }
 

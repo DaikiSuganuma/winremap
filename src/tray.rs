@@ -26,9 +26,16 @@ pub struct Tray {
     config_path: PathBuf,
     /// Remembered so re-enabling can restore the "N keymap(s)" tooltip.
     keymap_count: Cell<usize>,
+    /// `--macro-delay` beats the config's value even across reloads
+    /// (ADR 0019).
+    macro_delay_override: Option<u32>,
 }
 
-pub fn init(config_path: PathBuf, keymap_count: usize) -> anyhow::Result<Tray> {
+pub fn init(
+    config_path: PathBuf,
+    keymap_count: usize,
+    macro_delay_override: Option<u32>,
+) -> anyhow::Result<Tray> {
     let texts = i18n::t();
     let enabled_item = CheckMenuItem::new(texts.menu_enabled, true, true, None);
     let reload_item = MenuItem::new(texts.menu_reload, true, None);
@@ -61,6 +68,7 @@ pub fn init(config_path: PathBuf, keymap_count: usize) -> anyhow::Result<Tray> {
         quit_item,
         config_path,
         keymap_count: Cell::new(keymap_count),
+        macro_delay_override,
     })
 }
 
@@ -101,6 +109,9 @@ impl Tray {
         match config::load(&self.config_path) {
             Ok(table) => {
                 let count = table.keymaps.len();
+                crate::sender::set_macro_delay(
+                    self.macro_delay_override.unwrap_or(table.macro_delay_ms),
+                );
                 // Atomic swap: in-flight key events keep the old table, the
                 // next event sees the new one — no gap (ADR 0003).
                 hook::REMAP_TABLE.store(Some(Arc::new(table)));

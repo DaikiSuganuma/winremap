@@ -15,8 +15,8 @@ mod tests;
 use std::fmt;
 use std::path::Path;
 
-use crate::keymap::{Keymap, RemapTable};
-use compile::{KeymapCompiler, compile_app_filter};
+use crate::keymap::{Keymap, MAX_MACRO_DELAY_MS, RemapTable};
+use compile::{KeymapCompiler, compile_app_filter, issue_at_offset};
 use raw::RawConfig;
 
 /// One semantic problem in the config, positioned at its source line.
@@ -68,6 +68,23 @@ pub fn parse_str(source: &str) -> Result<RemapTable, ConfigError> {
     let raw: RawConfig = toml::from_str(source)?;
 
     let mut issues = Vec::new();
+
+    let macro_delay_ms = match &raw.macro_delay_ms {
+        Some(delay) if *delay.get_ref() > MAX_MACRO_DELAY_MS => {
+            issues.push(issue_at_offset(
+                source,
+                delay.span().start,
+                &format!(
+                    "`macro_delay_ms` must be 0-{MAX_MACRO_DELAY_MS} (got {})",
+                    delay.get_ref()
+                ),
+            ));
+            0
+        }
+        Some(delay) => *delay.get_ref(),
+        None => 0,
+    };
+
     let mut keymaps = Vec::new();
     for (index, raw_keymap) in raw.keymap.into_iter().enumerate() {
         // Fall back to a positional name so issues stay attributable even
@@ -97,7 +114,10 @@ pub fn parse_str(source: &str) -> Result<RemapTable, ConfigError> {
     }
 
     if issues.is_empty() {
-        Ok(RemapTable { keymaps })
+        Ok(RemapTable {
+            keymaps,
+            macro_delay_ms,
+        })
     } else {
         Err(ConfigError::Invalid(issues))
     }

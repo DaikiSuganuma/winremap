@@ -87,6 +87,10 @@ impl Keymap {
 #[derive(Debug)]
 pub struct RemapTable {
     pub keymaps: Vec<Keymap>,
+    /// Per-stroke macro pacing from the config's top-level `macro_delay_ms`
+    /// (0 = burst, ADR 0018/0019). Carried here so a tray reload can apply
+    /// the new value together with the rules.
+    pub macro_delay_ms: u32,
 }
 
 impl RemapTable {

@@ -39,15 +39,17 @@ pub const ALT_WIN_SIDES: SideMods = 0b1111_0000;
 /// technique as Keyhac/AutoHotkey).
 const VK_MENU_MASK: u16 = 0xFF;
 
-/// Opt-in pause between macro strokes (`--macro-delay`, ADR 0018). Non-zero
-/// values deliberately block inside the hook callback — a bounded, explicit
-/// exception to invariant 2 for apps that mishandle burst-injected macros.
-/// Capped so even an 8-stroke macro stays far below the LL-hook timeout.
-pub const MAX_MACRO_DELAY_MS: u32 = 15;
+/// Opt-in pause between macro strokes (`macro_delay_ms` in the config or
+/// `--macro-delay`, ADR 0018/0019). Non-zero values deliberately block
+/// inside the hook callback — a bounded, explicit exception to invariant 2
+/// for apps that mishandle burst-injected macros.
 static MACRO_DELAY_MS: AtomicU32 = AtomicU32::new(0);
 
 pub fn set_macro_delay(ms: u32) {
-    MACRO_DELAY_MS.store(ms.min(MAX_MACRO_DELAY_MS), Ordering::Relaxed);
+    MACRO_DELAY_MS.store(
+        ms.min(winremap::keymap::MAX_MACRO_DELAY_MS),
+        Ordering::Relaxed,
+    );
 }
 
 const SIDE_VKS: [u16; 8] = [

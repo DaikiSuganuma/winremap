@@ -10,6 +10,9 @@ use toml::Spanned;
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct RawConfig {
+    /// Top-level pacing for macro outputs, in ms (ADR 0019).
+    #[serde(default)]
+    pub(super) macro_delay_ms: Option<Spanned<u32>>,
     #[serde(default)]
     pub(super) keymap: Vec<RawKeymap>,
 }

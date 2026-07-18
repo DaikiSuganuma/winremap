@@ -24,7 +24,6 @@ fn main() -> anyhow::Result<()> {
     let cli = parse_args(&args)?;
     let config_path = cli.config_path;
     hook::set_debug(cli.debug);
-    sender::set_macro_delay(cli.macro_delay_ms);
 
     let instance = hook::acquire_single_instance().context("failed to create instance mutex")?;
     let Some(_instance) = instance else {
@@ -37,6 +36,8 @@ fn main() -> anyhow::Result<()> {
         .with_context(|| format!("failed to load {}", config_path.display()))?;
     let keymap_count = table.keymaps.len();
     println!("{}", i18n::startup_loaded(keymap_count, &config_path));
+    // Precedence: --macro-delay > config's macro_delay_ms > 0 (ADR 0019).
+    sender::set_macro_delay(cli.macro_delay_ms.unwrap_or(table.macro_delay_ms));
     hook::REMAP_TABLE.store(Some(Arc::new(table)));
 
     sender::init_scan_codes();
@@ -45,7 +46,8 @@ fn main() -> anyhow::Result<()> {
     window::refresh_foreground_cache();
     let event_hook = window::install_foreground_watch().context("failed to watch foreground")?;
     let keyboard_hook = hook::install().context("failed to install keyboard hook")?;
-    let tray = tray::init(config_path, keymap_count).context("failed to set up tray")?;
+    let tray = tray::init(config_path, keymap_count, cli.macro_delay_ms)
+        .context("failed to set up tray")?;
     println!("{}", i18n::t().remapping_active);
 
     hook::run_message_loop(|| {
@@ -82,13 +84,14 @@ fn extract_lang(args: &[String]) -> anyhow::Result<Option<i18n::Lang>> {
 struct CliArgs {
     config_path: PathBuf,
     debug: bool,
-    macro_delay_ms: u32,
+    /// `None` when the flag was absent, so the config file's value applies.
+    macro_delay_ms: Option<u32>,
 }
 
 fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
     let mut config: Option<PathBuf> = None;
     let mut debug = false;
-    let mut macro_delay_ms = 0u32;
+    let mut macro_delay_ms: Option<u32> = None;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -103,16 +106,10 @@ fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
             "--debug" => debug = true,
             "--macro-delay" => {
                 let value = iter.next().context("--macro-delay requires milliseconds")?;
-                macro_delay_ms = value
-                    .parse()
-                    .ok()
-                    .filter(|&ms| ms <= sender::MAX_MACRO_DELAY_MS)
-                    .with_context(|| {
-                        format!(
-                            "invalid --macro-delay `{value}` (expected 0-{})",
-                            sender::MAX_MACRO_DELAY_MS
-                        )
-                    })?;
+                let max = winremap::keymap::MAX_MACRO_DELAY_MS;
+                macro_delay_ms = Some(value.parse().ok().filter(|&ms| ms <= max).with_context(
+                    || format!("invalid --macro-delay `{value}` (expected 0-{max})"),
+                )?);
             }
             "--version" | "-V" => {
                 println!("winremap {}", env!("CARGO_PKG_VERSION"));

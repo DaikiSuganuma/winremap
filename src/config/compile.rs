@@ -265,6 +265,16 @@ pub(super) fn compile_app_filter(
     }
 }
 
+/// Positioned issue for top-level (non-keymap) fields.
+pub(super) fn issue_at_offset(source: &str, offset: usize, message: &str) -> Issue {
+    let (line, column) = line_col(source, offset);
+    Issue {
+        line,
+        column,
+        message: message.to_string(),
+    }
+}
+
 fn issue_at(source: &str, offset: usize, keymap_name: &str, message: &str) -> Issue {
     let (line, column) = line_col(source, offset);
     Issue {
