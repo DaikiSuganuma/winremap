@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Test
+        run: cargo test
+      - name: Build
+        run: cargo build --release
+      - name: Prepare artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item target/release/winremap.exe dist/
+          $hash = (Get-FileHash dist/winremap.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  winremap.exe" | Out-File -Encoding ascii dist/SHA256SUMS
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/winremap.exe
+      # Draft on purpose: the owner reviews the notes and artifacts before
+      # anything becomes publicly downloadable (docs/06_release-operations.md).
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            dist/winremap.exe
+            dist/SHA256SUMS

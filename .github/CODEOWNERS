@@ -1,0 +1,8 @@
+# Changes to agent instructions, docs, and CI/release pipelines require the
+# owner's human review (project brief §10-1). This is the guard against the
+# agent's instruction files or the build pipeline being rewritten via PR.
+/AGENTS.md      @DaikiSuganuma
+/CLAUDE.md      @DaikiSuganuma
+/docs/          @DaikiSuganuma
+/.github/       @DaikiSuganuma
+/SECURITY.md    @DaikiSuganuma
