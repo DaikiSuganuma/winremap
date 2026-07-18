@@ -9,9 +9,9 @@ fn combo(spec: &str) -> KeyCombo {
 }
 
 /// The shipped example must keep solving the problem the project started
-/// from: PHPStorm-only Ctrl+H → Backspace (project brief §3.1).
+/// from: Ctrl+H → Backspace in PHPStorm and Notepad only (project brief §3.1).
 #[test]
-fn minimal_example_fixes_phpstorm_ctrl_h_only() {
+fn minimal_example_fixes_ctrl_h_in_listed_apps_only() {
     let source = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/examples/minimal.toml"
@@ -19,15 +19,17 @@ fn minimal_example_fixes_phpstorm_ctrl_h_only() {
     .unwrap();
     let table = config::parse_str(&source).unwrap();
 
-    let action = table.resolve("phpstorm64.exe", combo("C-h")).unwrap();
-    assert_eq!(action.target, combo("Back"));
-    assert_eq!(action.kind, RemapKind::Exact);
+    for exe in ["phpstorm64.exe", "notepad.exe"] {
+        let action = table.resolve(exe, combo("C-h")).unwrap();
+        assert_eq!(action.target, combo("Back"), "in {exe}");
+        assert_eq!(action.kind, RemapKind::Exact, "in {exe}");
+    }
 
     // Windows exe names are case-insensitive.
     assert!(table.resolve("PhpStorm64.EXE", combo("C-h")).is_some());
 
     // Must not leak into other applications or other chords.
-    assert!(table.resolve("notepad.exe", combo("C-h")).is_none());
+    assert!(table.resolve("explorer.exe", combo("C-h")).is_none());
     assert!(table.resolve("phpstorm64.exe", combo("C-S-h")).is_none());
     assert!(table.resolve("phpstorm64.exe", combo("h")).is_none());
 }

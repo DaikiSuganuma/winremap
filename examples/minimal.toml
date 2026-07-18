@@ -2,11 +2,19 @@
 #
 # Fixes Ctrl+H in the PHPStorm built-in terminal: sends a plain Backspace so
 # terminal apps (e.g. Claude Code) delete one character instead of a word.
-# Other applications are not affected.
+# Also maps Ctrl+H to Backspace in Notepad, which doubles as an easy way to
+# verify winremap is working. Other applications are not affected.
 
 [[keymap]]
 name = "jetbrains-terminal-fix"
 application = ["phpstorm64.exe"]
+
+[keymap.remap]
+"C-h" = "Back"
+
+[[keymap]]
+name = "notepad"
+application = ["notepad.exe"]
 
 [keymap.remap]
 "C-h" = "Back"
