@@ -125,51 +125,11 @@ fn open_in_default_editor(path: &Path) {
         .spawn();
 }
 
-/// 32x32 RGBA icon drawn in code: a rounded square with two rows of keycaps.
-/// Generated rather than shipped as an asset to keep the binary
-/// self-contained; gray when disabled so the state is visible at a glance.
+/// Loads the owner-designed icon (assets/kbd*.ico, gray when disabled) from
+/// the exe's embedded resources — build.rs compiles them in (ADR 0010), so
+/// the binary stays a self-contained single file. `None` lets the shell pick
+/// the best size from the multi-size .ico for the current DPI.
 fn build_icon(enabled: bool) -> Icon {
-    const SIZE: usize = 32;
-    const CORNER: usize = 5;
-    let (r, g, b) = if enabled {
-        (0x00, 0x78, 0xD7) // Windows accent blue
-    } else {
-        (0x6E, 0x6E, 0x6E)
-    };
-
-    let mut rgba = vec![0u8; SIZE * SIZE * 4];
-    for y in 0..SIZE {
-        for x in 0..SIZE {
-            // Clip the four corners for a rounded-square silhouette.
-            let dx = CORNER.saturating_sub(x.min(SIZE - 1 - x));
-            let dy = CORNER.saturating_sub(y.min(SIZE - 1 - y));
-            if dx + dy > CORNER {
-                continue;
-            }
-            let i = (y * SIZE + x) * 4;
-            rgba[i] = r;
-            rgba[i + 1] = g;
-            rgba[i + 2] = b;
-            rgba[i + 3] = 0xFF;
-        }
-    }
-
-    // Two rows of three white "keycaps" suggest a keyboard.
-    for y0 in [8usize, 18] {
-        for col in 0..3usize {
-            let x0 = 6 + col * 8;
-            for y in y0..y0 + 6 {
-                for x in x0..x0 + 6 {
-                    let i = (y * SIZE + x) * 4;
-                    rgba[i] = 0xFF;
-                    rgba[i + 1] = 0xFF;
-                    rgba[i + 2] = 0xFF;
-                    rgba[i + 3] = 0xFF;
-                }
-            }
-        }
-    }
-
-    Icon::from_rgba(rgba, SIZE as u32, SIZE as u32)
-        .expect("icon buffer dimensions are statically correct")
+    let ordinal = if enabled { 1 } else { 2 };
+    Icon::from_resource(ordinal, None).expect("icon resources are embedded by build.rs")
 }
