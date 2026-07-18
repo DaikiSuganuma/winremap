@@ -12,7 +12,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     KEYEVENTF_KEYUP, MAP_VIRTUAL_KEY_TYPE, MapVirtualKeyW, SendInput, VIRTUAL_KEY,
 };
 
-use winremap::keymap::{KeyCombo, Mods};
+use winremap::keymap::{KeyCombo, MAX_MACRO_LEN, Mods};
 
 /// `dwExtraInfo` marker on events we inject as remap output (the substitute
 /// key, or a modifier acting as one). The hook feeds these back into its
@@ -147,18 +147,21 @@ fn key_input(vk: u16, up: bool, extra_info: usize) -> INPUT {
     }
 }
 
-/// Batches at most: 8 side releases + 4 added presses + 1 key = 13.
-const MAX_BATCH: usize = 16;
+/// Chord batches hold at most: 8 side releases + 4 added presses + 1 key.
+const CHORD_BATCH: usize = 16;
+/// Macro batches: 8 lifts + per-element (4 press + down + up + 4 release) + 8
+/// restores, all sent as one `SendInput` call so no real input interleaves.
+const MACRO_BATCH: usize = 16 + MAX_MACRO_LEN * 10;
 
-struct Batch {
-    inputs: [INPUT; MAX_BATCH],
+struct Batch<const N: usize> {
+    inputs: [INPUT; N],
     len: usize,
 }
 
-impl Batch {
+impl<const N: usize> Batch<N> {
     fn new() -> Self {
         Self {
-            inputs: [INPUT::default(); MAX_BATCH],
+            inputs: [INPUT::default(); N],
             len: 0,
         }
     }
@@ -167,8 +170,8 @@ impl Batch {
         // Silently dropping would corrupt modifier state; the bound is a
         // static property of the sequences built below, so overflow is a
         // programming error caught in tests, not a runtime condition.
-        debug_assert!(self.len < MAX_BATCH);
-        if self.len < MAX_BATCH {
+        debug_assert!(self.len < N);
+        if self.len < N {
             self.inputs[self.len] = input;
             self.len += 1;
         }
@@ -207,7 +210,7 @@ pub struct ModAdjustment {
 pub fn send_exact_down(target: KeyCombo, held: SideMods) -> ModAdjustment {
     let lifted = sides_to_lift(held, target.mods);
     let held_mods = side_mods_to_mods(held);
-    let mut batch = Batch::new();
+    let mut batch = Batch::<CHORD_BATCH>::new();
 
     for (i, &vk) in SIDE_VKS.iter().enumerate() {
         if lifted & (1 << i) != 0 {
@@ -230,7 +233,7 @@ pub fn send_exact_down(target: KeyCombo, held: SideMods) -> ModAdjustment {
 /// Auto-repeat of an already-pressed exact-rule target: modifiers were
 /// already adjusted at the initial press, so only the key repeats.
 pub fn send_exact_repeat(target_vk: u16) {
-    let mut batch = Batch::new();
+    let mut batch = Batch::<CHORD_BATCH>::new();
     batch.push(key_input(target_vk, false, MARKER_REMAP));
     batch.send();
 }
@@ -239,7 +242,7 @@ pub fn send_exact_repeat(target_vk: u16) {
 /// to match what is still physically held (`still_held`, which the user may
 /// have changed while the remapped key was down).
 pub fn send_exact_up(target: KeyCombo, adjustment: ModAdjustment, still_held: SideMods) {
-    let mut batch = Batch::new();
+    let mut batch = Batch::<CHORD_BATCH>::new();
     batch.push(key_input(target.vk, true, MARKER_REMAP));
     for vk in class_left_vks(adjustment.added) {
         batch.push(key_input(vk, true, MARKER_COMPENSATION));
@@ -257,7 +260,37 @@ pub fn send_exact_up(target: KeyCombo, adjustment: ModAdjustment, still_held: Si
 /// Bare-key rule output: substitute the key only, leave modifiers alone
 /// (config-spec §3.2).
 pub fn send_key_only(target_vk: u16, up: bool) {
-    let mut batch = Batch::new();
+    let mut batch = Batch::<CHORD_BATCH>::new();
     batch.push(key_input(target_vk, up, MARKER_REMAP));
+    batch.send();
+}
+
+/// Macro output (ADR 0012): taps each chord once. All held modifiers are
+/// lifted up front so every element starts from a clean state, then restored
+/// at the end; the whole thing is one `SendInput` batch so real keystrokes
+/// cannot interleave. Runs entirely within one hook callback, so `held`
+/// cannot change midway.
+pub fn send_sequence(sequence: &[KeyCombo], held: SideMods) {
+    let mut batch = Batch::<MACRO_BATCH>::new();
+    for (i, &vk) in SIDE_VKS.iter().enumerate() {
+        if held & (1 << i) != 0 {
+            batch.push(key_input(vk, true, MARKER_COMPENSATION));
+        }
+    }
+    for combo in sequence.iter().take(MAX_MACRO_LEN) {
+        for vk in class_left_vks(combo.mods) {
+            batch.push(key_input(vk, false, MARKER_COMPENSATION));
+        }
+        batch.push(key_input(combo.vk, false, MARKER_REMAP));
+        batch.push(key_input(combo.vk, true, MARKER_REMAP));
+        for vk in class_left_vks(combo.mods) {
+            batch.push(key_input(vk, true, MARKER_COMPENSATION));
+        }
+    }
+    for (i, &vk) in SIDE_VKS.iter().enumerate() {
+        if held & (1 << i) != 0 {
+            batch.push(key_input(vk, false, MARKER_COMPENSATION));
+        }
+    }
     batch.send();
 }

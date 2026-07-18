@@ -25,7 +25,7 @@ use windows::core::w;
 
 use crate::sender;
 use crate::sender::{ModAdjustment, SideMods};
-use winremap::keymap::{KeyCombo, RemapKind, RemapTable};
+use winremap::keymap::{KeyCombo, Output, RemapTable, Resolution};
 
 /// The active remap table. Written by the main/reload thread, read wait-free
 /// from the hook (ADR 0003). `None` (before startup finishes) passes all
@@ -36,18 +36,29 @@ pub static REMAP_TABLE: ArcSwapOption<RemapTable> = ArcSwapOption::const_empty()
 /// their translation until release so no target key gets stuck down.
 static ENABLED: AtomicBool = AtomicBool::new(true);
 
+/// Called from the tray on the hook's own thread, so it may also clear the
+/// thread-local pending-prefix state.
 pub fn set_enabled(enabled: bool) {
     ENABLED.store(enabled, Ordering::Relaxed);
+    if !enabled {
+        PENDING.set(None);
+    }
 }
 
-/// A key we suppressed and replaced, remembered until its physical release so
-/// the matching key-up is translated consistently even if the user changed
-/// modifiers mid-press.
+/// What to do when a suppressed key's physical release (or repeat) arrives.
 #[derive(Clone, Copy)]
-struct ActiveRemap {
-    target: KeyCombo,
-    kind: RemapKind,
-    adjustment: ModAdjustment,
+enum ActiveKind {
+    /// Chord output: release the target and undo the modifier surgery.
+    Exact {
+        target: KeyCombo,
+        adjustment: ModAdjustment,
+    },
+    /// Bare-key substitution: release the substitute key.
+    KeyOnly { target_vk: u16 },
+    /// Nothing to emit — sequence prefixes, macro sources, and swallowed
+    /// unmatched second strokes. Their key-up (and repeat) is suppressed so
+    /// applications never see half of a consumed key.
+    SuppressUp,
 }
 
 thread_local! {
@@ -57,7 +68,11 @@ thread_local! {
     static SIDES: Cell<SideMods> = const { Cell::new(0) };
     /// Indexed by original VK. A flat array keeps lookup O(1) without hashing
     /// or allocation inside the callback.
-    static ACTIVE: RefCell<[Option<ActiveRemap>; 256]> = const { RefCell::new([None; 256]) };
+    static ACTIVE: RefCell<[Option<ActiveKind>; 256]> = const { RefCell::new([None; 256]) };
+    /// First stroke of a two-stroke sequence, armed until the next
+    /// non-modifier key-down consumes it (ADR 0013). No timeout on purpose —
+    /// Emacs prefixes wait indefinitely too.
+    static PENDING: Cell<Option<KeyCombo>> = const { Cell::new(None) };
 }
 
 pub fn install() -> windows::core::Result<HHOOK> {
@@ -181,12 +196,14 @@ fn update_sides(bit: SideMods, down: bool) {
 fn on_key_down(vk: u16) -> bool {
     // Auto-repeat: keep emitting the target chosen at the initial press even
     // if modifiers drifted since — releasing Ctrl mid-repeat must not morph
-    // a remapped C-h back into plain h halfway through.
+    // a remapped C-h back into plain h halfway through. Macro sources and
+    // prefixes repeat as nothing: a held key must not spray macros.
     let repeating = ACTIVE.with(|active| active.borrow()[usize::from(vk)]);
-    if let Some(remap) = repeating {
-        match remap.kind {
-            RemapKind::Exact => sender::send_exact_repeat(remap.target.vk),
-            RemapKind::KeyOnly => sender::send_key_only(remap.target.vk, false),
+    if let Some(kind) = repeating {
+        match kind {
+            ActiveKind::Exact { target, .. } => sender::send_exact_repeat(target.vk),
+            ActiveKind::KeyOnly { target_vk } => sender::send_key_only(target_vk, false),
+            ActiveKind::SuppressUp => {}
         }
         return true;
     }
@@ -204,40 +221,71 @@ fn on_key_down(vk: u16) -> bool {
     let Some(table) = table.as_ref() else {
         return false;
     };
-    let Some(action) = crate::window::with_foreground_exe(|exe| table.resolve(exe, input)) else {
-        return false;
-    };
 
-    let adjustment = match action.kind {
-        RemapKind::Exact => sender::send_exact_down(action.target, sides),
-        RemapKind::KeyOnly => {
-            sender::send_key_only(action.target.vk, false);
-            ModAdjustment::default()
+    if let Some(first) = PENDING.take() {
+        // Second stroke of a sequence. Undefined combinations are swallowed
+        // (Emacs-style) rather than passed through, so a typo after a prefix
+        // cannot leak a stray keystroke into the application.
+        let kind =
+            match crate::window::with_foreground_exe(|exe| table.resolve_second(exe, first, input))
+            {
+                Some(output) => emit_output(output, sides),
+                None => ActiveKind::SuppressUp,
+            };
+        ACTIVE.with(|active| active.borrow_mut()[usize::from(vk)] = Some(kind));
+        return true;
+    }
+
+    let resolution = crate::window::with_foreground_exe(|exe| table.resolve(exe, input));
+    let kind = match resolution {
+        Some(Resolution::Exact(output)) => emit_output(output, sides),
+        Some(Resolution::KeyOnly(target_vk)) => {
+            sender::send_key_only(target_vk, false);
+            ActiveKind::KeyOnly { target_vk }
         }
+        Some(Resolution::Prefix) => {
+            PENDING.set(Some(input));
+            ActiveKind::SuppressUp
+        }
+        None => return false,
     };
-    ACTIVE.with(|active| {
-        active.borrow_mut()[usize::from(vk)] = Some(ActiveRemap {
-            target: action.target,
-            kind: action.kind,
-            adjustment,
-        });
-    });
+    ACTIVE.with(|active| active.borrow_mut()[usize::from(vk)] = Some(kind));
     true
+}
+
+/// Sends a resolved output and returns the bookkeeping for its key-up.
+fn emit_output(output: &Output, sides: SideMods) -> ActiveKind {
+    match output {
+        Output::Chord(target) => {
+            let adjustment = sender::send_exact_down(*target, sides);
+            ActiveKind::Exact {
+                target: *target,
+                adjustment,
+            }
+        }
+        Output::Seq(sequence) => {
+            // Macros complete (downs and ups) within this press; the source
+            // key-up has nothing left to do.
+            sender::send_sequence(sequence, sides);
+            ActiveKind::SuppressUp
+        }
+    }
 }
 
 fn on_key_up(vk: u16) -> bool {
     let remap = ACTIVE.with(|active| active.borrow_mut()[usize::from(vk)].take());
-    let Some(remap) = remap else {
+    let Some(kind) = remap else {
         // Not a key we remapped (or its press predated the hook): let the
         // original key-up through so applications never see a stuck key.
         return false;
     };
-    match remap.kind {
-        RemapKind::Exact => {
+    match kind {
+        ActiveKind::Exact { target, adjustment } => {
             let still_held = SIDES.with(Cell::get);
-            sender::send_exact_up(remap.target, remap.adjustment, still_held);
+            sender::send_exact_up(target, adjustment, still_held);
         }
-        RemapKind::KeyOnly => sender::send_key_only(remap.target.vk, true),
+        ActiveKind::KeyOnly { target_vk } => sender::send_key_only(target_vk, true),
+        ActiveKind::SuppressUp => {}
     }
     true
 }

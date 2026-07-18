@@ -2,63 +2,129 @@
 //! and resolve exactly as the docs promise (project brief §9, config-spec §3).
 
 use winremap::config;
-use winremap::keymap::{KeyCombo, RemapKind, parse_key_combo};
+use winremap::keymap::{KeyCombo, Output, RemapTable, Resolution, parse_key_combo};
 
 fn combo(spec: &str) -> KeyCombo {
     parse_key_combo(spec).unwrap()
 }
 
-/// The shipped example must keep solving the problem the project started
-/// from: Ctrl+H → Backspace in PHPStorm and Notepad only (project brief §3.1).
-#[test]
-fn minimal_example_fixes_ctrl_h_in_listed_apps_only() {
-    let source = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/examples/minimal.toml"
-    ))
-    .unwrap();
-    let table = config::parse_str(&source).unwrap();
+fn load_example(name: &str) -> RemapTable {
+    let path = format!("{}/examples/{name}", env!("CARGO_MANIFEST_DIR"));
+    config::parse_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
 
-    for exe in ["phpstorm64.exe", "notepad.exe"] {
-        let action = table.resolve(exe, combo("C-h")).unwrap();
-        assert_eq!(action.target, combo("Back"), "in {exe}");
-        assert_eq!(action.kind, RemapKind::Exact, "in {exe}");
+/// The chord a plain exact rule resolves to, or a panic with context.
+fn chord_target(table: &RemapTable, exe: &str, input: &str) -> KeyCombo {
+    match table.resolve(exe, combo(input)) {
+        Some(Resolution::Exact(Output::Chord(target))) => *target,
+        other => panic!("expected chord for {input} in {exe}, got {other:?}"),
     }
+}
+
+#[test]
+fn minimal_example_fixes_ctrl_h_in_notepad_only() {
+    let table = load_example("minimal.toml");
+
+    assert_eq!(chord_target(&table, "notepad.exe", "C-h"), combo("Back"));
 
     // Windows exe names are case-insensitive.
-    assert!(table.resolve("PhpStorm64.EXE", combo("C-h")).is_some());
+    assert!(table.resolve("Notepad.EXE", combo("C-h")).is_some());
 
     // Must not leak into other applications or other chords.
     assert!(table.resolve("explorer.exe", combo("C-h")).is_none());
-    assert!(table.resolve("phpstorm64.exe", combo("C-S-h")).is_none());
-    assert!(table.resolve("phpstorm64.exe", combo("h")).is_none());
+    assert!(table.resolve("notepad.exe", combo("C-S-h")).is_none());
+    assert!(table.resolve("notepad.exe", combo("h")).is_none());
 }
 
-/// The Emacs sample must stay parseable and keep its core semantics: chords
-/// remap to navigation/editing keys, targets may carry modifiers.
+/// The scenario the project started from (project brief §1.1/§3.1): an
+/// app-scoped C-h → Backspace rule for a JetBrains IDE process.
+#[test]
+fn per_app_ctrl_h_fix_resolves_for_that_process_only() {
+    let table = config::parse_str(
+        r#"
+[[keymap]]
+name = "jetbrains-terminal-fix"
+application = ["phpstorm64.exe"]
+
+[keymap.remap]
+"C-h" = "Back"
+"#,
+    )
+    .unwrap();
+
+    assert_eq!(chord_target(&table, "phpstorm64.exe", "C-h"), combo("Back"));
+    assert!(table.resolve("PhpStorm64.EXE", combo("C-h")).is_some());
+    assert!(table.resolve("notepad.exe", combo("C-h")).is_none());
+    assert!(table.resolve("phpstorm64.exe", combo("C-S-h")).is_none());
+}
+
+/// The Emacs sample must stay parseable and keep its core semantics.
 #[test]
 fn emacs_example_parses_and_resolves() {
-    let source =
-        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/emacs.toml"))
-            .unwrap();
-    let table = config::parse_str(&source).unwrap();
+    let table = load_example("emacs.toml");
 
     let exe = "notepad.exe";
-    assert_eq!(
-        table.resolve(exe, combo("C-b")).unwrap().target,
-        combo("Left")
-    );
-    assert_eq!(
-        table.resolve(exe, combo("C-h")).unwrap().target,
-        combo("Back")
-    );
+    assert_eq!(chord_target(&table, exe, "C-b"), combo("Left"));
+    assert_eq!(chord_target(&table, exe, "C-h"), combo("Back"));
     // Targets with modifiers (word motion -> Ctrl+Arrow).
-    assert_eq!(
-        table.resolve(exe, combo("A-f")).unwrap().target,
-        combo("C-Right")
-    );
+    assert_eq!(chord_target(&table, exe, "A-f"), combo("C-Right"));
     // Not listed -> untouched.
     assert!(table.resolve("explorer.exe", combo("C-b")).is_none());
+}
+
+/// The personal config exercises all three v0.2 features at once:
+/// exclusion lists, macro outputs, and two-stroke sequences.
+#[test]
+fn suganuma_example_covers_exclude_macro_and_sequences() {
+    let table = load_example("suganuma.toml");
+    let exe = "notepad.exe";
+
+    // Global Emacs bindings apply...
+    assert_eq!(chord_target(&table, exe, "C-h"), combo("Back"));
+    assert_eq!(chord_target(&table, exe, "C-2"), combo("F2"));
+    // ...but not in excluded apps (not_emacs_target equivalent).
+    for excluded in ["windowsterminal.exe", "Zed.exe", "Illustrator.exe"] {
+        assert!(
+            table.resolve(excluded, combo("C-h")).is_none(),
+            "{excluded} must be excluded"
+        );
+    }
+
+    // Macro outputs (select word / open line / select all).
+    match table.resolve(exe, combo("C-t")) {
+        Some(Resolution::Exact(Output::Seq(seq))) => {
+            assert_eq!(seq.len(), 3);
+            assert_eq!(seq[0], combo("C-Right"));
+            assert_eq!(seq[2], combo("C-S-Right"));
+        }
+        other => panic!("expected macro for C-t, got {other:?}"),
+    }
+
+    // Two-stroke sequences on the A-x prefix.
+    assert_eq!(table.resolve(exe, combo("A-x")), Some(Resolution::Prefix));
+    assert_eq!(
+        table.resolve_second(exe, combo("A-x"), combo("u")),
+        Some(&Output::Chord(combo("C-z")))
+    );
+    assert_eq!(
+        table.resolve_second(exe, combo("A-x"), combo("C-s")),
+        Some(&Output::Chord(combo("C-s")))
+    );
+    match table.resolve_second(exe, combo("A-x"), combo("h")) {
+        Some(Output::Seq(seq)) => assert_eq!(seq.len(), 2),
+        other => panic!("expected macro for A-x h, got {other:?}"),
+    }
+    // Undefined second stroke resolves to nothing (the hook swallows it).
+    assert_eq!(table.resolve_second(exe, combo("A-x"), combo("q")), None);
+
+    // Browser keymaps override the global macro with identity pass-through.
+    assert_eq!(chord_target(&table, "chrome.exe", "C-t"), combo("C-t"));
+    assert_eq!(chord_target(&table, "msedge.exe", "C-w"), combo("C-w"));
+    // The A-x prefix still reaches browsers from the global keymap.
+    assert_eq!(
+        table.resolve("chrome.exe", combo("A-x")),
+        Some(Resolution::Prefix)
+    );
 }
 
 #[test]
@@ -76,7 +142,7 @@ application = ["*"]
 
 [[keymap]]
 name = "app"
-application = ["phpstorm64.exe"]
+application = ["notepad.exe"]
 
 [keymap.remap]
 "C-h" = "Back"
@@ -84,11 +150,8 @@ application = ["phpstorm64.exe"]
     )
     .unwrap();
 
-    let in_app = table.resolve("phpstorm64.exe", combo("C-h")).unwrap();
-    assert_eq!(in_app.target, combo("Back"));
-
-    let elsewhere = table.resolve("notepad.exe", combo("C-h")).unwrap();
-    assert_eq!(elsewhere.target, combo("Delete"));
+    assert_eq!(chord_target(&table, "notepad.exe", "C-h"), combo("Back"));
+    assert_eq!(chord_target(&table, "explorer.exe", "C-h"), combo("Delete"));
 }
 
 #[test]
@@ -112,8 +175,7 @@ application = ["*"]
     )
     .unwrap();
 
-    let action = table.resolve("notepad.exe", combo("C-h")).unwrap();
-    assert_eq!(action.target, combo("Back"));
+    assert_eq!(chord_target(&table, "notepad.exe", "C-h"), combo("Back"));
 }
 
 #[test]
@@ -130,12 +192,11 @@ application = ["*"]
     )
     .unwrap();
 
-    let chord = table.resolve("x.exe", combo("C-h")).unwrap();
-    assert_eq!(chord.kind, RemapKind::Exact);
-    assert_eq!(chord.target, combo("Back"));
+    assert_eq!(chord_target(&table, "x.exe", "C-h"), combo("Back"));
 
     // The bare rule still fires for other modifier states.
-    let bare = table.resolve("x.exe", combo("A-h")).unwrap();
-    assert_eq!(bare.kind, RemapKind::KeyOnly);
-    assert_eq!(bare.target, combo("j"));
+    assert_eq!(
+        table.resolve("x.exe", combo("A-h")),
+        Some(Resolution::KeyOnly(combo("j").vk))
+    );
 }

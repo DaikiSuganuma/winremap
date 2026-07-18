@@ -26,7 +26,7 @@ thread_local! {
 }
 
 /// Runs `f` with the cached foreground exe name (lowercase basename, e.g.
-/// `"phpstorm64.exe"`; empty when unknown). Hook-safe: no allocation.
+/// `"notepad.exe"`; empty when unknown). Hook-safe: no allocation.
 pub fn with_foreground_exe<R>(f: impl FnOnce(&str) -> R) -> R {
     FOREGROUND_EXE.with(|cache| f(cache.borrow().as_str()))
 }

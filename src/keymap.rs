@@ -7,6 +7,10 @@
 
 use std::collections::HashMap;
 
+/// Upper bound for macro outputs and thus for the sender's input batch size
+/// (ADR 0012). Raising this requires revisiting the stack budget in sender.rs.
+pub const MAX_MACRO_LEN: usize = 8;
+
 /// Modifier set as a bitflag. Hand-rolled instead of the `bitflags` crate to
 /// keep dependencies minimal for such a tiny surface.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Debug)]
@@ -52,6 +56,41 @@ pub enum KeyParseError {
     DuplicateModifier(String),
     #[error("unknown key name `{0}`")]
     UnknownKey(String),
+    #[error("too many strokes (at most 2, e.g. `A-x h`)")]
+    TooManyStrokes,
+    #[error("the first stroke of a sequence must include a modifier")]
+    UnmodifiedPrefix,
+}
+
+/// A rule's input: a single chord, or a two-stroke sequence (`"A-x h"`).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum InputPattern {
+    Single(KeyCombo),
+    Sequence(KeyCombo, KeyCombo),
+}
+
+/// Parses a remap LHS: `"C-h"` or a whitespace-separated two-stroke
+/// sequence like `"A-x h"` (config-spec §3.3, ADR 0013).
+pub fn parse_input_pattern(input: &str) -> Result<InputPattern, KeyParseError> {
+    let mut strokes = input.split_whitespace();
+    let Some(first) = strokes.next() else {
+        return Err(KeyParseError::Empty);
+    };
+    let first = parse_key_combo(first)?;
+    match strokes.next() {
+        None => Ok(InputPattern::Single(first)),
+        Some(second) => {
+            if strokes.next().is_some() {
+                return Err(KeyParseError::TooManyStrokes);
+            }
+            // An unmodified first stroke would turn a plain typing key into a
+            // prefix that swallows the following keystroke; require a chord.
+            if first.mods.is_empty() {
+                return Err(KeyParseError::UnmodifiedPrefix);
+            }
+            Ok(InputPattern::Sequence(first, parse_key_combo(second)?))
+        }
+    }
 }
 
 /// Parses notation like `"C-h"`, `"C-S-Enter"`, or `"Back"` (config-spec §2).
@@ -94,7 +133,7 @@ pub fn parse_key_combo(input: &str) -> Result<KeyCombo, KeyParseError> {
 }
 
 /// Win32 virtual-key code for a key name (config-spec §2), or `None` if the
-/// name is not supported in v0.1.
+/// name is not supported.
 pub fn key_name_to_vk(name: &str) -> Option<u16> {
     let lower = name.to_ascii_lowercase();
 
@@ -142,42 +181,35 @@ pub fn key_name_to_vk(name: &str) -> Option<u16> {
         "lalt" => 0xA4,
         "ralt" => 0xA5,
         // TODO: OEM/punctuation keys — VK codes are layout-dependent (JP
-        // keyboards differ), deferred to v0.2 with its own ADR.
+        // keyboards differ), deferred with its own ADR.
         _ => return None,
     };
     Some(vk)
 }
 
 /// Side-specific modifier VKs (Shift/Ctrl/Alt/Win). These cannot be remap
-/// *inputs* in v0.1: the hook consumes them for chord-state tracking and
-/// never looks them up, so config validation rejects them early instead of
-/// letting such rules silently never fire.
+/// *inputs*: the hook consumes them for chord-state tracking and never looks
+/// them up, so config validation rejects them early instead of letting such
+/// rules silently never fire.
 pub fn is_modifier_vk(vk: u16) -> bool {
     matches!(vk, 0xA0..=0xA5 | 0x5B | 0x5C)
 }
 
-/// How the sender must treat a resolved remap (config-spec §3, ADR 0004).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum RemapKind {
-    /// Modifier-specified rule: the held modifiers are replaced by the
-    /// target's modifiers (e.g. `C-h` sends a plain Backspace).
-    Exact,
-    /// Bare-key rule: only the key is substituted; physical modifiers are
-    /// left untouched (e.g. CapsLock→LCtrl must work mid-chord).
-    KeyOnly,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct RemapAction {
-    pub target: KeyCombo,
-    pub kind: RemapKind,
+/// What an exact or sequence rule emits (config-spec §3, ADR 0012).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Output {
+    /// Single chord; the held modifiers are adjusted to match it.
+    Chord(KeyCombo),
+    /// Macro: tap each chord once, in order, per key press. Auto-repeat of
+    /// the source key is ignored so a held key cannot spray the macro.
+    Seq(Vec<KeyCombo>),
 }
 
 /// Which processes a keymap applies to.
 #[derive(Clone, Debug)]
 pub enum AppFilter {
-    /// `application = ["*"]`
-    All,
+    /// `application = ["*"]`, minus the `exclude` list (ADR 0011).
+    All { exclude: Vec<String> },
     /// Exact exe names, matched case-insensitively.
     Names(Vec<String>),
 }
@@ -187,13 +219,13 @@ impl AppFilter {
     /// allocating so it is safe to call from the hook callback.
     pub fn matches(&self, exe: &str) -> bool {
         match self {
-            AppFilter::All => true,
+            AppFilter::All { exclude } => !exclude.iter().any(|n| n.eq_ignore_ascii_case(exe)),
             AppFilter::Names(names) => names.iter().any(|n| n.eq_ignore_ascii_case(exe)),
         }
     }
 
     pub fn is_global(&self) -> bool {
-        matches!(self, AppFilter::All)
+        matches!(self, AppFilter::All { .. })
     }
 }
 
@@ -203,26 +235,39 @@ pub struct Keymap {
     pub name: String,
     pub apps: AppFilter,
     /// Rules whose input listed modifiers; matched on the full combo.
-    pub exact: HashMap<KeyCombo, KeyCombo>,
-    /// Bare-key rules; matched on the VK alone, ignoring held modifiers.
-    pub bare: HashMap<u16, KeyCombo>,
+    pub exact: HashMap<KeyCombo, Output>,
+    /// Bare-key rules (input vk → output vk); matched on the VK alone,
+    /// ignoring held modifiers.
+    pub bare: HashMap<u16, u16>,
+    /// Two-stroke sequences: first stroke → (second stroke → output).
+    pub seqs: HashMap<KeyCombo, HashMap<KeyCombo, Output>>,
+}
+
+/// First-stroke resolution result for the hook.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Resolution<'a> {
+    /// Suppress the event and emit this output.
+    Exact(&'a Output),
+    /// Bare-key substitution: replace the key, leave modifiers untouched.
+    KeyOnly(u16),
+    /// First stroke of a sequence: suppress and wait for the next key.
+    Prefix,
 }
 
 impl Keymap {
-    fn lookup(&self, input: KeyCombo) -> Option<RemapAction> {
-        // Exact rules win over bare ones so an app can both swap a key
-        // globally and still special-case a chord on it (ADR 0004).
-        if let Some(&target) = self.exact.get(&input) {
-            return Some(RemapAction {
-                target,
-                kind: RemapKind::Exact,
-            });
+    fn lookup(&self, input: KeyCombo) -> Option<Resolution<'_>> {
+        // Plain-vs-prefix conflicts are rejected at config time, so the order
+        // of the first two checks is only defensive. Bare rules come last so
+        // an app can both swap a key and still special-case chords on it
+        // (ADR 0004).
+        if let Some(output) = self.exact.get(&input) {
+            return Some(Resolution::Exact(output));
         }
-        if let Some(&target) = self.bare.get(&input.vk) {
-            return Some(RemapAction {
-                target,
-                kind: RemapKind::KeyOnly,
-            });
+        if self.seqs.contains_key(&input) {
+            return Some(Resolution::Prefix);
+        }
+        if let Some(&target_vk) = self.bare.get(&input.vk) {
+            return Some(Resolution::KeyOnly(target_vk));
         }
         None
     }
@@ -239,10 +284,12 @@ impl RemapTable {
     /// Resolves a key event for the foreground process `exe`.
     ///
     /// Runs inside the low-level hook: must not allocate or block (AGENTS.md
-    /// invariant 2). `None` means "pass the event through unchanged".
-    pub fn resolve(&self, exe: &str, input: KeyCombo) -> Option<RemapAction> {
-        // Two passes so app-specific keymaps always beat `*` ones regardless
-        // of definition order; within a pass, first match wins (ADR 0004).
+    /// invariant 2). App-specific keymaps win over `*` ones regardless of
+    /// definition order; within a class, first match wins (ADR 0004). `None`
+    /// means "pass the event through unchanged".
+    pub fn resolve(&self, exe: &str, input: KeyCombo) -> Option<Resolution<'_>> {
+        // The global pass must also call matches(): "*" keymaps still reject
+        // the exes on their exclude list (ADR 0011).
         self.keymaps
             .iter()
             .filter(|k| !k.apps.is_global() && k.apps.matches(exe))
@@ -250,8 +297,24 @@ impl RemapTable {
             .or_else(|| {
                 self.keymaps
                     .iter()
-                    .filter(|k| k.apps.is_global())
+                    .filter(|k| k.apps.is_global() && k.apps.matches(exe))
                     .find_map(|k| k.lookup(input))
+            })
+    }
+
+    /// Resolves the second stroke after `first` was recognized as a prefix.
+    /// Same priority order as `resolve`; `None` means the sequence is
+    /// undefined (the hook swallows the stroke, Emacs-style).
+    pub fn resolve_second(&self, exe: &str, first: KeyCombo, second: KeyCombo) -> Option<&Output> {
+        self.keymaps
+            .iter()
+            .filter(|k| !k.apps.is_global() && k.apps.matches(exe))
+            .find_map(|k| k.seqs.get(&first).and_then(|m| m.get(&second)))
+            .or_else(|| {
+                self.keymaps
+                    .iter()
+                    .filter(|k| k.apps.is_global() && k.apps.matches(exe))
+                    .find_map(|k| k.seqs.get(&first).and_then(|m| m.get(&second)))
             })
     }
 }
@@ -327,16 +390,55 @@ mod tests {
     }
 
     #[test]
-    fn exact_rules_require_exact_modifier_state() {
-        let keymap = Keymap {
-            name: "t".to_string(),
-            apps: AppFilter::All,
-            exact: HashMap::from([(combo("C-h"), combo("Back"))]),
-            bare: HashMap::new(),
-        };
-        let table = RemapTable {
+    fn parses_input_patterns() {
+        assert_eq!(
+            parse_input_pattern("C-h"),
+            Ok(InputPattern::Single(combo("C-h")))
+        );
+        assert_eq!(
+            parse_input_pattern("A-x h"),
+            Ok(InputPattern::Sequence(combo("A-x"), combo("h")))
+        );
+        assert_eq!(
+            parse_input_pattern("A-x C-s"),
+            Ok(InputPattern::Sequence(combo("A-x"), combo("C-s")))
+        );
+        assert_eq!(
+            parse_input_pattern("A-x h k"),
+            Err(KeyParseError::TooManyStrokes)
+        );
+        // Prefixes must be chords, or plain typing would get swallowed.
+        assert_eq!(
+            parse_input_pattern("x h"),
+            Err(KeyParseError::UnmodifiedPrefix)
+        );
+    }
+
+    fn table_with(keymap: Keymap) -> RemapTable {
+        RemapTable {
             keymaps: vec![keymap],
-        };
+        }
+    }
+
+    fn empty_keymap() -> Keymap {
+        Keymap {
+            name: "t".to_string(),
+            apps: AppFilter::All {
+                exclude: Vec::new(),
+            },
+            exact: HashMap::new(),
+            bare: HashMap::new(),
+            seqs: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn exact_rules_require_exact_modifier_state() {
+        let mut keymap = empty_keymap();
+        keymap
+            .exact
+            .insert(combo("C-h"), Output::Chord(combo("Back")));
+        let table = table_with(keymap);
         assert!(table.resolve("x.exe", combo("C-h")).is_some());
         // Extra Shift must not trigger the C-h rule (ADR 0004).
         assert!(table.resolve("x.exe", combo("C-S-h")).is_none());
@@ -345,17 +447,49 @@ mod tests {
 
     #[test]
     fn bare_rules_ignore_modifier_state() {
-        let keymap = Keymap {
-            name: "t".to_string(),
-            apps: AppFilter::All,
-            exact: HashMap::new(),
-            bare: HashMap::from([(combo("CapsLock").vk, combo("LCtrl"))]),
+        let mut keymap = empty_keymap();
+        keymap.bare.insert(combo("CapsLock").vk, combo("LCtrl").vk);
+        let table = table_with(keymap);
+        assert_eq!(
+            table.resolve("x.exe", combo("C-CapsLock")),
+            Some(Resolution::KeyOnly(combo("LCtrl").vk))
+        );
+    }
+
+    #[test]
+    fn excluded_apps_do_not_match_global_keymaps() {
+        let mut keymap = empty_keymap();
+        keymap.apps = AppFilter::All {
+            exclude: vec!["Zed.exe".to_string()],
         };
-        let table = RemapTable {
-            keymaps: vec![keymap],
-        };
-        let action = table.resolve("x.exe", combo("C-CapsLock")).unwrap();
-        assert_eq!(action.kind, RemapKind::KeyOnly);
-        assert_eq!(action.target.vk, combo("LCtrl").vk);
+        keymap
+            .exact
+            .insert(combo("C-h"), Output::Chord(combo("Back")));
+        let table = table_with(keymap);
+        assert!(table.resolve("notepad.exe", combo("C-h")).is_some());
+        // Exclusion is case-insensitive like all exe matching.
+        assert!(table.resolve("zed.exe", combo("C-h")).is_none());
+    }
+
+    #[test]
+    fn sequences_resolve_via_prefix_then_second_stroke() {
+        let mut keymap = empty_keymap();
+        keymap.seqs.insert(
+            combo("A-x"),
+            HashMap::from([(combo("u"), Output::Chord(combo("C-z")))]),
+        );
+        let table = table_with(keymap);
+        assert_eq!(
+            table.resolve("x.exe", combo("A-x")),
+            Some(Resolution::Prefix)
+        );
+        assert_eq!(
+            table.resolve_second("x.exe", combo("A-x"), combo("u")),
+            Some(&Output::Chord(combo("C-z")))
+        );
+        assert_eq!(
+            table.resolve_second("x.exe", combo("A-x"), combo("q")),
+            None
+        );
     }
 }
