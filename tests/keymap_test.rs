@@ -83,7 +83,7 @@ fn suganuma_example_covers_exclude_macro_and_sequences() {
     assert_eq!(chord_target(&table, exe, "C-h"), combo("Back"));
     assert_eq!(chord_target(&table, exe, "C-2"), combo("F2"));
     // ...but not in excluded apps (not_emacs_target equivalent).
-    for excluded in ["windowsterminal.exe", "Zed.exe", "Illustrator.exe"] {
+    for excluded in ["Illustrator.exe", "photoshop.exe", "InDesign.exe"] {
         assert!(
             table.resolve(excluded, combo("C-h")).is_none(),
             "{excluded} must be excluded"

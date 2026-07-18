@@ -1,29 +1,29 @@
-# Personal config: fakeymacs-style Emacs bindings ported from Keyhac.
+# 個人設定: Keyhac + fakeymacs から移植した Emacs 風キーバインド。
 #
-# Notes on the port:
-# - IME control (Muhenkan/Henkan, A-BackQuote, C-Space, Emacs IME mode) is
-#   out of winremap's scope; assign Muhenkan = IME off / Henkan = IME on in
-#   the Windows 11 IME settings instead.
-# - C-s is intentionally NOT remapped (kept as native Save), matching the
-#   original skip_settings_key configuration.
-# - C-k (kill-line) has no single-chord equivalent and is not ported.
+# 移植メモ:
+# - IME 制御（無変換/変換、A-BackQuote、C-Space、Emacs 日本語入力モード）は
+#   winremap のスコープ外。Windows 11 の IME 設定で「無変換 = IME オフ /
+#   変換 = IME オン」を割り当てて代替する。
+# - C-s は元設定（skip_settings_key）どおり意図的にリマップしない
+#   （ネイティブの保存のまま）。
+# - C-k（kill-line）は単一チョードで表現できないため未移植。
 
-# --- Emacs bindings everywhere, except apps with their own key handling ---
+# --- 全アプリに Emacs バインドを適用（独自のキー処理を持つアプリは除外） ---
 [[keymap]]
 name = "emacs"
 application = ["*"]
 exclude = [
-    # not_emacs_target equivalent
+    # not_emacs_target 相当
     "Illustrator.exe",
     "Photoshop.exe",
     "Adobe Premiere Pro.exe",
     "InDesign.exe",
-    "WindowsTerminal.exe",
-    "Zed.exe",
+    #"WindowsTerminal.exe",
+    #"Zed.exe",
 ]
 
 [keymap.remap]
-# Cursor movement
+# カーソル移動
 "C-b" = "Left"
 "C-f" = "Right"
 "C-p" = "Up"
@@ -32,57 +32,56 @@ exclude = [
 "C-e" = "End"
 "C-v" = "PageDown"
 "A-v" = "PageUp"
-"A-b" = "C-Left"  # word backward
-"A-f" = "C-Right" # word forward
+"A-b" = "C-Left"  # 単語単位で戻る
+"A-f" = "C-Right" # 単語単位で進む
 
-# Editing
-"C-h" = "Back"      # delete backward char (the reason this project exists)
-"C-d" = "Delete"    # delete forward char
-"A-Back" = "C-Back" # delete word backward
-"A-d" = "C-Delete"  # delete word forward
+# 編集
+"C-h" = "Back"      # 1 文字後退削除（このプロジェクトの発端）
+"C-d" = "Delete"    # 1 文字前方削除
+"A-Back" = "C-Back" # 単語単位で後退削除
+"A-d" = "C-Delete"  # 単語単位で前方削除
 "C-m" = "Enter"
 
-# Kill/yank mapped to the OS clipboard
-"C-w" = "C-x" # kill region -> cut
-"A-w" = "C-c" # copy region -> copy
-"C-y" = "C-v" # yank        -> paste
+# キル/ヤンク（OS のクリップボード操作に対応付け）
+"C-w" = "C-x" # キル       → 切り取り
+"A-w" = "C-c" # コピー     → コピー
+"C-y" = "C-v" # ヤンク     → 貼り付け
 
-# Misc
-"C-g" = "Esc" # keyboard-quit -> escape
+# その他
+"C-g" = "Esc" # keyboard-quit → Esc
 
-# Custom commands ported from config_personal.py (macro outputs)
-"C-t" = ["C-Right", "C-Left", "C-S-Right"] # select word
-"C-o" = ["Enter", "Up", "End"]             # open line
-"A-a" = ["C-Home", "C-S-End"]              # select all (was M-a)
+# config_personal.py から移植したカスタムコマンド（マクロ出力）
+"C-t" = ["C-Right", "C-Left", "C-S-Right"] # 単語選択
+"C-o" = ["Enter", "Up", "End"]             # 行を開く（open-line 相当）
+"A-a" = ["C-Home", "C-S-End"]              # 全選択（旧 M-a）
 
-# Function-key shortcuts (define_key2 in config_personal.py)
+# ファンクションキーショートカット（config_personal.py の define_key2）
 "C-2" = "F2"
 "C-3" = "F3"
 "C-4" = "F4"
 "C-5" = "F5"
 
-# Ctl-x prefix on A-x (fc.ctl_x_prefix_key = "A-x").
-# Add the C-x bindings you actually use; the second stroke may be a chord.
-"A-x h" = ["C-Home", "C-S-End"] # C-x h   : mark whole buffer
-"A-x u" = "C-z"                 # C-x u   : undo
-"A-x C-s" = "C-s"               # C-x C-s : save
-"A-x C-f" = "C-o"               # C-x C-f : open file
-"A-x k" = "C-F4"                # C-x k   : close document/tab
+# A-x プレフィックス（fc.ctl_x_prefix_key = "A-x" 相当）。
+# よく使う C-x 系バインドを追加していく。2 打鍵目はチョードも可。
+"A-x h" = ["C-Home", "C-S-End"] # C-x h   : バッファ全選択
+"A-x u" = "C-z"                 # C-x u   : 元に戻す
+"A-x C-s" = "C-s"               # C-x C-s : 保存
+"A-x C-f" = "C-o"               # C-x C-f : ファイルを開く
+"A-x k" = "C-F4"                # C-x k   : ドキュメント/タブを閉じる
 
-# --- Keep native browser shortcuts (emacs_exclusion_key equivalent) ---
-# App-specific rules beat the global keymap, and an identity remap
-# effectively passes the chord through to the browser.
+# --- ブラウザはネイティブのショートカットを維持（emacs_exclusion_key 相当） ---
+# アプリ別ルールはグローバルより優先されるため、恒等リマップで実質素通しになる。
 [[keymap]]
 name = "browser-native-keys"
 application = ["chrome.exe", "msedge.exe", "firefox.exe"]
 
 [keymap.remap]
-"C-t" = "C-t" # keep: new tab (instead of select-word macro)
-"C-w" = "C-w" # keep: close tab (instead of cut)
+"C-t" = "C-t" # 新しいタブを維持（単語選択マクロより優先）
+"C-w" = "C-w" # タブを閉じるを維持（切り取りより優先）
 
 [[keymap]]
 name = "acrobat-native-keys"
 application = ["Acrobat.exe"]
 
 [keymap.remap]
-"C-w" = "C-w" # keep: close document
+"C-w" = "C-w" # ドキュメントを閉じるを維持
