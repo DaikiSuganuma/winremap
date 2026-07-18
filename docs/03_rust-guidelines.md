@@ -1,6 +1,10 @@
 # Rust 開発の作法（winremap）
 
 > 本プロジェクトで Rust コードを書く際の規約。[01_project-brief.md](./01_project-brief.md) §4（アーキテクチャ）・§5（不変条件）を前提とし、Rust 実装面の具体的な作法を定める。矛盾がある場合はブリーフ §5 が優先。
+> 各規約の根拠となる公式資料は末尾の [§11 参考資料](#11-参考資料公式) を参照。
+
+- 作成日: 2026-07-18
+- 作成: Claude Code（AI モデル: claude-fable-5）／レビュー・承認: オーナー
 
 ---
 
@@ -83,3 +87,45 @@
 - Conventional Commits（`feat:` / `fix:` / `docs:` / `refactor:` / `test:` / `chore:` / `ci:`）。1 コミット 1 関心事
 - fmt / clippy / test が通らないコードをコミットしない（CI でも強制）
 - CI は `.github/workflows/ci.yml`（windows-latest）: fmt チェック → clippy `-D warnings` → test → release build
+
+## 11. 参考資料（公式）
+
+本ドキュメントの規約の根拠・参照先。実装時に迷ったらここに戻る。
+
+### 言語・edition（§1, §3）
+
+- The Rust Programming Language（The Book）: https://doc.rust-lang.org/book/
+- Rust Edition Guide — Rust 2024: https://doc.rust-lang.org/edition-guide/rust-2024/index.html
+- `unsafe_op_in_unsafe_fn`（edition 2024 で既定化）: https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html
+- The Rustonomicon（unsafe Rust の公式ガイド）: https://doc.rust-lang.org/nomicon/
+- SAFETY コメントの運用（Rust 標準ライブラリ開発ガイド）: https://std-dev-guide.rust-lang.org/policy/safety-comments.html
+
+### API 設計・命名（§5, §6）
+
+- Rust API Guidelines: https://rust-lang.github.io/api-guidelines/
+- 同 Naming 章: https://rust-lang.github.io/api-guidelines/naming.html
+
+### ツール（§1, §10）
+
+- rustfmt: https://github.com/rust-lang/rustfmt
+- Clippy lint 一覧（`undocumented_unsafe_blocks` 等）: https://rust-lang.github.io/rust-clippy/master/
+- Cargo Book — FAQ「Cargo.lock をバージョン管理に含める理由」: https://doc.rust-lang.org/cargo/faq.html#why-have-cargolock-in-version-control
+- Conventional Commits: https://www.conventionalcommits.org/
+
+### テスト（§7）
+
+- The Book — Test Organization: https://doc.rust-lang.org/book/ch11-03-test-organization.html
+
+### 依存クレート（§2, §4, §8）
+
+- anyhow: https://docs.rs/anyhow
+- thiserror: https://docs.rs/thiserror
+- arc-swap: https://docs.rs/arc-swap
+- windows-rs（Microsoft 公式）: https://github.com/microsoft/windows-rs
+- Rust for Windows（Microsoft Learn）: https://learn.microsoft.com/windows/dev-environment/rust/
+
+### Win32 API（§3, §4）
+
+- LowLevelKeyboardProc: https://learn.microsoft.com/windows/win32/winmsg/lowlevelkeyboardproc
+- KBDLLHOOKSTRUCT: https://learn.microsoft.com/windows/win32/api/winuser/ns-winuser-kbdllhookstruct
+- SendInput: https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-sendinput

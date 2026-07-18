@@ -3,7 +3,8 @@
 > 元資料: [01_project-brief.md](./01_project-brief.md)（以下「ブリーフ」）。本計画はブリーフ §11 のマイルストーンを実タスクに分解したもの。
 > Rust 実装の作法は [03_rust-guidelines.md](./03_rust-guidelines.md) を参照。
 
-作成日: 2026-07-18
+- 作成日: 2026-07-18
+- 作成: Claude Code（AI モデル: claude-fable-5）／レビュー・承認: オーナー
 
 ---
 
