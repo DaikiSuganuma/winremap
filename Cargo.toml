@@ -8,6 +8,12 @@ repository = "https://github.com/DaikiSuganuma/winremap"
 keywords = ["keyboard", "remap", "windows", "hotkey"]
 categories = ["os::windows-apis"]
 
+# Distribution binary: thin LTO and symbol stripping keep the single-exe
+# download small without the compile-time cost of full LTO.
+[profile.release]
+lto = "thin"
+strip = true
+
 [dependencies]
 anyhow = "1"
 arc-swap = "1.9.2"
