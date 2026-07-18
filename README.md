@@ -14,9 +14,12 @@ A per-application key remapper for Windows, written in Rust — inspired by
 ## Features (v0.1)
 
 - **Per-application remapping**: rules apply only to the processes you list
-  (`phpstorm64.exe`, ...), with optional global (`*`) rules
+  (`notepad.exe`, `chrome.exe`, ...), or globally (`*`) with an optional
+  `exclude` list
 - **Declarative TOML config** with Emacs-style key notation (`C-h`, `A-f`,
   `Back`, ...) familiar to Keyhac/fakeymacs users
+- **Two-stroke sequences** (`"A-x h"`, Emacs-style prefix keys) and **macro
+  outputs** (`"C-t" = ["C-Right", "C-Left", "C-S-Right"]`)
 - **Task tray resident**: enable/disable toggle, config hot-reload, quit
 - **Single binary, no runtime dependencies**
 - The hook callback runs in pure Rust with no heap allocation, locking, or
@@ -37,10 +40,10 @@ A per-application key remapper for Windows, written in Rust — inspired by
 2. Create `%APPDATA%\winremap\config.toml` (or start with an example):
 
    ```toml
-   # Ctrl+H sends a plain Backspace, but only inside PHPStorm
+   # Ctrl+H sends a plain Backspace, but only inside Notepad
    [[keymap]]
-   name = "jetbrains-terminal-fix"
-   application = ["phpstorm64.exe"]
+   name = "notepad"
+   application = ["notepad.exe"]
 
    [keymap.remap]
    "C-h" = "Back"
@@ -53,14 +56,17 @@ A per-application key remapper for Windows, written in Rust — inspired by
    winremap.exe --config my.toml    # explicit path
    ```
 
-See [`examples/minimal.toml`](examples/minimal.toml) and
+See [`examples/minimal.toml`](examples/minimal.toml),
 [`examples/emacs.toml`](examples/emacs.toml) (fakeymacs-style Emacs
-bindings) for complete examples.
+bindings), and [`examples/suganuma.toml`](examples/suganuma.toml) (a full
+personal setup using exclusion lists, macros, and prefix sequences) for
+complete examples.
 
 ## Configuration
 
 - `application` — exe names the section applies to (case-insensitive), or
-  `["*"]` for all applications. App-specific rules always win over `*` rules.
+  `["*"]` for all applications; a global section may list `exclude` exe
+  names. App-specific rules always win over `*` rules.
 - Key notation — modifiers `C-` (Ctrl), `A-` (Alt), `S-` (Shift), `W-` (Win)
   plus a key name: `a`-`z`, `0`-`9`, `F1`-`F24`, `Back`, `Enter`, `Esc`,
   `Tab`, `Space`, `Delete`, `Home`, `End`, `PageUp`, `PageDown`, arrow keys,
@@ -69,6 +75,9 @@ bindings) for complete examples.
   replaces the modifier state too (the app receives a plain Backspace). A
   bare-key rule (`"CapsLock" = "LCtrl"`) swaps the key regardless of held
   modifiers.
+- A two-stroke LHS (`"A-x h" = ...`) defines an Emacs-style prefix: the
+  first chord is swallowed and the next keystroke completes the binding.
+  An array RHS (`["C-Home", "C-S-End"]`, up to 8) taps each chord in order.
 - Config errors are reported with line numbers, all at once. Reloading a
   broken config from the tray keeps the previous working config.
 
@@ -82,8 +91,7 @@ The full specification lives in
   there.
 - **Punctuation/OEM keys** (`;`, `,`, ...) are not supported yet — their
   virtual-key codes are keyboard-layout dependent.
-- **No key sequences** (`C-x C-c`), tap/hold, or mark mode yet (planned for
-  v0.2 evaluation).
+- **No tap/hold or mark mode** yet; sequences are limited to two strokes.
 - Remapping chords that involve **Alt or Win** can momentarily trigger menu
   focus / Start menu due to the modifier lift, depending on the app.
 - Games with anti-cheat and some virtualization software may ignore injected

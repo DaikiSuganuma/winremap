@@ -12,8 +12,9 @@ English: [README.md](README.md)
 
 ## 機能（v0.1）
 
-- **アプリ別リマップ**: 指定した exe（`phpstorm64.exe` 等）にだけルールを適用。`*` でグローバル適用も可
+- **アプリ別リマップ**: 指定した exe（`notepad.exe`、`chrome.exe` 等）にだけルールを適用。`*` によるグローバル適用と `exclude`（除外リスト）も可
 - **宣言的な TOML 設定**。キー記法（`C-h`、`A-f`、`Back` 等）は Keyhac / fakeymacs ユーザーに馴染む形式
+- **2 ストロークシーケンス**（`"A-x h"`、Emacs 風プレフィックスキー）と**マクロ出力**（`"C-t" = ["C-Right", "C-Left", "C-S-Right"]`）
 - **タスクトレイ常駐**: 有効/無効トグル、設定のホットリロード、終了
 - **単一バイナリ・依存なし**
 - フックコールバックはヒープ確保・ロック・I/O のない純 Rust。スクリプト駆動のリマッパーと比べ、最悪レイテンシと安定性（GC 停止によるフック切り離しが起きない）が改善します。平均のタイピングレイテンシは同程度です
@@ -31,10 +32,10 @@ English: [README.md](README.md)
 2. `%APPDATA%\winremap\config.toml` を作成（例からのコピーでも可）:
 
    ```toml
-   # PHPStorm でのみ Ctrl+H を素の Backspace にする
+   # メモ帳でのみ Ctrl+H を素の Backspace にする
    [[keymap]]
-   name = "jetbrains-terminal-fix"
-   application = ["phpstorm64.exe"]
+   name = "notepad"
+   application = ["notepad.exe"]
 
    [keymap.remap]
    "C-h" = "Back"
@@ -47,14 +48,16 @@ English: [README.md](README.md)
    winremap.exe --config my.toml    # パスを明示
    ```
 
-完全な例は [`examples/minimal.toml`](examples/minimal.toml) と
-[`examples/emacs.toml`](examples/emacs.toml)（fakeymacs 風 Emacs キーバインド）を参照してください。
+完全な例は [`examples/minimal.toml`](examples/minimal.toml)、
+[`examples/emacs.toml`](examples/emacs.toml)（fakeymacs 風 Emacs キーバインド）、
+[`examples/suganuma.toml`](examples/suganuma.toml)（除外リスト・マクロ・プレフィックスシーケンスを使った実運用例）を参照してください。
 
 ## 設定
 
-- `application` — 適用先の exe 名（大文字小文字不問）。`["*"]` で全アプリ。アプリ別ルールは常に `*` ルールより優先
+- `application` — 適用先の exe 名（大文字小文字不問）。`["*"]` で全アプリ適用となり、その場合のみ `exclude` で除外 exe を指定可。アプリ別ルールは常に `*` ルールより優先
 - キー記法 — 修飾キー `C-`（Ctrl）、`A-`（Alt）、`S-`（Shift）、`W-`（Win）+ キー名: `a`-`z`、`0`-`9`、`F1`-`F24`、`Back`、`Enter`、`Esc`、`Tab`、`Space`、`Delete`、`Home`、`End`、`PageUp`、`PageDown`、矢印キー、`CapsLock`、出力用の左右指定修飾キー（`LCtrl` 等）
 - 修飾キー付きルール（`"C-h" = "Back"`）はそのチョードに完全一致し、修飾状態ごと置き換えます（アプリには素の Backspace が届く）。単キールール（`"CapsLock" = "LCtrl"`）は修飾キーの状態に関係なくキーだけを差し替えます
+- LHS を 2 ストローク（`"A-x h" = ...`）にすると Emacs 風プレフィックスキーになります（1 打鍵目は抑止され、次の打鍵で確定）。RHS を配列（`["C-Home", "C-S-End"]`、最大 8）にすると各チョードを順にタップするマクロになります
 - 設定エラーは行番号付きで全件まとめて報告。壊れた設定をトレイからリロードした場合は直前の設定を維持します
 
 仕様の詳細は [docs/04_config-spec.md](docs/04_config-spec.md) を参照してください。
@@ -63,7 +66,7 @@ English: [README.md](README.md)
 
 - **管理者権限で動作するウィンドウ**には通常権限のフックが効きません（UIPI）。必要な場合のみ winremap を管理者権限で起動してください
 - **記号キー（OEM キー）**（`;` `,` 等）は未対応です（VK コードがキーボードレイアウト依存のため）
-- **キーシーケンス**（`C-x C-c`）、tap/hold、マークモードは未対応です（v0.2 で検討）
+- **tap/hold・マークモード**は未対応です。シーケンスは 2 ストロークまでです
 - **Alt / Win を含むチョード**の置換では、修飾キーの一時解除によりメニューフォーカスやスタートメニューが一瞬反応する場合があります
 - アンチチート付きゲームや一部の仮想化ソフトは注入入力を無視することがあります
 - 他のキーフック常駐ソフト（Keyhac、AutoHotkey 等）と同じキーを対象にした併用はしないでください（多重フックの順序は不定です）
