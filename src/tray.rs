@@ -5,6 +5,7 @@
 //! message loop and are drained by `pump_events` after each message, so no
 //! extra thread or locking is involved.
 
+use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -13,6 +14,7 @@ use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuIt
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
 use crate::hook;
+use crate::i18n;
 use winremap::config;
 
 pub struct Tray {
@@ -22,13 +24,16 @@ pub struct Tray {
     open_item: MenuItem,
     quit_item: MenuItem,
     config_path: PathBuf,
+    /// Remembered so re-enabling can restore the "N keymap(s)" tooltip.
+    keymap_count: Cell<usize>,
 }
 
 pub fn init(config_path: PathBuf, keymap_count: usize) -> anyhow::Result<Tray> {
-    let enabled_item = CheckMenuItem::new("Enabled", true, true, None);
-    let reload_item = MenuItem::new("Reload config", true, None);
-    let open_item = MenuItem::new("Open config file", true, None);
-    let quit_item = MenuItem::new("Quit", true, None);
+    let texts = i18n::t();
+    let enabled_item = CheckMenuItem::new(texts.menu_enabled, true, true, None);
+    let reload_item = MenuItem::new(texts.menu_reload, true, None);
+    let open_item = MenuItem::new(texts.menu_open, true, None);
+    let quit_item = MenuItem::new(texts.menu_quit, true, None);
 
     let menu = Menu::new();
     menu.append_items(&[
@@ -43,7 +48,7 @@ pub fn init(config_path: PathBuf, keymap_count: usize) -> anyhow::Result<Tray> {
 
     let icon = TrayIconBuilder::new()
         .with_menu(Box::new(menu))
-        .with_tooltip(status_tooltip(keymap_count))
+        .with_tooltip(i18n::tooltip_status(keymap_count))
         .with_icon(build_icon(true))
         .build()
         .context("failed to create tray icon")?;
@@ -55,6 +60,7 @@ pub fn init(config_path: PathBuf, keymap_count: usize) -> anyhow::Result<Tray> {
         open_item,
         quit_item,
         config_path,
+        keymap_count: Cell::new(keymap_count),
     })
 }
 
@@ -77,9 +83,9 @@ impl Tray {
             hook::set_enabled(enabled);
             let _ = self.icon.set_icon(Some(build_icon(enabled)));
             let tooltip = if enabled {
-                "winremap"
+                i18n::tooltip_status(self.keymap_count.get())
             } else {
-                "winremap (disabled)"
+                i18n::t().tooltip_disabled.to_string()
             };
             let _ = self.icon.set_tooltip(Some(tooltip));
         } else if id == self.reload_item.id() {
@@ -98,23 +104,18 @@ impl Tray {
                 // Atomic swap: in-flight key events keep the old table, the
                 // next event sees the new one — no gap (ADR 0003).
                 hook::REMAP_TABLE.store(Some(Arc::new(table)));
-                let _ = self.icon.set_tooltip(Some(status_tooltip(count)));
-                println!("config reloaded: {count} keymap(s)");
+                self.keymap_count.set(count);
+                let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
+                println!("{}", i18n::reload_ok(count));
             }
             Err(e) => {
                 // Keep the previous table so remapping never stops on a bad
                 // edit (config-spec §4); surface the error where we can.
-                eprintln!("config reload failed, keeping previous config:\n{e}");
-                let _ = self
-                    .icon
-                    .set_tooltip(Some("winremap — config reload FAILED (see console)"));
+                eprintln!("{}", i18n::reload_failed(&e.to_string()));
+                let _ = self.icon.set_tooltip(Some(i18n::t().tooltip_reload_failed));
             }
         }
     }
-}
-
-fn status_tooltip(keymap_count: usize) -> String {
-    format!("winremap — {keymap_count} keymap(s)")
 }
 
 fn open_in_default_editor(path: &Path) {

@@ -5,6 +5,7 @@
 //! are wrapped by hook.rs / window.rs (AGENTS.md invariant 3, ADR 0009).
 
 mod hook;
+mod i18n;
 mod sender;
 mod tray;
 mod window;
@@ -16,11 +17,17 @@ use anyhow::{Context, bail};
 use winremap::config;
 
 fn main() -> anyhow::Result<()> {
-    let config_path = parse_args()?;
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    // Language must be known before any user-facing output, including the
+    // help text parse_args may print.
+    i18n::init(extract_lang(&args)?);
+    let cli = parse_args(&args)?;
+    let config_path = cli.config_path;
+    window::set_debug(cli.debug);
 
     let instance = hook::acquire_single_instance().context("failed to create instance mutex")?;
     let Some(_instance) = instance else {
-        bail!("winremap is already running (check the task tray)");
+        bail!("{}", i18n::t().already_running);
     };
 
     // A startup config error aborts: better to not run at all than to sit in
@@ -28,12 +35,7 @@ fn main() -> anyhow::Result<()> {
     let table = config::load(&config_path)
         .with_context(|| format!("failed to load {}", config_path.display()))?;
     let keymap_count = table.keymaps.len();
-    println!(
-        "winremap {}: {} keymap(s) loaded from {}",
-        env!("CARGO_PKG_VERSION"),
-        keymap_count,
-        config_path.display()
-    );
+    println!("{}", i18n::startup_loaded(keymap_count, &config_path));
     hook::REMAP_TABLE.store(Some(Arc::new(table)));
 
     sender::init_scan_codes();
@@ -43,7 +45,7 @@ fn main() -> anyhow::Result<()> {
     let event_hook = window::install_foreground_watch().context("failed to watch foreground")?;
     let keyboard_hook = hook::install().context("failed to install keyboard hook")?;
     let tray = tray::init(config_path, keymap_count).context("failed to set up tray")?;
-    println!("remapping active. Use the tray icon to reload or quit.");
+    println!("{}", i18n::t().remapping_active);
 
     hook::run_message_loop(|| tray.pump_events());
 
@@ -52,30 +54,61 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn parse_args() -> anyhow::Result<PathBuf> {
+/// Pre-scan for `--lang` so i18n can initialize before any other output.
+fn extract_lang(args: &[String]) -> anyhow::Result<Option<i18n::Lang>> {
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        if arg == "--lang" {
+            return match iter.next().map(String::as_str) {
+                Some("en") => Ok(Some(i18n::Lang::En)),
+                Some("ja") => Ok(Some(i18n::Lang::Ja)),
+                // English on purpose: i18n is not initialized yet.
+                other => bail!(
+                    "invalid --lang value `{}` (expected `en` or `ja`)",
+                    other.unwrap_or("")
+                ),
+            };
+        }
+    }
+    Ok(None)
+}
+
+struct CliArgs {
+    config_path: PathBuf,
+    debug: bool,
+}
+
+fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
     let mut config: Option<PathBuf> = None;
-    let mut args = std::env::args().skip(1);
-    while let Some(arg) = args.next() {
+    let mut debug = false;
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--config" | "-c" => {
-                let value = args.next().context("--config requires a path")?;
+                let value = iter.next().context("--config requires a path")?;
                 config = Some(PathBuf::from(value));
             }
+            // Already consumed by extract_lang; skip its value here.
+            "--lang" => {
+                iter.next();
+            }
+            "--debug" => debug = true,
             "--version" | "-V" => {
                 println!("winremap {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
             "--help" | "-h" => {
-                print_help();
+                println!("{}", i18n::help_text());
                 std::process::exit(0);
             }
-            other => bail!("unknown argument `{other}` (try --help)"),
+            other => bail!("{}", i18n::unknown_argument(other)),
         }
     }
-    match config {
-        Some(path) => Ok(path),
-        None => default_config_path(),
-    }
+    let config_path = match config {
+        Some(path) => path,
+        None => default_config_path()?,
+    };
+    Ok(CliArgs { config_path, debug })
 }
 
 fn default_config_path() -> anyhow::Result<PathBuf> {
@@ -83,25 +116,7 @@ fn default_config_path() -> anyhow::Result<PathBuf> {
         .context("APPDATA is not set; pass --config <path> explicitly")?;
     let path = PathBuf::from(appdata).join("winremap").join("config.toml");
     if !path.exists() {
-        bail!(
-            "no config file at {}.\nCreate it (see examples/minimal.toml) or pass --config <path>.",
-            path.display()
-        );
+        bail!("{}", i18n::no_config_file(&path));
     }
     Ok(path)
-}
-
-fn print_help() {
-    println!(
-        "winremap {} — per-application key remapper for Windows
-
-USAGE:
-    winremap [OPTIONS]
-
-OPTIONS:
-    -c, --config <PATH>    Config file (default: %APPDATA%\\winremap\\config.toml)
-    -V, --version          Print version
-    -h, --help             Print this help",
-        env!("CARGO_PKG_VERSION")
-    );
 }

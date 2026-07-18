@@ -8,6 +8,7 @@
 //! synchronization.
 
 use std::cell::RefCell;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use windows::Win32::Foundation::{CloseHandle, HWND, MAX_PATH};
 use windows::Win32::System::Threading::{
@@ -25,6 +26,14 @@ thread_local! {
     static FOREGROUND_EXE: RefCell<String> = RefCell::new(String::with_capacity(64));
 }
 
+/// `--debug`: print foreground-app info useful for writing config.toml.
+/// Off by default (AGENTS.md invariant 6); key events are never logged.
+static DEBUG: AtomicBool = AtomicBool::new(false);
+
+pub fn set_debug(enabled: bool) {
+    DEBUG.store(enabled, Ordering::Relaxed);
+}
+
 /// Runs `f` with the cached foreground exe name (lowercase basename, e.g.
 /// `"notepad.exe"`; empty when unknown). Hook-safe: no allocation.
 pub fn with_foreground_exe<R>(f: impl FnOnce(&str) -> R) -> R {
@@ -32,17 +41,60 @@ pub fn with_foreground_exe<R>(f: impl FnOnce(&str) -> R) -> R {
 }
 
 /// Re-queries the foreground process and updates the cache. Called at startup
-/// and from the WinEvent callback — never from the keyboard hook.
+/// and from the WinEvent callback — never from the keyboard hook, so the
+/// allocation and (in debug mode) console output here are fine.
 pub fn refresh_foreground_cache() {
     // SAFETY: GetForegroundWindow has no preconditions; a null HWND (no
     // foreground window, e.g. during a UAC prompt) is handled below.
     let hwnd = unsafe { GetForegroundWindow() };
-    let name = query_exe_basename(hwnd).unwrap_or_default();
+    let full_path = query_exe_path(hwnd);
+    let basename = full_path.as_deref().map(exe_basename).unwrap_or_default();
     FOREGROUND_EXE.with(|cache| {
         let mut cache = cache.borrow_mut();
         cache.clear();
-        cache.push_str(&name);
+        cache.push_str(&basename);
     });
+    if DEBUG.load(Ordering::Relaxed) {
+        print_debug_info(full_path.as_deref(), &basename);
+    }
+}
+
+/// Debug-mode helper for writing config.toml: shows the full path, the exact
+/// `application` value to use, and which configured keymaps would apply.
+fn print_debug_info(full_path: Option<&str>, basename: &str) {
+    let Some(full_path) = full_path else {
+        println!("{}", crate::i18n::t().debug_foreground_unknown);
+        return;
+    };
+    let table = crate::hook::REMAP_TABLE.load();
+    let names: Vec<&str> = table
+        .as_ref()
+        .map(|t| {
+            t.keymaps
+                .iter()
+                .filter(|k| k.apps.matches(basename))
+                .map(|k| k.name.as_str())
+                .collect()
+        })
+        .unwrap_or_default();
+    let list = if names.is_empty() {
+        crate::i18n::t().debug_none.to_string()
+    } else {
+        names.join(", ")
+    };
+    println!(
+        "{}",
+        crate::i18n::debug_foreground(full_path, basename, &list)
+    );
+}
+
+/// Lowercase basename, i.e. the exact string to put in `application`.
+fn exe_basename(full_path: &str) -> String {
+    full_path
+        .rsplit(['\\', '/'])
+        .next()
+        .unwrap_or(full_path)
+        .to_ascii_lowercase()
 }
 
 /// Installs the foreground-change watcher on the current thread.
@@ -89,10 +141,10 @@ unsafe extern "system" fn on_foreground_changed(
     refresh_foreground_cache();
 }
 
-/// Lowercase exe basename for the process owning `hwnd`, or `None` when it
-/// cannot be determined (elevated processes deny the query under UIPI; those
+/// Full image path for the process owning `hwnd`, or `None` when it cannot
+/// be determined (elevated processes deny the query under UIPI; those
 /// windows do not receive our injected input anyway, brief §5-5).
-fn query_exe_basename(hwnd: HWND) -> Option<String> {
+fn query_exe_path(hwnd: HWND) -> Option<String> {
     if hwnd.is_invalid() {
         return None;
     }
@@ -123,7 +175,5 @@ fn query_exe_basename(hwnd: HWND) -> Option<String> {
     unsafe { CloseHandle(process).ok() };
     queried.ok()?;
 
-    let full = String::from_utf16_lossy(&buf[..len as usize]);
-    let basename = full.rsplit(['\\', '/']).next().unwrap_or(&full);
-    Some(basename.to_ascii_lowercase())
+    Some(String::from_utf16_lossy(&buf[..len as usize]))
 }
