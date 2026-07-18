@@ -1,0 +1,86 @@
+# winremap
+
+[![CI](https://github.com/DaikiSuganuma/winremap/actions/workflows/ci.yml/badge.svg)](https://github.com/DaikiSuganuma/winremap/actions/workflows/ci.yml)
+
+Rust 製の Windows 用アプリ別キーリマッパー —
+[xremap](https://github.com/xremap/xremap)（Linux）と
+[Keyhac](https://github.com/crftwr/keyhac-win) に着想を得ています。
+
+> winremap は Keyhac の再実装・フォークではなく、影響を受けた独立プロジェクトです。xremap とも無関係です（Inspired by xremap; not affiliated）。
+
+English: [README.md](README.md)
+
+## 機能（v0.1）
+
+- **アプリ別リマップ**: 指定した exe（`phpstorm64.exe` 等）にだけルールを適用。`*` でグローバル適用も可
+- **宣言的な TOML 設定**。キー記法（`C-h`、`A-f`、`Back` 等）は Keyhac / fakeymacs ユーザーに馴染む形式
+- **タスクトレイ常駐**: 有効/無効トグル、設定のホットリロード、終了
+- **単一バイナリ・依存なし**
+- フックコールバックはヒープ確保・ロック・I/O のない純 Rust。スクリプト駆動のリマッパーと比べ、最悪レイテンシと安定性（GC 停止によるフック切り離しが起きない）が改善します。平均のタイピングレイテンシは同程度です
+
+## クイックスタート
+
+1. [Releases](https://github.com/DaikiSuganuma/winremap/releases) から
+   `winremap.exe` と `SHA256SUMS` をダウンロード（検証手順は
+   [SECURITY.md](SECURITY.md)）、またはソースからビルド:
+
+   ```powershell
+   cargo build --release   # -> target\release\winremap.exe
+   ```
+
+2. `%APPDATA%\winremap\config.toml` を作成（例からのコピーでも可）:
+
+   ```toml
+   # PHPStorm でのみ Ctrl+H を素の Backspace にする
+   [[keymap]]
+   name = "jetbrains-terminal-fix"
+   application = ["phpstorm64.exe"]
+
+   [keymap.remap]
+   "C-h" = "Back"
+   ```
+
+3. `winremap.exe` を実行するとトレイアイコンが現れ、リマップが有効になります。
+
+   ```powershell
+   winremap.exe                     # %APPDATA%\winremap\config.toml を使用
+   winremap.exe --config my.toml    # パスを明示
+   ```
+
+完全な例は [`examples/minimal.toml`](examples/minimal.toml) と
+[`examples/emacs.toml`](examples/emacs.toml)（fakeymacs 風 Emacs キーバインド）を参照してください。
+
+## 設定
+
+- `application` — 適用先の exe 名（大文字小文字不問）。`["*"]` で全アプリ。アプリ別ルールは常に `*` ルールより優先
+- キー記法 — 修飾キー `C-`（Ctrl）、`A-`（Alt）、`S-`（Shift）、`W-`（Win）+ キー名: `a`-`z`、`0`-`9`、`F1`-`F24`、`Back`、`Enter`、`Esc`、`Tab`、`Space`、`Delete`、`Home`、`End`、`PageUp`、`PageDown`、矢印キー、`CapsLock`、出力用の左右指定修飾キー（`LCtrl` 等）
+- 修飾キー付きルール（`"C-h" = "Back"`）はそのチョードに完全一致し、修飾状態ごと置き換えます（アプリには素の Backspace が届く）。単キールール（`"CapsLock" = "LCtrl"`）は修飾キーの状態に関係なくキーだけを差し替えます
+- 設定エラーは行番号付きで全件まとめて報告。壊れた設定をトレイからリロードした場合は直前の設定を維持します
+
+仕様の詳細は [docs/04_config-spec.md](docs/04_config-spec.md) を参照してください。
+
+## 制限事項
+
+- **管理者権限で動作するウィンドウ**には通常権限のフックが効きません（UIPI）。必要な場合のみ winremap を管理者権限で起動してください
+- **記号キー（OEM キー）**（`;` `,` 等）は未対応です（VK コードがキーボードレイアウト依存のため）
+- **キーシーケンス**（`C-x C-c`）、tap/hold、マークモードは未対応です（v0.2 で検討）
+- **Alt / Win を含むチョード**の置換では、修飾キーの一時解除によりメニューフォーカスやスタートメニューが一瞬反応する場合があります
+- アンチチート付きゲームや一部の仮想化ソフトは注入入力を無視することがあります
+- 他のキーフック常駐ソフト（Keyhac、AutoHotkey 等）と同じキーを対象にした併用はしないでください（多重フックの順序は不定です）
+- v0.1 ではコンソールウィンドウが表示されたままになります（リロードエラーの表示先）
+- IME の制御は設計上スコープ外です。Windows 11 の IME 設定をご利用ください
+
+## セキュリティ
+
+- winremap は**キー入力の記録・保存を行わず**、**ネットワーク通信のコードを含みません**（テレメトリ・自動アップデートなし）。この方針はコードベースの規約として強制されています（[AGENTS.md](AGENTS.md)）
+- 公式バイナリの配布は [GitHub Releases](https://github.com/DaikiSuganuma/winremap/releases) **のみ**です。他サイトで配布されているバイナリは非公式です。[SECURITY.md](SECURITY.md) の手順でチェックサムとビルド来歴を検証してください
+
+## 謝辞
+
+- [Keyhac](https://sites.google.com/site/craftware/keyhac-ja)（craftware 氏）— 長年の利用を通じて本プロジェクトの出発点となったツール（MIT）
+- [fakeymacs](https://github.com/smzht/fakeymacs)（smzht 氏）— Keyhac 用の Emacs 風キーバインド設定集（MIT）
+- [xremap](https://github.com/xremap/xremap) — Linux におけるアプリ別リマップのアーキテクチャ参考（MIT）
+
+## ライセンス
+
+[MIT](LICENSE) — Copyright (c) 2026 Daiki Suganuma
