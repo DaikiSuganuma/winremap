@@ -159,9 +159,11 @@ fn key_input(vk: u16, up: bool, extra_info: usize) -> INPUT {
 
 /// Chord batches hold at most: 8 side releases + 4 added presses + 1 key.
 const CHORD_BATCH: usize = 16;
-/// Macro batches: 8 lifts + per-element (4 press + down + up + 4 release) + 8
-/// restores, all sent as one `SendInput` call so no real input interleaves.
-const MACRO_BATCH: usize = 16 + MAX_MACRO_LEN * 10;
+/// Macro batches: worst-case per element is a full modifier transition
+/// (mask 2 + 8 releases + 4 presses) plus the key tap, and the final restore
+/// is another full transition. All one `SendInput` call so no real input
+/// interleaves.
+const MACRO_BATCH: usize = MAX_MACRO_LEN * 16 + 16;
 
 struct Batch<const N: usize> {
     inputs: [INPUT; N],
@@ -296,36 +298,117 @@ pub fn send_key_only(target_vk: u16, up: bool) {
     batch.send();
 }
 
-/// Macro output (ADR 0012): taps each chord once. All held modifiers are
-/// lifted up front so every element starts from a clean state, then restored
-/// at the end; the whole thing is one `SendInput` batch so real keystrokes
-/// cannot interleave. Runs entirely within one hook callback, so `held`
-/// cannot change midway.
+/// Left-side key and its [`SideMods`] bit per modifier class, used when a
+/// transition must synthesize a modifier that is not physically held.
+const CLASS_LEFT: [(Mods, u16, SideMods); 4] = [
+    (Mods::SHIFT, 0xA0, 1),
+    (Mods::CTRL, 0xA2, 1 << 2),
+    (Mods::ALT, 0xA4, 1 << 4),
+    (Mods::WIN, 0x5B, 1 << 6),
+];
+
+/// Minimal modifier change to make `current` satisfy `target`, as
+/// (releases, presses) side bitmasks. Kept pure for unit testing.
+fn plan_transition(current: SideMods, target: Mods) -> (SideMods, SideMods) {
+    let release = sides_to_lift(current, target);
+    let have = side_mods_to_mods(current & !release);
+    let mut press = 0;
+    for (class, _, bit) in CLASS_LEFT {
+        if target.contains(class) && !have.contains(class) {
+            press |= bit;
+        }
+    }
+    (release, press)
+}
+
+/// Emits the planned transition and returns the new side state. Releases
+/// come first (masked when they involve Alt/Win) so a chord never gains
+/// extra modifiers mid-flight.
+fn transition_mods<const N: usize>(
+    batch: &mut Batch<N>,
+    current: SideMods,
+    release: SideMods,
+    press: SideMods,
+) -> SideMods {
+    if release & ALT_WIN_SIDES != 0 {
+        push_menu_mask(batch);
+    }
+    for (i, &vk) in SIDE_VKS.iter().enumerate() {
+        if release & (1 << i) != 0 {
+            batch.push(key_input(vk, true, MARKER_COMPENSATION));
+        }
+    }
+    for (i, &vk) in SIDE_VKS.iter().enumerate() {
+        if press & (1 << i) != 0 {
+            batch.push(key_input(vk, false, MARKER_COMPENSATION));
+        }
+    }
+    (current & !release) | press
+}
+
+/// Macro output (ADR 0012): taps each chord once, in one `SendInput` batch
+/// so real keystrokes cannot interleave. Modifiers move by *diff* between
+/// elements instead of a full lift/re-press per element (ADR 0017): a macro
+/// like C-Right → C-Left → C-S-Right with Ctrl physically held never touches
+/// Ctrl at all, which keeps apps that sample modifier state asynchronously
+/// from misreading the chord. Runs entirely within one hook callback, so
+/// `held` cannot change midway.
 pub fn send_sequence(sequence: &[KeyCombo], held: SideMods) {
     let mut batch = Batch::<MACRO_BATCH>::new();
-    // See send_exact_down: lifting Alt/Win must not look like a lone tap.
-    if held & ALT_WIN_SIDES != 0 {
-        push_menu_mask(&mut batch);
-    }
-    for (i, &vk) in SIDE_VKS.iter().enumerate() {
-        if held & (1 << i) != 0 {
-            batch.push(key_input(vk, true, MARKER_COMPENSATION));
-        }
-    }
+    let mut current = held;
     for combo in sequence.iter().take(MAX_MACRO_LEN) {
-        for vk in class_left_vks(combo.mods) {
-            batch.push(key_input(vk, false, MARKER_COMPENSATION));
-        }
+        let (release, press) = plan_transition(current, combo.mods);
+        current = transition_mods(&mut batch, current, release, press);
         batch.push(key_input(combo.vk, false, MARKER_REMAP));
         batch.push(key_input(combo.vk, true, MARKER_REMAP));
-        for vk in class_left_vks(combo.mods) {
-            batch.push(key_input(vk, true, MARKER_COMPENSATION));
-        }
     }
-    for (i, &vk) in SIDE_VKS.iter().enumerate() {
-        if held & (1 << i) != 0 {
-            batch.push(key_input(vk, false, MARKER_COMPENSATION));
-        }
-    }
+    // Restore the physically held state: drop synthesized sides, re-press
+    // held ones we released along the way.
+    let release = current & !held;
+    let press = held & !current;
+    transition_mods(&mut batch, current, release, press);
     batch.send();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const LSHIFT: SideMods = 1;
+    const LCTRL: SideMods = 1 << 2;
+    const RCTRL: SideMods = 1 << 3;
+    const LALT: SideMods = 1 << 4;
+
+    #[test]
+    fn transition_keeps_already_satisfied_modifiers() {
+        // The C-t macro case: Ctrl physically held, element needs Ctrl —
+        // nothing to release or press (ADR 0017).
+        assert_eq!(plan_transition(LCTRL, Mods::CTRL), (0, 0));
+        // Either physical side satisfies the class.
+        assert_eq!(plan_transition(RCTRL, Mods::CTRL), (0, 0));
+    }
+
+    #[test]
+    fn transition_adds_only_the_missing_class() {
+        // C-Right → C-S-Right: keep Ctrl, add Shift.
+        assert_eq!(
+            plan_transition(LCTRL, Mods::CTRL.with(Mods::SHIFT)),
+            (0, LSHIFT)
+        );
+    }
+
+    #[test]
+    fn transition_swaps_unrelated_modifiers() {
+        // A-a's elements: Alt held but the element needs Ctrl only.
+        assert_eq!(plan_transition(LALT, Mods::CTRL), (LALT, LCTRL));
+    }
+
+    #[test]
+    fn transition_releases_everything_for_bare_targets() {
+        assert_eq!(
+            plan_transition(LCTRL | LSHIFT, Mods::NONE),
+            (LCTRL | LSHIFT, 0)
+        );
+        assert_eq!(plan_transition(0, Mods::NONE), (0, 0));
+    }
 }
