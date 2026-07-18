@@ -48,6 +48,9 @@ pub struct Texts {
     pub already_running: &'static str,
     pub debug_none: &'static str,
     pub debug_foreground_unknown: &'static str,
+    pub debug_source_remap: &'static str,
+    pub debug_source_compensation: &'static str,
+    pub debug_source_external: &'static str,
 }
 
 static EN: Texts = Texts {
@@ -61,6 +64,9 @@ static EN: Texts = Texts {
     already_running: "winremap is already running (check the task tray)",
     debug_none: "(none)",
     debug_foreground_unknown: "[debug] foreground: could not determine (possibly an elevated window)",
+    debug_source_remap: "remap",
+    debug_source_compensation: "modifier adjust",
+    debug_source_external: "EXTERNAL software",
 };
 
 static JA: Texts = Texts {
@@ -74,6 +80,9 @@ static JA: Texts = Texts {
     already_running: "winremap は既に起動しています（タスクトレイを確認してください）",
     debug_none: "（なし）",
     debug_foreground_unknown: "[debug] 前面アプリ: 取得できませんでした（管理者権限ウィンドウの可能性）",
+    debug_source_remap: "置換",
+    debug_source_compensation: "修飾補正",
+    debug_source_external: "外部ソフト",
 };
 
 pub fn t() -> &'static Texts {
@@ -171,11 +180,34 @@ pub fn debug_key_substituted(input: KeyCombo, target_vk: u16) -> String {
     }
 }
 
-pub fn debug_key_macro(prev: Option<KeyCombo>, input: KeyCombo, strokes: u8) -> String {
+pub fn debug_key_macro(
+    prev: Option<KeyCombo>,
+    input: KeyCombo,
+    strokes: u8,
+    steps: &str,
+) -> String {
     let input = fmt_input(prev, input);
     match lang() {
-        Lang::En => format!("[debug] {input} → macro executed ({strokes} strokes)"),
-        Lang::Ja => format!("[debug] {input} → マクロ実行（{strokes} ストローク）"),
+        Lang::En => format!("[debug] {input} → macro executed ({strokes} strokes: {steps})"),
+        Lang::Ja => format!("[debug] {input} → マクロ実行（{strokes} ストローク: {steps}）"),
+    }
+}
+
+pub fn debug_key_repeat(input: KeyCombo) -> String {
+    match lang() {
+        Lang::En => format!("[debug] {input} → auto-repeat (suppressed)"),
+        Lang::Ja => format!("[debug] {input} → キーリピート（抑止）"),
+    }
+}
+
+/// Echo of an injected event passing through the hook. `source` is one of
+/// the pre-localized `debug_source_*` labels.
+pub fn debug_injected(vk: u16, up: bool, source: &str) -> String {
+    let key = vk_display_name(vk);
+    let arrow = if up { "↑" } else { "↓" };
+    match lang() {
+        Lang::En => format!("[debug]   injected ({source}): {key} {arrow}"),
+        Lang::Ja => format!("[debug]   注入（{source}）: {key} {arrow}"),
     }
 }
 
@@ -226,7 +258,9 @@ USAGE:
 OPTIONS:
     -c, --config <PATH>    Config file (default: %APPDATA%\\winremap\\config.toml)
         --lang <en|ja>     UI language (default: system language)
-        --debug            Print foreground-app info useful for writing the config
+        --debug            Print foreground-app and key-decision info
+        --macro-delay <MS> Pause between macro strokes, 0-15 ms (default 0;
+                           try 5-10 if macros misfire in some apps)
     -V, --version          Print version
     -h, --help             Print this help"
         ),
@@ -239,7 +273,9 @@ OPTIONS:
 オプション:
     -c, --config <PATH>    設定ファイル（既定: %APPDATA%\\winremap\\config.toml）
         --lang <en|ja>     UI 言語（既定: システム言語）
-        --debug            設定記述に役立つ前面アプリ情報を表示
+        --debug            前面アプリ情報とキー判定を表示
+        --macro-delay <MS> マクロの各ストローク間の待ち時間 0-15 ms（既定 0。
+                           特定アプリでマクロが不安定なときは 5-10 を試す）
     -V, --version          バージョンを表示
     -h, --help             このヘルプを表示"
         ),

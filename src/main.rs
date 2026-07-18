@@ -24,6 +24,7 @@ fn main() -> anyhow::Result<()> {
     let cli = parse_args(&args)?;
     let config_path = cli.config_path;
     hook::set_debug(cli.debug);
+    sender::set_macro_delay(cli.macro_delay_ms);
 
     let instance = hook::acquire_single_instance().context("failed to create instance mutex")?;
     let Some(_instance) = instance else {
@@ -81,11 +82,13 @@ fn extract_lang(args: &[String]) -> anyhow::Result<Option<i18n::Lang>> {
 struct CliArgs {
     config_path: PathBuf,
     debug: bool,
+    macro_delay_ms: u32,
 }
 
 fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
     let mut config: Option<PathBuf> = None;
     let mut debug = false;
+    let mut macro_delay_ms = 0u32;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -98,6 +101,19 @@ fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
                 iter.next();
             }
             "--debug" => debug = true,
+            "--macro-delay" => {
+                let value = iter.next().context("--macro-delay requires milliseconds")?;
+                macro_delay_ms = value
+                    .parse()
+                    .ok()
+                    .filter(|&ms| ms <= sender::MAX_MACRO_DELAY_MS)
+                    .with_context(|| {
+                        format!(
+                            "invalid --macro-delay `{value}` (expected 0-{})",
+                            sender::MAX_MACRO_DELAY_MS
+                        )
+                    })?;
+            }
             "--version" | "-V" => {
                 println!("winremap {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
@@ -113,7 +129,11 @@ fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
         Some(path) => path,
         None => default_config_path()?,
     };
-    Ok(CliArgs { config_path, debug })
+    Ok(CliArgs {
+        config_path,
+        debug,
+        macro_delay_ms,
+    })
 }
 
 fn default_config_path() -> anyhow::Result<PathBuf> {

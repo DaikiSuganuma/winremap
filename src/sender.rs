@@ -6,6 +6,7 @@
 //! fixed-size stack arrays — no allocation, no locking (AGENTS.md invariant 2).
 
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY,
@@ -37,6 +38,17 @@ pub const ALT_WIN_SIDES: SideMods = 0b1111_0000;
 /// Start menu, while applications ignore the key itself (ADR 0015; same
 /// technique as Keyhac/AutoHotkey).
 const VK_MENU_MASK: u16 = 0xFF;
+
+/// Opt-in pause between macro strokes (`--macro-delay`, ADR 0018). Non-zero
+/// values deliberately block inside the hook callback — a bounded, explicit
+/// exception to invariant 2 for apps that mishandle burst-injected macros.
+/// Capped so even an 8-stroke macro stays far below the LL-hook timeout.
+pub const MAX_MACRO_DELAY_MS: u32 = 15;
+static MACRO_DELAY_MS: AtomicU32 = AtomicU32::new(0);
+
+pub fn set_macro_delay(ms: u32) {
+    MACRO_DELAY_MS.store(ms.min(MAX_MACRO_DELAY_MS), Ordering::Relaxed);
+}
 
 const SIDE_VKS: [u16; 8] = [
     0xA0, // LShift
@@ -354,6 +366,7 @@ fn transition_mods<const N: usize>(
 /// from misreading the chord. Runs entirely within one hook callback, so
 /// `held` cannot change midway.
 pub fn send_sequence(sequence: &[KeyCombo], held: SideMods) {
+    let delay_ms = MACRO_DELAY_MS.load(Ordering::Relaxed);
     let mut batch = Batch::<MACRO_BATCH>::new();
     let mut current = held;
     for combo in sequence.iter().take(MAX_MACRO_LEN) {
@@ -361,6 +374,14 @@ pub fn send_sequence(sequence: &[KeyCombo], held: SideMods) {
         current = transition_mods(&mut batch, current, release, press);
         batch.push(key_input(combo.vk, false, MARKER_REMAP));
         batch.push(key_input(combo.vk, true, MARKER_REMAP));
+        // Paced mode flushes per stroke and waits, giving slow apps time to
+        // process each chord (ADR 0018). Physical input cannot overtake the
+        // macro: it stays blocked while this callback runs.
+        if delay_ms > 0 {
+            batch.send();
+            batch = Batch::<MACRO_BATCH>::new();
+            std::thread::sleep(std::time::Duration::from_millis(u64::from(delay_ms)));
+        }
     }
     // Restore the physically held state: drop synthesized sides, re-press
     // held ones we released along the way.

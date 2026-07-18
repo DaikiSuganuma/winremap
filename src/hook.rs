@@ -26,7 +26,7 @@ use windows::core::w;
 use crate::i18n;
 use crate::sender;
 use crate::sender::{ModAdjustment, SideMods};
-use winremap::keymap::{KeyCombo, Output, RemapTable, Resolution};
+use winremap::keymap::{KeyCombo, MAX_MACRO_LEN, Mods, Output, RemapTable, Resolution};
 
 /// The active remap table. Written by the main/reload thread, read wait-free
 /// from the hook (ADR 0003). `None` (before startup finishes) passes all
@@ -58,15 +58,32 @@ pub fn debug_enabled() -> bool {
     DEBUG.load(Ordering::Relaxed)
 }
 
-/// What the hook decided for one key-down, recorded for debug output.
+/// Who injected an event observed by the hook (debug echo, ADR 0016).
+#[derive(Clone, Copy)]
+enum InjectedSource {
+    Remap,
+    Compensation,
+    External,
+}
+
+/// What the hook decided for one key event, recorded for debug output.
 #[derive(Clone, Copy)]
 enum DebugAction {
     Pass,
     Chord(KeyCombo),
     KeyOnly(u16),
-    Macro(u8),
+    Macro {
+        elements: [KeyCombo; MAX_MACRO_LEN],
+        len: u8,
+    },
     Prefix,
     Swallow,
+    Repeat,
+    Injected {
+        vk: u16,
+        up: bool,
+        source: InjectedSource,
+    },
 }
 
 #[derive(Clone, Copy)]
@@ -141,9 +158,26 @@ pub fn drain_debug_log() {
                     i18n::debug_key_chord(event.prev, event.input, target)
                 }
                 DebugAction::KeyOnly(vk) => i18n::debug_key_substituted(event.input, vk),
-                DebugAction::Macro(len) => i18n::debug_key_macro(event.prev, event.input, len),
+                DebugAction::Macro { elements, len } => {
+                    // Joined here, outside the hook, where allocation is fine.
+                    let steps = elements[..usize::from(len)]
+                        .iter()
+                        .map(|combo| combo.to_string())
+                        .collect::<Vec<_>>()
+                        .join(" → ");
+                    i18n::debug_key_macro(event.prev, event.input, len, &steps)
+                }
                 DebugAction::Prefix => i18n::debug_key_prefix(event.input),
                 DebugAction::Swallow => i18n::debug_key_swallowed(event.prev, event.input),
+                DebugAction::Repeat => i18n::debug_key_repeat(event.input),
+                DebugAction::Injected { vk, up, source } => {
+                    let source = match source {
+                        InjectedSource::Remap => i18n::t().debug_source_remap,
+                        InjectedSource::Compensation => i18n::t().debug_source_compensation,
+                        InjectedSource::External => i18n::t().debug_source_external,
+                    };
+                    i18n::debug_injected(vk, up, source)
+                }
             };
             println!("{line}");
         }
@@ -204,8 +238,7 @@ fn guard_class(vk: u16) -> Option<u8> {
 
 /// Arms the menu guard for the modifier classes involved in a suppressed
 /// chord (see MENU_GUARD).
-fn arm_menu_guard(mods: winremap::keymap::Mods) {
-    use winremap::keymap::Mods;
+fn arm_menu_guard(mods: Mods) {
     let mut bits = 0;
     if mods.contains(Mods::ALT) {
         bits |= GUARD_ALT;
@@ -232,7 +265,19 @@ fn take_menu_guard(class: u8) -> bool {
 fn debug_action_of(output: &Output) -> DebugAction {
     match output {
         Output::Chord(target) => DebugAction::Chord(*target),
-        Output::Seq(sequence) => DebugAction::Macro(sequence.len() as u8),
+        Output::Seq(sequence) => {
+            let mut elements = [KeyCombo {
+                mods: Mods::NONE,
+                vk: 0,
+            }; MAX_MACRO_LEN];
+            for (slot, combo) in elements.iter_mut().zip(sequence) {
+                *slot = *combo;
+            }
+            DebugAction::Macro {
+                elements,
+                len: sequence.len().min(MAX_MACRO_LEN) as u8,
+            }
+        }
     }
 }
 
@@ -329,6 +374,27 @@ fn handle_event(message: u32, event: &KBDLLHOOKSTRUCT) -> bool {
         // Injected events pass through untouched — remapping them could loop
         // (AGENTS.md invariant 1). Our own remap output still updates the
         // logical modifier state so remapped modifiers can form chords.
+        if debug_enabled() {
+            // Echo every injected event so the exact delivered stream —
+            // including other software's injections — is visible (ADR 0016).
+            let source = match event.dwExtraInfo {
+                sender::MARKER_REMAP => InjectedSource::Remap,
+                sender::MARKER_COMPENSATION => InjectedSource::Compensation,
+                _ => InjectedSource::External,
+            };
+            log_debug(
+                None,
+                KeyCombo {
+                    mods: Mods::NONE,
+                    vk,
+                },
+                DebugAction::Injected {
+                    vk,
+                    up: !down,
+                    source,
+                },
+            );
+        }
         if event.dwExtraInfo == sender::MARKER_REMAP
             && let Some(bit) = sender::side_bit(vk)
         {
@@ -377,6 +443,14 @@ fn on_key_down(vk: u16) -> bool {
             ActiveKind::KeyOnly { target_vk } => sender::send_key_only(target_vk, false),
             ActiveKind::SuppressUp => {}
         }
+        log_debug(
+            None,
+            KeyCombo {
+                mods: sender::side_mods_to_mods(SIDES.with(Cell::get)),
+                vk,
+            },
+            DebugAction::Repeat,
+        );
         return true;
     }
 
