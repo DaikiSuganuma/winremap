@@ -11,7 +11,7 @@ use std::path::Path;
 use serde::Deserialize;
 use toml::Spanned;
 
-use crate::keymap::{AppFilter, Keymap, RemapTable, parse_key_combo};
+use crate::keymap::{AppFilter, Keymap, RemapTable, is_modifier_vk, parse_key_combo};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -107,6 +107,19 @@ pub fn parse_str(source: &str) -> Result<RemapTable, ConfigError> {
                     continue;
                 }
             };
+
+            if is_modifier_vk(input.vk) {
+                issues.push(issue_at(
+                    source,
+                    lhs.span().start,
+                    &name,
+                    &format!(
+                        "modifier key `{}` cannot be a remap input (v0.1 limitation)",
+                        lhs.get_ref()
+                    ),
+                ));
+                continue;
+            }
 
             let duplicate = if input.mods.is_empty() {
                 // Bare rules leave physical modifiers untouched, so a
@@ -305,6 +318,14 @@ application = ["phpstorm64.exe"]
         assert_eq!(found.len(), 1);
         assert!(found[0].message.contains("bare-key rule"));
         assert_eq!(found[0].line, 4);
+    }
+
+    #[test]
+    fn rejects_modifier_key_as_input() {
+        let found =
+            issues("[[keymap]]\napplication = [\"*\"]\n[keymap.remap]\n\"LCtrl\" = \"a\"\n");
+        assert_eq!(found.len(), 1);
+        assert!(found[0].message.contains("cannot be a remap input"));
     }
 
     #[test]

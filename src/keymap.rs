@@ -148,6 +148,14 @@ pub fn key_name_to_vk(name: &str) -> Option<u16> {
     Some(vk)
 }
 
+/// Side-specific modifier VKs (Shift/Ctrl/Alt/Win). These cannot be remap
+/// *inputs* in v0.1: the hook consumes them for chord-state tracking and
+/// never looks them up, so config validation rejects them early instead of
+/// letting such rules silently never fire.
+pub fn is_modifier_vk(vk: u16) -> bool {
+    matches!(vk, 0xA0..=0xA5 | 0x5B | 0x5C)
+}
+
 /// How the sender must treat a resolved remap (config-spec §3, ADR 0004).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RemapKind {
