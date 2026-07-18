@@ -109,6 +109,12 @@ invalid configuration:
   line 12, column 1: in `jetbrains-terminal-fix`: unknown key name `Bcak`
 ```
 
+### エラー時の挙動（[ADR 0008](./decisions/0008-reload-via-tray-menu.md)）
+
+- **起動時**にエラー: エラーを表示して終了する（設定が効いていない状態で常駐しない）
+- **リロード時**（トレイメニュー「Reload config」）にエラー: **直前の有効な設定を維持**し、コンソールとトレイのツールチップにエラーを表示する。設定の編集ミスでリマップは止まらない
+- リロードは新しいテーブルを構築してからの atomic swap で、キーイベントの取りこぼしなく切り替わる（ADR 0003）
+
 ## 5. 将来拡張（v0.2 以降、本仕様の対象外）
 
 - キーシーケンス（`C-x C-c`）、tap/hold、マークモード
