@@ -11,6 +11,8 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
+use winremap::keymap::{KeyCombo, vk_display_name};
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Lang {
     En,
@@ -135,6 +137,67 @@ pub fn unknown_argument(arg: &str) -> String {
     match lang() {
         Lang::En => format!("unknown argument `{arg}` (try --help)"),
         Lang::Ja => format!("不明な引数 `{arg}` です（--help を参照）"),
+    }
+}
+
+/// `"A-x u"`-style rendering: a second stroke shows its prefix too.
+fn fmt_input(prev: Option<KeyCombo>, input: KeyCombo) -> String {
+    match prev {
+        Some(prefix) => format!("{prefix} {input}"),
+        None => input.to_string(),
+    }
+}
+
+pub fn debug_key_pass(input: KeyCombo) -> String {
+    match lang() {
+        Lang::En => format!("[debug] {input} → passed through"),
+        Lang::Ja => format!("[debug] {input} → 素通し"),
+    }
+}
+
+pub fn debug_key_chord(prev: Option<KeyCombo>, input: KeyCombo, target: KeyCombo) -> String {
+    let input = fmt_input(prev, input);
+    match lang() {
+        Lang::En => format!("[debug] {input} → remapped to {target}"),
+        Lang::Ja => format!("[debug] {input} → {target} に置換"),
+    }
+}
+
+pub fn debug_key_substituted(input: KeyCombo, target_vk: u16) -> String {
+    let target = vk_display_name(target_vk);
+    match lang() {
+        Lang::En => format!("[debug] {input} → substituted with {target} (bare-key rule)"),
+        Lang::Ja => format!("[debug] {input} → {target} に差し替え（単キールール）"),
+    }
+}
+
+pub fn debug_key_macro(prev: Option<KeyCombo>, input: KeyCombo, strokes: u8) -> String {
+    let input = fmt_input(prev, input);
+    match lang() {
+        Lang::En => format!("[debug] {input} → macro executed ({strokes} strokes)"),
+        Lang::Ja => format!("[debug] {input} → マクロ実行（{strokes} ストローク）"),
+    }
+}
+
+pub fn debug_key_prefix(input: KeyCombo) -> String {
+    match lang() {
+        Lang::En => format!("[debug] {input} → prefix armed (waiting for the next key)"),
+        Lang::Ja => format!("[debug] {input} → プレフィックス待機（次のキーで確定）"),
+    }
+}
+
+pub fn debug_key_swallowed(prev: Option<KeyCombo>, input: KeyCombo) -> String {
+    let input = fmt_input(prev, input);
+    match lang() {
+        Lang::En => format!("[debug] {input} → undefined sequence (swallowed)"),
+        Lang::Ja => format!("[debug] {input} → 未定義のシーケンス（握りつぶし）"),
+    }
+}
+
+pub fn debug_events_dropped(count: u32) -> String {
+    match lang() {
+        Lang::En => format!("[debug] ({count} events dropped — buffer full)"),
+        Lang::Ja => format!("[debug] （バッファ超過により {count} 件のイベントを省略）"),
     }
 }
 

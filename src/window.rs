@@ -8,7 +8,6 @@
 //! synchronization.
 
 use std::cell::RefCell;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use windows::Win32::Foundation::{CloseHandle, HWND, MAX_PATH};
 use windows::Win32::System::Threading::{
@@ -24,14 +23,6 @@ thread_local! {
     // Reuses one String so steady-state updates don't grow the heap; the
     // keyboard hook only borrows it read-only.
     static FOREGROUND_EXE: RefCell<String> = RefCell::new(String::with_capacity(64));
-}
-
-/// `--debug`: print foreground-app info useful for writing config.toml.
-/// Off by default (AGENTS.md invariant 6); key events are never logged.
-static DEBUG: AtomicBool = AtomicBool::new(false);
-
-pub fn set_debug(enabled: bool) {
-    DEBUG.store(enabled, Ordering::Relaxed);
 }
 
 /// Runs `f` with the cached foreground exe name (lowercase basename, e.g.
@@ -54,7 +45,7 @@ pub fn refresh_foreground_cache() {
         cache.clear();
         cache.push_str(&basename);
     });
-    if DEBUG.load(Ordering::Relaxed) {
+    if crate::hook::debug_enabled() {
         print_debug_info(full_path.as_deref(), &basename);
     }
 }

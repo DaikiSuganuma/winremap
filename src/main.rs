@@ -23,7 +23,7 @@ fn main() -> anyhow::Result<()> {
     i18n::init(extract_lang(&args)?);
     let cli = parse_args(&args)?;
     let config_path = cli.config_path;
-    window::set_debug(cli.debug);
+    hook::set_debug(cli.debug);
 
     let instance = hook::acquire_single_instance().context("failed to create instance mutex")?;
     let Some(_instance) = instance else {
@@ -47,7 +47,12 @@ fn main() -> anyhow::Result<()> {
     let tray = tray::init(config_path, keymap_count).context("failed to set up tray")?;
     println!("{}", i18n::t().remapping_active);
 
-    hook::run_message_loop(|| tray.pump_events());
+    hook::run_message_loop(|| {
+        tray.pump_events();
+        // Debug key events are queued by the hook (no I/O there) and
+        // formatted here on the message loop (ADR 0016).
+        hook::drain_debug_log();
+    });
 
     hook::uninstall(keyboard_hook);
     window::uninstall_foreground_watch(event_hook);
