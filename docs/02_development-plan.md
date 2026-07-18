@@ -12,7 +12,7 @@
 
 - フェーズは直列に進める（Phase N の完了条件を満たしてから N+1 へ）。各フェーズ完了時点でオーナーのレビュー・受け入れ判断を挟む
 - ロジック層（keymap / config）を先に純粋関数として完成させ、CI で緑化してから unsafe な Win32 層に着手する（ブリーフ §9 のテスト分担に対応）
-- 設計判断が発生するたびに `docs/decisions/` に ADR を追加する。各フェーズの「想定 ADR」を下に列挙
+- 設計判断が発生するたびに `docs/decisions/` に ADR（Architecture Decision Record: 設計判断とその理由の記録）を追加する。各フェーズの「想定 ADR」を下に列挙
 
 ---
 
@@ -69,7 +69,7 @@
 
 ## Phase 2 — フック層（= ブリーフ M2: hook.rs + sender.rs + window.rs）
 
-MVP の核心。ブリーフ §5 の不変条件を満たす実装が最重要。
+MVP（Minimum Viable Product: 実用最小限の製品）の核心。ブリーフ §5 の不変条件を満たす実装が最重要。
 
 ### タスク
 

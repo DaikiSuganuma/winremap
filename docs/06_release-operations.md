@@ -58,5 +58,5 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 
 ## 3. 配布ポリシー（ブリーフ §10-3）
 
-- 配布は GitHub Releases のみ。crates.io / winget への展開は必要になった時点で ADR を書いて判断する
+- 配布は GitHub Releases のみ。crates.io / winget への展開は必要になった時点で ADR（Architecture Decision Record: 設計判断の記録）を書いて判断する
 - 他サイトで配布されているバイナリは非公式（README / SECURITY.md に明記済み）

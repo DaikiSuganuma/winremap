@@ -1,7 +1,7 @@
 # 設定ファイル仕様
 
 > [01_project-brief.md](./01_project-brief.md) §6 の TOML 案を確定させた仕様。実装は `src/keymap.rs`（キー記法・マッチング）と `src/config.rs`（読み込み・検証）。
-> マッチング優先順位の設計判断は [ADR 0004](./decisions/0004-keymap-matching-priority.md) を参照。
+> マッチング優先順位の設計判断は [ADR 0004](./decisions/0004-keymap-matching-priority.md) を参照（ADR = Architecture Decision Record: 設計判断の記録）。
 
 - 作成日: 2026-07-18
 - 作成: Claude Code（AI モデル: claude-fable-5）／レビュー・承認: オーナー
@@ -72,7 +72,7 @@ exclude = ["WindowsTerminal.exe"]
 
 ### キー名（大文字小文字不問）
 
-| 分類 | 記法 | VK コード |
+| 分類 | 記法 | VK（Virtual-Key）コード |
 |---|---|---|
 | 英字 | `a`-`z` | 0x41-0x5A |
 | 数字 | `0`-`9` | 0x30-0x39 |
@@ -84,9 +84,9 @@ exclude = ["WindowsTerminal.exe"]
 
 **v0.1 の制限**:
 
-- 記号キー（`;` `,` `-` 等の OEM キー）は非対応。VK コードがキーボードレイアウト依存（特に JP 配列）のため、v0.2 で ADR を書いて対応を判断する
+- 記号キー（`;` `,` `-` 等の OEM キー。OEM = Original Equipment Manufacturer）は非対応。VK（Virtual-Key）コードがキーボードレイアウト依存（特に JP 配列）のため、対応時に ADR を書いて判断する
 - IME 関連キー（変換・無変換・かな）は Non-goal（ブリーフ §3.3）
-- **修飾キー（`LCtrl` / `LShift` 等）を入力側（LHS）にすることはできない**（設定エラー）。フックが修飾キーをチョード判定の状態管理に使うため。出力側（RHS）には使える（`"CapsLock" = "LCtrl"`）
+- **修飾キー（`LCtrl` / `LShift` 等）を入力側（LHS: Left-Hand Side、ルールの左辺）にすることはできない**（設定エラー）。フックが修飾キーをチョード判定の状態管理に使うため。出力側（RHS: Right-Hand Side、右辺）には使える（`"CapsLock" = "LCtrl"`）
 
 ## 3. マッチングと置換の意味論
 
@@ -97,7 +97,7 @@ exclude = ["WindowsTerminal.exe"]
 - **完全一致**で判定する。`C-h` は「Ctrl のみが押されている状態で H」にマッチし、Ctrl+Shift+H にはマッチしない
 - 置換時は**修飾キー状態も RHS に合わせる**。`"C-h" = "Back"` は物理 Ctrl が押下中でも、アプリには修飾なしの Backspace が届く（sender が修飾キーを一時的に解放・復元する。[ADR 0005](./decisions/0005-modifier-lift-restore.md)）
 - RHS には修飾キーを付けられる（例 `"C-i" = "S-Tab"`）
-- 既知の制限: **Alt / Win を含むチョードの置換**では、メニューバー活性化・スタートメニューの誤発動が起こる場合がある（ADR 0005）
+- **Alt / Win を含むチョード**では、マスクキーの注入によりメニューバー / スタートメニューの誤発動を防止する（[ADR 0015](./decisions/0015-menu-mask-key.md)）
 
 ### 3.2 単キールール（例 `"CapsLock" = "LCtrl"`）
 

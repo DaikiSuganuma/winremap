@@ -77,7 +77,7 @@ xremap と同じく「**本体は汎用のアプリ別キーリマッパー、Em
 
 ## 3. 要件
 
-### 3.1 MVP（v0.1）スコープ
+### 3.1 MVP（Minimum Viable Product: 実用最小限の製品 / v0.1）スコープ
 
 1. WH_KEYBOARD_LL による低レベルキーボードフックでのキー捕捉
 2. `SendInput` による代替キーの送出
@@ -138,7 +138,7 @@ xremap と同じく「**本体は汎用のアプリ別キーリマッパー、Em
 - Win32 API: `windows`（windows-rs、Microsoft 公式）を使用。`winapi` クレートは使わない
 - 設定: `serde` + `toml`
 - エラー: `anyhow`（バイナリ）＋ `thiserror`（ライブラリ的部分）
-- 依存は最小限に保つ。トレイ用クレート等を追加する場合はライセンス（MIT/Apache-2.0 系のみ可）を確認して ADR に記録する
+- 依存は最小限に保つ。トレイ用クレート等を追加する場合はライセンス（MIT/Apache-2.0 系のみ可）を確認して ADR（Architecture Decision Record: 設計判断の記録）に記録する
 
 ---
 

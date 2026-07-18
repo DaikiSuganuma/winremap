@@ -93,13 +93,14 @@ value to use, and which of your keymaps would apply.
 ## Limitations
 
 - **Windows with elevated privileges** (admin) do not receive events from a
-  non-elevated hook (UIPI). Run winremap elevated only if you need remapping
-  there.
+  non-elevated hook (UIPI, User Interface Privilege Isolation). Run winremap
+  elevated only if you need remapping there.
 - **Punctuation/OEM keys** (`;`, `,`, ...) are not supported yet — their
   virtual-key codes are keyboard-layout dependent.
 - **No tap/hold or mark mode** yet; sequences are limited to two strokes.
-- Remapping chords that involve **Alt or Win** can momentarily trigger menu
-  focus / Start menu due to the modifier lift, depending on the app.
+- Chords involving **Alt or Win** inject a masking key so the modifier lift
+  does not pop the menu bar / Start menu; if a specific app still shows menu
+  flicker, please report it.
 - Games with anti-cheat and some virtualization software may ignore injected
   input.
 - Do not run winremap together with other keyboard-hook software (Keyhac,

@@ -2,6 +2,7 @@
 
 > 本プロジェクトで Rust コードを書く際の規約。[01_project-brief.md](./01_project-brief.md) §4（アーキテクチャ）・§5（不変条件）を前提とし、Rust 実装面の具体的な作法を定める。矛盾がある場合はブリーフ §5 が優先。
 > 各規約の根拠となる公式資料は末尾の [§12 参考資料](#12-参考資料公式) を参照。
+> 文中の ADR は Architecture Decision Record（設計判断の記録、`docs/decisions/` 配下）を指す。
 
 - 作成日: 2026-07-18
 - 作成: Claude Code（AI モデル: claude-fable-5）／レビュー・承認: オーナー

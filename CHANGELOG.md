@@ -20,7 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Japanese/English UI (tray, console messages, CLI help) auto-selected from the system language, with a `--lang en|ja` override.
 - `--debug` flag: prints each foreground app's full path, the exact `application` value for the config, and the keymaps that would apply.
 
+- `--debug` now also logs each key decision (pass-through / remap / macro / prefix / swallowed) at key-name level, queued lock-free from the hook and printed on the message loop.
+
 ### Changed
 
 - `examples/minimal.toml` now targets Notepad, which doubles as a quick way to verify winremap is active.
 - Restructured `keymap`/`config` into folder modules with tests split into `tests.rs` (see guidelines §5).
+- `examples/suganuma.toml` comments are now in Japanese.
+
+### Fixed
+
+- Alt/Win chords (e.g. the `A-a` select-all macro, `A-x` prefixes) no longer trigger the menu bar / Start menu: a masking key tap is injected around Alt/Win transitions, and consumed chords mask the physical modifier release too.
