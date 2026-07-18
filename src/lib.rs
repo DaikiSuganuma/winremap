@@ -4,4 +4,5 @@
 //! arrive in Phase 2.
 
 pub mod config;
+pub mod ime_indicator_settings;
 pub mod keymap;

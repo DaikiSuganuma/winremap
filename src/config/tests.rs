@@ -91,6 +91,61 @@ fn rejects_overlong_macro_delay() {
 }
 
 #[test]
+fn ime_indicator_defaults_when_section_absent() {
+    let table = parse_str("[[keymap]]\napplication = [\"*\"]\n").unwrap();
+    let settings = table.ime_indicator;
+    assert!(!settings.enabled, "feature must be opt-in");
+    assert_eq!(settings.duration_ms, 800);
+    assert_eq!(settings.size, 96);
+    assert_eq!(settings.opacity, 200);
+}
+
+#[test]
+fn parses_full_ime_indicator_section() {
+    let table = parse_str(
+        "[ime_indicator]\nenabled = true\nduration_ms = 1500\nsize = 128\nopacity = 255\n\n[[keymap]]\napplication = [\"*\"]\n",
+    )
+    .unwrap();
+    let settings = table.ime_indicator;
+    assert!(settings.enabled);
+    assert_eq!(settings.duration_ms, 1500);
+    assert_eq!(settings.size, 128);
+    assert_eq!(settings.opacity, 255);
+}
+
+#[test]
+fn partial_ime_indicator_section_keeps_defaults() {
+    let table = parse_str("[ime_indicator]\nenabled = true\n\n[[keymap]]\napplication = [\"*\"]\n")
+        .unwrap();
+    let settings = table.ime_indicator;
+    assert!(settings.enabled);
+    assert_eq!(settings.duration_ms, 800);
+    assert_eq!(settings.size, 96);
+    assert_eq!(settings.opacity, 200);
+}
+
+#[test]
+fn rejects_out_of_range_ime_indicator_values() {
+    let found = issues(
+        "[ime_indicator]\nduration_ms = 50\nsize = 999\nopacity = 300\n\n[[keymap]]\napplication = [\"*\"]\n",
+    );
+    assert_eq!(found.len(), 3, "{found:?}");
+    assert!(found[0].message.contains("ime_indicator.duration_ms"));
+    assert!(found[0].message.contains("100-5000"));
+    assert_eq!(found[0].line, 2);
+    assert!(found[1].message.contains("ime_indicator.size"));
+    assert_eq!(found[1].line, 3);
+    assert!(found[2].message.contains("ime_indicator.opacity"));
+    assert_eq!(found[2].line, 4);
+}
+
+#[test]
+fn unknown_ime_indicator_field_is_an_error() {
+    let err = parse_str("[ime_indicator]\nenbaled = true\n[[keymap]]\napplication = [\"*\"]\n");
+    assert!(err.is_err());
+}
+
+#[test]
 fn reports_syntax_error_from_toml() {
     let err = parse_str("[[keymap]\n").unwrap_err();
     assert!(matches!(err, ConfigError::Toml(_)));

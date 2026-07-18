@@ -15,9 +15,13 @@ mod tests;
 use std::fmt;
 use std::path::Path;
 
+use crate::ime_indicator_settings::{
+    IndicatorSettings, MAX_INDICATOR_DURATION_MS, MAX_INDICATOR_SIZE, MIN_INDICATOR_DURATION_MS,
+    MIN_INDICATOR_SIZE,
+};
 use crate::keymap::{Keymap, MAX_MACRO_DELAY_MS, RemapTable};
 use compile::{KeymapCompiler, compile_app_filter, issue_at_offset};
-use raw::RawConfig;
+use raw::{RawConfig, RawImeIndicator};
 
 /// One semantic problem in the config, positioned at its source line.
 #[derive(Debug, PartialEq, Eq)]
@@ -85,6 +89,8 @@ pub fn parse_str(source: &str) -> Result<RemapTable, ConfigError> {
         None => 0,
     };
 
+    let ime_indicator = compile_ime_indicator(raw.ime_indicator, source, &mut issues);
+
     let mut keymaps = Vec::new();
     for (index, raw_keymap) in raw.keymap.into_iter().enumerate() {
         // Fall back to a positional name so issues stay attributable even
@@ -117,8 +123,61 @@ pub fn parse_str(source: &str) -> Result<RemapTable, ConfigError> {
         Ok(RemapTable {
             keymaps,
             macro_delay_ms,
+            ime_indicator,
         })
     } else {
         Err(ConfigError::Invalid(issues))
+    }
+}
+
+/// Validates the `[ime_indicator]` section against the ranges in
+/// config-spec §6, falling back to the field's default on violation so all
+/// issues are still collected in one pass.
+fn compile_ime_indicator(
+    raw: Option<RawImeIndicator>,
+    source: &str,
+    issues: &mut Vec<Issue>,
+) -> IndicatorSettings {
+    let defaults = IndicatorSettings::default();
+    let Some(raw) = raw else {
+        return defaults;
+    };
+    let mut ranged =
+        |field: Option<toml::Spanned<u32>>, name: &str, min: u32, max: u32, def| match field {
+            Some(value) if !(min..=max).contains(value.get_ref()) => {
+                issues.push(issue_at_offset(
+                    source,
+                    value.span().start,
+                    &format!(
+                        "`ime_indicator.{name}` must be {min}-{max} (got {})",
+                        value.get_ref()
+                    ),
+                ));
+                def
+            }
+            Some(value) => *value.get_ref(),
+            None => def,
+        };
+    let duration_ms = ranged(
+        raw.duration_ms,
+        "duration_ms",
+        MIN_INDICATOR_DURATION_MS,
+        MAX_INDICATOR_DURATION_MS,
+        defaults.duration_ms,
+    );
+    let size = ranged(
+        raw.size,
+        "size",
+        MIN_INDICATOR_SIZE,
+        MAX_INDICATOR_SIZE,
+        defaults.size,
+    );
+    let opacity = ranged(raw.opacity, "opacity", 0, 255, defaults.opacity.into());
+    IndicatorSettings {
+        enabled: raw.enabled.unwrap_or(defaults.enabled),
+        duration_ms,
+        size,
+        // Cast is lossless: the 0-255 range was just enforced above.
+        opacity: opacity as u8,
     }
 }

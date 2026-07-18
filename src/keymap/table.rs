@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use super::KeyCombo;
+use crate::ime_indicator_settings::IndicatorSettings;
 
 /// What an exact or sequence rule emits (config-spec §3, ADR 0012).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -91,6 +92,10 @@ pub struct RemapTable {
     /// (0 = burst, ADR 0018/0019). Carried here so a tray reload can apply
     /// the new value together with the rules.
     pub macro_delay_ms: u32,
+    /// `[ime_indicator]` settings, carried for the same reload-together
+    /// reason. Consumed by the indicator thread, not by key resolution
+    /// (ADR 0020; the feature itself lives in src/ime_indicator/).
+    pub ime_indicator: IndicatorSettings,
 }
 
 impl RemapTable {
