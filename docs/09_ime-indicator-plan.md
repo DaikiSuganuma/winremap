@@ -25,10 +25,10 @@
 1. ~~ADR 0020 作成（統合判断・却下代替案の記録）~~ — 済（2026-07-19）
 2. ~~設計書（docs/08）・本計画書（docs/09）作成~~ — 済（2026-07-19）
 3. ~~ブリーフ §3.3 Non-goals の改訂（「表示のみ採用、制御は引き続き Non-goal」）~~ — 済（2026-07-19、オーナーレビュー待ち）
-4. `AGENTS.md` 改訂（**オーナーレビュー必須**）:
+4. ~~`AGENTS.md` 改訂~~ — 済（2026-07-19、オーナー承認済み）:
    - 不変条件 2 の明示的例外に「ime_indicator 有効時のトグル候補キー検知での `PostThreadMessageW`（ADR 0020）」を追加
-   - 不変条件 3 の unsafe 許可リストに `src/ime_indicator/detect.rs` / `src/ime_indicator/overlay.rs` を追加
-5. ブリーフ §5（不変条件）にも同じ改訂を反映（AGENTS.md と二重管理のため両方直す）
+   - 不変条件 3 の unsafe 許可リストに `src/ime_indicator/detect.rs` / `src/ime_indicator/overlay.rs`・検証用 `examples/ime_probe.rs` を追加
+5. ~~ブリーフ §5（不変条件）にも同じ改訂を反映~~ — 済（2026-07-19）
 
 ### 完了条件
 
