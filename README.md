@@ -11,6 +11,26 @@ A per-application key remapper for Windows, written in Rust — inspired by
 
 日本語版: [README.ja.md](README.ja.md)
 
+## How it works
+
+All winremap does is replace keystrokes — it never invokes application
+functions directly. A low-level keyboard hook suppresses the physical key
+event and injects the replacement keys with `SendInput`. The application
+receives the injected keys as if you had typed them and applies its own
+native meaning: remap `A-a` to `C-a` and the app runs whatever it does for
+Ctrl+A (usually Select All). Injected events pass through the hook
+untouched, so rules never trigger each other or loop.
+
+```mermaid
+flowchart TD
+    K["Physical keystroke<br/>(e.g. Alt+A)"] --> H{"winremap<br/>low-level hook"}
+    H -->|"rule matches"| S["Suppress the<br/>original event"]
+    S --> I["Inject the replacement keys<br/>with SendInput (e.g. Ctrl+A)"]
+    I -.->|"re-enters the hook, marked<br/>as injected (LLKHF_INJECTED)"| H
+    H -->|"injected event / no rule"| P["Pass through<br/>unchanged"]
+    P --> A["Application interprets the keys natively<br/>(Ctrl+A → Select All)"]
+```
+
 ## Features (v0.1)
 
 - **Per-application remapping**: rules apply only to the processes you list
