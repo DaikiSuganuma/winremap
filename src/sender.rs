@@ -28,6 +28,16 @@ pub const MARKER_COMPENSATION: usize = 0x57524D01;
 /// that are down (LCtrl vs RCtrl), which class-level `Mods` cannot express.
 pub type SideMods = u8;
 
+/// Bits in [`SideMods`] covering Alt and Win keys — the modifiers whose lone
+/// press-and-release activates the menu bar / Start menu.
+pub const ALT_WIN_SIDES: SideMods = 0b1111_0000;
+
+/// Reserved VK used as a "menu mask": tapping it between an Alt/Win down and
+/// up breaks the lone-tap pattern Windows uses to trigger the menu bar and
+/// Start menu, while applications ignore the key itself (ADR 0015; same
+/// technique as Keyhac/AutoHotkey).
+const VK_MENU_MASK: u16 = 0xFF;
+
 const SIDE_VKS: [u16; 8] = [
     0xA0, // LShift
     0xA1, // RShift
@@ -212,6 +222,11 @@ pub fn send_exact_down(target: KeyCombo, held: SideMods) -> ModAdjustment {
     let held_mods = side_mods_to_mods(held);
     let mut batch = Batch::<CHORD_BATCH>::new();
 
+    // The original chord key was suppressed, so without a mask the injected
+    // Alt/Win up would read as a lone tap and pop the menu / Start menu.
+    if lifted & ALT_WIN_SIDES != 0 {
+        push_menu_mask(&mut batch);
+    }
     for (i, &vk) in SIDE_VKS.iter().enumerate() {
         if lifted & (1 << i) != 0 {
             batch.push(key_input(vk, true, MARKER_COMPENSATION));
@@ -257,6 +272,22 @@ pub fn send_exact_up(target: KeyCombo, adjustment: ModAdjustment, still_held: Si
     batch.send();
 }
 
+fn push_menu_mask<const N: usize>(batch: &mut Batch<N>) {
+    batch.push(key_input(VK_MENU_MASK, false, MARKER_COMPENSATION));
+    batch.push(key_input(VK_MENU_MASK, true, MARKER_COMPENSATION));
+}
+
+/// Replaces a physical Alt/Win key-up whose chord we consumed: the mask tap
+/// must land *before* the up event, so the hook suppresses the physical
+/// release and this emits `[mask, up]` as one ordered batch. The up carries
+/// `MARKER_REMAP` so the hook's modifier tracking follows it (ADR 0015).
+pub fn send_masked_modifier_up(vk: u16) {
+    let mut batch = Batch::<CHORD_BATCH>::new();
+    push_menu_mask(&mut batch);
+    batch.push(key_input(vk, true, MARKER_REMAP));
+    batch.send();
+}
+
 /// Bare-key rule output: substitute the key only, leave modifiers alone
 /// (config-spec §3.2).
 pub fn send_key_only(target_vk: u16, up: bool) {
@@ -272,6 +303,10 @@ pub fn send_key_only(target_vk: u16, up: bool) {
 /// cannot change midway.
 pub fn send_sequence(sequence: &[KeyCombo], held: SideMods) {
     let mut batch = Batch::<MACRO_BATCH>::new();
+    // See send_exact_down: lifting Alt/Win must not look like a lone tap.
+    if held & ALT_WIN_SIDES != 0 {
+        push_menu_mask(&mut batch);
+    }
     for (i, &vk) in SIDE_VKS.iter().enumerate() {
         if held & (1 << i) != 0 {
             batch.push(key_input(vk, true, MARKER_COMPENSATION));

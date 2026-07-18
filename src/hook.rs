@@ -15,14 +15,15 @@ use arc_swap::ArcSwapOption;
 use windows::Win32::Foundation::{
     CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE, LPARAM, LRESULT, WPARAM,
 };
-use windows::Win32::System::Threading::CreateMutexW;
+use windows::Win32::System::Threading::{CreateMutexW, GetCurrentThreadId};
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, HC_ACTION, HHOOK, KBDLLHOOKSTRUCT,
-    LLKHF_INJECTED, MSG, PostQuitMessage, SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx,
-    WH_KEYBOARD_LL, WM_KEYDOWN, WM_SYSKEYDOWN,
+    LLKHF_INJECTED, MSG, PostQuitMessage, PostThreadMessageW, SetWindowsHookExW, TranslateMessage,
+    UnhookWindowsHookEx, WH_KEYBOARD_LL, WM_APP, WM_KEYDOWN, WM_SYSKEYDOWN,
 };
 use windows::core::w;
 
+use crate::i18n;
 use crate::sender;
 use crate::sender::{ModAdjustment, SideMods};
 use winremap::keymap::{KeyCombo, Output, RemapTable, Resolution};
@@ -43,6 +44,115 @@ pub fn set_enabled(enabled: bool) {
     if !enabled {
         PENDING.set(None);
     }
+}
+
+/// `--debug` key logging. Default OFF (AGENTS.md invariant 6): output is
+/// key-name level only and never persisted.
+static DEBUG: AtomicBool = AtomicBool::new(false);
+
+pub fn set_debug(enabled: bool) {
+    DEBUG.store(enabled, Ordering::Relaxed);
+}
+
+pub fn debug_enabled() -> bool {
+    DEBUG.load(Ordering::Relaxed)
+}
+
+/// What the hook decided for one key-down, recorded for debug output.
+#[derive(Clone, Copy)]
+enum DebugAction {
+    Pass,
+    Chord(KeyCombo),
+    KeyOnly(u16),
+    Macro(u8),
+    Prefix,
+    Swallow,
+}
+
+#[derive(Clone, Copy)]
+struct DebugEvent {
+    /// The armed prefix when this was a second stroke.
+    prev: Option<KeyCombo>,
+    input: KeyCombo,
+    action: DebugAction,
+}
+
+const DEBUG_RING_SIZE: usize = 128;
+
+/// Fixed-capacity event buffer: the callback must not print or allocate
+/// (invariant 2), so events are queued here and formatted by
+/// [`drain_debug_log`] on the message loop (ADR 0016).
+struct DebugRing {
+    events: [Option<DebugEvent>; DEBUG_RING_SIZE],
+    len: usize,
+    dropped: u32,
+}
+
+impl DebugRing {
+    const fn new() -> Self {
+        Self {
+            events: [None; DEBUG_RING_SIZE],
+            len: 0,
+            dropped: 0,
+        }
+    }
+
+    fn push(&mut self, event: DebugEvent) {
+        if self.len < DEBUG_RING_SIZE {
+            self.events[self.len] = Some(event);
+            self.len += 1;
+        } else {
+            self.dropped += 1;
+        }
+    }
+}
+
+fn log_debug(prev: Option<KeyCombo>, input: KeyCombo, action: DebugAction) {
+    if !debug_enabled() {
+        return;
+    }
+    DEBUG_RING.with(|ring| {
+        ring.borrow_mut().push(DebugEvent {
+            prev,
+            input,
+            action,
+        })
+    });
+    // Keystrokes do not queue messages for this thread, so GetMessageW would
+    // sit idle and the log would only flush on the next unrelated message.
+    // A cheap self-posted message wakes the loop; debug mode only.
+    // SAFETY: posts to our own thread's queue; failure (queue full) only
+    // delays output.
+    let _ = unsafe { PostThreadMessageW(GetCurrentThreadId(), WM_APP, WPARAM(0), LPARAM(0)) };
+}
+
+/// Formats and prints queued debug events. Runs on the message loop, outside
+/// the hook callback, where I/O and allocation are fine.
+pub fn drain_debug_log() {
+    if !debug_enabled() {
+        return;
+    }
+    DEBUG_RING.with(|ring| {
+        let mut ring = ring.borrow_mut();
+        for event in ring.events.iter().take(ring.len).flatten() {
+            let line = match event.action {
+                DebugAction::Pass => i18n::debug_key_pass(event.input),
+                DebugAction::Chord(target) => {
+                    i18n::debug_key_chord(event.prev, event.input, target)
+                }
+                DebugAction::KeyOnly(vk) => i18n::debug_key_substituted(event.input, vk),
+                DebugAction::Macro(len) => i18n::debug_key_macro(event.prev, event.input, len),
+                DebugAction::Prefix => i18n::debug_key_prefix(event.input),
+                DebugAction::Swallow => i18n::debug_key_swallowed(event.prev, event.input),
+            };
+            println!("{line}");
+        }
+        if ring.dropped > 0 {
+            println!("{}", i18n::debug_events_dropped(ring.dropped));
+        }
+        ring.len = 0;
+        ring.dropped = 0;
+    });
 }
 
 /// What to do when a suppressed key's physical release (or repeat) arrives.
@@ -73,6 +183,57 @@ thread_local! {
     /// non-modifier key-down consumes it (ADR 0013). No timeout on purpose —
     /// Emacs prefixes wait indefinitely too.
     static PENDING: Cell<Option<KeyCombo>> = const { Cell::new(None) };
+    /// Alt/Win classes whose chords we consumed while held. Their eventual
+    /// physical release must be masked or Windows reads it as a lone tap and
+    /// opens the menu bar / Start menu (ADR 0015).
+    static MENU_GUARD: Cell<u8> = const { Cell::new(0) };
+    /// Debug-mode event queue; drained by the message loop.
+    static DEBUG_RING: RefCell<DebugRing> = const { RefCell::new(DebugRing::new()) };
+}
+
+const GUARD_ALT: u8 = 1;
+const GUARD_WIN: u8 = 1 << 1;
+
+fn guard_class(vk: u16) -> Option<u8> {
+    match vk {
+        0xA4 | 0xA5 => Some(GUARD_ALT), // LAlt / RAlt
+        0x5B | 0x5C => Some(GUARD_WIN), // LWin / RWin
+        _ => None,
+    }
+}
+
+/// Arms the menu guard for the modifier classes involved in a suppressed
+/// chord (see MENU_GUARD).
+fn arm_menu_guard(mods: winremap::keymap::Mods) {
+    use winremap::keymap::Mods;
+    let mut bits = 0;
+    if mods.contains(Mods::ALT) {
+        bits |= GUARD_ALT;
+    }
+    if mods.contains(Mods::WIN) {
+        bits |= GUARD_WIN;
+    }
+    if bits != 0 {
+        MENU_GUARD.with(|guard| guard.set(guard.get() | bits));
+    }
+}
+
+/// Returns whether `class` was armed, clearing it either way.
+fn take_menu_guard(class: u8) -> bool {
+    MENU_GUARD.with(|guard| {
+        let armed = guard.get() & class != 0;
+        if armed {
+            guard.set(guard.get() & !class);
+        }
+        armed
+    })
+}
+
+fn debug_action_of(output: &Output) -> DebugAction {
+    match output {
+        Output::Chord(target) => DebugAction::Chord(*target),
+        Output::Seq(sequence) => DebugAction::Macro(sequence.len() as u8),
+    }
 }
 
 pub fn install() -> windows::core::Result<HHOOK> {
@@ -177,8 +338,19 @@ fn handle_event(message: u32, event: &KBDLLHOOKSTRUCT) -> bool {
     }
 
     if let Some(bit) = sender::side_bit(vk) {
-        // Modifier keys are not remappable in v0.1 (config rejects them as
-        // inputs), so they only feed the state used to match other keys.
+        // Modifier keys are not remappable (config rejects them as inputs),
+        // so they only feed the chord state used to match other keys.
+        if !down
+            && let Some(class) = guard_class(vk)
+            && take_menu_guard(class)
+        {
+            // The mask must land before the release, so suppress the
+            // physical up and emit [mask, up] as one ordered batch; the
+            // injected up carries MARKER_REMAP and updates SIDES when it
+            // comes back through the hook (ADR 0015).
+            sender::send_masked_modifier_up(vk);
+            return true;
+        }
         update_sides(bit, down);
         return false;
     }
@@ -229,26 +401,44 @@ fn on_key_down(vk: u16) -> bool {
         let kind =
             match crate::window::with_foreground_exe(|exe| table.resolve_second(exe, first, input))
             {
-                Some(output) => emit_output(output, sides),
-                None => ActiveKind::SuppressUp,
+                Some(output) => {
+                    log_debug(Some(first), input, debug_action_of(output));
+                    emit_output(output, sides)
+                }
+                None => {
+                    log_debug(Some(first), input, DebugAction::Swallow);
+                    ActiveKind::SuppressUp
+                }
             };
+        arm_menu_guard(input.mods);
         ACTIVE.with(|active| active.borrow_mut()[usize::from(vk)] = Some(kind));
         return true;
     }
 
     let resolution = crate::window::with_foreground_exe(|exe| table.resolve(exe, input));
     let kind = match resolution {
-        Some(Resolution::Exact(output)) => emit_output(output, sides),
+        Some(Resolution::Exact(output)) => {
+            log_debug(None, input, debug_action_of(output));
+            emit_output(output, sides)
+        }
         Some(Resolution::KeyOnly(target_vk)) => {
+            log_debug(None, input, DebugAction::KeyOnly(target_vk));
             sender::send_key_only(target_vk, false);
             ActiveKind::KeyOnly { target_vk }
         }
         Some(Resolution::Prefix) => {
+            log_debug(None, input, DebugAction::Prefix);
             PENDING.set(Some(input));
             ActiveKind::SuppressUp
         }
-        None => return false,
+        None => {
+            log_debug(None, input, DebugAction::Pass);
+            return false;
+        }
     };
+    // A consumed Alt/Win chord means the eventual physical modifier release
+    // must be masked (ADR 0015).
+    arm_menu_guard(input.mods);
     ACTIVE.with(|active| active.borrow_mut()[usize::from(vk)] = Some(kind));
     true
 }

@@ -15,7 +15,7 @@ mod tests;
 
 pub use parse::{
     InputPattern, KeyParseError, is_modifier_vk, key_name_to_vk, parse_input_pattern,
-    parse_key_combo,
+    parse_key_combo, vk_display_name,
 };
 pub use table::{AppFilter, Keymap, Output, RemapTable, Resolution};
 
@@ -54,4 +54,24 @@ impl Mods {
 pub struct KeyCombo {
     pub mods: Mods,
     pub vk: u16,
+}
+
+/// Renders in config notation (`C-S-h`) so debug output matches what the
+/// user would write in config.toml.
+impl std::fmt::Display for KeyCombo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.mods.contains(Mods::CTRL) {
+            f.write_str("C-")?;
+        }
+        if self.mods.contains(Mods::ALT) {
+            f.write_str("A-")?;
+        }
+        if self.mods.contains(Mods::SHIFT) {
+            f.write_str("S-")?;
+        }
+        if self.mods.contains(Mods::WIN) {
+            f.write_str("W-")?;
+        }
+        f.write_str(&parse::vk_display_name(self.vk))
+    }
 }

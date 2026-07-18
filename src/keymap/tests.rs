@@ -151,6 +151,18 @@ fn excluded_apps_do_not_match_global_keymaps() {
 }
 
 #[test]
+fn key_combo_displays_in_config_notation() {
+    assert_eq!(combo("C-S-h").to_string(), "C-S-h");
+    assert_eq!(combo("Back").to_string(), "Back");
+    assert_eq!(combo("A-F5").to_string(), "A-F5");
+    assert_eq!(combo("W-2").to_string(), "W-2");
+    // Round-trip: the displayed form parses back to the same combo.
+    for spec in ["C-h", "A-x", "C-A-S-Delete", "PageUp"] {
+        assert_eq!(parse_key_combo(&combo(spec).to_string()), Ok(combo(spec)));
+    }
+}
+
+#[test]
 fn sequences_resolve_via_prefix_then_second_stroke() {
     let mut keymap = empty_keymap();
     keymap.seqs.insert(

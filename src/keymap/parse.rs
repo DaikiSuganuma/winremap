@@ -145,6 +145,43 @@ pub fn key_name_to_vk(name: &str) -> Option<u16> {
     Some(vk)
 }
 
+/// Canonical display name for a VK, used by debug output. The inverse of
+/// [`key_name_to_vk`] for named keys; letters/digits/F-keys are computed and
+/// unknown codes fall back to hex.
+pub fn vk_display_name(vk: u16) -> String {
+    match vk {
+        0x41..=0x5A => char::from(b'a' + (vk - 0x41) as u8).to_string(),
+        0x30..=0x39 => char::from(b'0' + (vk - 0x30) as u8).to_string(),
+        0x70..=0x87 => format!("F{}", vk - 0x70 + 1),
+        0x08 => "Back".to_string(),
+        0x09 => "Tab".to_string(),
+        0x0D => "Enter".to_string(),
+        0x14 => "CapsLock".to_string(),
+        0x1B => "Esc".to_string(),
+        0x20 => "Space".to_string(),
+        0x21 => "PageUp".to_string(),
+        0x22 => "PageDown".to_string(),
+        0x23 => "End".to_string(),
+        0x24 => "Home".to_string(),
+        0x25 => "Left".to_string(),
+        0x26 => "Up".to_string(),
+        0x27 => "Right".to_string(),
+        0x28 => "Down".to_string(),
+        0x2D => "Insert".to_string(),
+        0x2E => "Delete".to_string(),
+        0x5B => "LWin".to_string(),
+        0x5C => "RWin".to_string(),
+        0x5D => "Apps".to_string(),
+        0xA0 => "LShift".to_string(),
+        0xA1 => "RShift".to_string(),
+        0xA2 => "LCtrl".to_string(),
+        0xA3 => "RCtrl".to_string(),
+        0xA4 => "LAlt".to_string(),
+        0xA5 => "RAlt".to_string(),
+        other => format!("0x{other:02X}"),
+    }
+}
+
 /// Side-specific modifier VKs (Shift/Ctrl/Alt/Win). These cannot be remap
 /// *inputs*: the hook consumes them for chord-state tracking and never looks
 /// them up, so config validation rejects them early instead of letting such
