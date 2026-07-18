@@ -85,21 +85,18 @@
 
 ### タスク
 
-1. `src/ime_indicator/mod.rs` — 公開 API（`start` / `stop` / 通知関数）、indicator thread の起動・停止・設定リロード受信
-2. `src/ime_indicator/detect.rs` — IME 状態照会（設計書 §3.2）。全 unsafe に `// SAFETY:` コメント
-3. `src/ime_indicator/overlay.rs` — レイヤードウィンドウ生成・「あ」パネル描画・フェードアウトタイマー（設計書 §3.3）
-4. 既存モジュールへの接点追加（各 1 箇所、レビューで接点数を確認）:
-   - `hook.rs`: トグル候補キー keydown 時の `PostThreadMessageW`（enabled 時のみ。キーは素通し）
-   - `window.rs`: フォアグラウンド変化通知
-   - `main.rs`: 起動・終了・リロード時の配線
-5. `Cargo.toml` の `windows` クレート feature 追加（`Win32_UI_Input_Ime`、`Win32_Graphics_Gdi`、`Win32_Graphics_Dwm` 等、必要最小限）
-6. DPI awareness マニフェストの現状確認と、必要なら Per-Monitor V2 対応（結果を ADR に記録）
-7. 障害分離の実装確認: indicator thread の起動失敗・panic がリマップ動作に影響しないこと
+1. ~~`src/ime_indicator/mod.rs`~~ — 済（2026-07-19。公開 API は `sync_with_config` / `stop` / `notify_*`。unsafe なしの制御ロジックに限定）
+2. ~~`src/ime_indicator/detect.rs`~~ — 済（2026-07-19。`SendMessageTimeoutW` のみ使用、全 unsafe に `// SAFETY:`）
+3. ~~`src/ime_indicator/overlay.rs`~~ — 済（2026-07-19。レイヤードウィンドウ・「あ」パネル・フェードアウトに加え、スレッドメッセージングの unsafe ラッパーもここに集約し mod.rs を unsafe フリーに保った）
+4. ~~既存モジュールへの接点追加~~ — 済（2026-07-19。hook.rs / window.rs / main.rs に加え、リロードがトレイ経由のため tray.rs の計 4 箇所・各 1 行レベル。設計書 §4 に反映済み）
+5. ~~`Cargo.toml` feature 追加~~ — 済（2026-07-19。`Win32_Graphics_Gdi` / `Win32_Graphics_Dwm` / `Win32_System_LibraryLoader` を追加）
+6. ~~DPI awareness マニフェストの現状確認~~ — 済（2026-07-19。build.rs にマニフェスト設定はなく DPI 非対応＝OS の DPI 仮想化に任せる構成。座標系が仮想化内で一貫するため中央配置は正しく動作し、変更不要と判断。高 DPI での描画シャープ化は将来課題。変更なしのため ADR は起こさず）
+7. ~~障害分離の実装確認~~ — 済（2026-07-19。indicator thread は `catch_unwind` で包み、起動失敗・panic とも i18n 警告のみでリマップ継続）
 
 ### 想定 ADR
 
-- 0021: indicator thread の通信設計（メッセージ種別、設定リロード伝搬）※実装時に判断が発生した場合
-- 0022: DPI awareness 方針 ※マニフェスト変更が必要になった場合
+- ~~0021: indicator thread の通信設計~~ — 不要と判断（設計書 §4.1 の記載どおりに実装、新たな設計判断は発生せず）
+- ~~0022: DPI awareness 方針~~ — 不要と判断（マニフェスト変更なし、タスク 6 参照）
 
 ### 完了条件
 
@@ -136,7 +133,7 @@
 | フック内処理の肥大化（不変条件 2 違反） | フック内は enabled チェック＋ `PostThreadMessageW` 1 行のみ。AGENTS.md の例外リストに明記してレビュー観点に固定 |
 | インジケーター不具合がリマップを巻き込む | 専用スレッドで障害分離（設計書 §5）。panic 時は機能停止のみでフック継続 |
 | 描画・DPI の環境差 | 受け入れチェックリストにマルチモニター・DPI 混在項目を追加。CI 不可領域は手動で補完（既存方針どおり） |
-| 「別機能」の境界が崩れて本体と癒着する | 接点 3 箇所（hook / window / main 各 1 行レベル）を上限としてレビューで監視 |
+| 「別機能」の境界が崩れて本体と癒着する | 接点 4 箇所（hook / window / main / tray 各 1 行レベル。リロードがトレイ経由のため tray を追加）を上限としてレビューで監視 |
 
 ## オーナー判断が必要な項目（都度確認）
 

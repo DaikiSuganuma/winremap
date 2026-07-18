@@ -109,15 +109,20 @@ opacity = 200         # 0–255。パネル全体の不透明度
 
 ```
 src/
-├── ime_indicator/          # ★ 本機能はこのディレクトリに完結（新規）
-│   ├── mod.rs              #   公開 API: start() / stop() / notify_*()。機能全体の説明コメント
-│   ├── detect.rs           #   IME 状態照会（ImmGetDefaultIMEWnd + SendMessageTimeoutW）— unsafe
-│   └── overlay.rs          #   レイヤードウィンドウの生成・描画・フェードアウト — unsafe
-├── hook.rs                 # 接点1: トグル候補キー検知時に PostThreadMessageW 1 行（enabled 時のみ）
-├── window.rs               # 接点2: フォアグラウンド変化時に通知 1 行（enabled 時のみ）
-├── main.rs                 # 接点3: 起動時に ime_indicator::start()、終了時に stop()
-└── (config はライブラリ側)  # [ime_indicator] 節のパース・検証（純粋ロジック、CI テスト対象）
+├── ime_indicator/            # ★ 本機能はこのディレクトリに完結（新規）
+│   ├── mod.rs                #   公開 API: sync_with_config() / stop() / notify_*()。
+│   │                         #   スレッド管理と状態機械（unsafe なしの制御ロジック）
+│   ├── detect.rs             #   IME 状態照会（ImmGetDefaultIMEWnd + SendMessageTimeoutW）— unsafe
+│   └── overlay.rs            #   レイヤードウィンドウの生成・描画・フェードアウトと、
+│                             #   indicator スレッドのメッセージング補助 — unsafe はここに集約
+├── ime_indicator_settings.rs # [ime_indicator] 設定型（ライブラリ側・純粋ロジック、CI テスト対象）
+├── hook.rs                   # 接点1: トグル候補キー keydown で notify_toggle_keydown() 1 呼び出し
+├── window.rs                 # 接点2: フォアグラウンド変化で notify_foreground_changed() 1 行
+├── main.rs                   # 接点3: 起動時に sync_with_config()、終了時に stop()
+└── tray.rs                   # 接点4: 設定リロード後に sync_with_config() 1 行
 ```
+
+（2026-07-19 実装時修正: リロードはトレイメニュー経由のため、当初 main.rs に含めていた「リロード時の配線」は tray.rs の 1 行となり、接点は計 4 箇所。設定型はモジュール循環を避けるため `src/config/` 内ではなく独立モジュール `ime_indicator_settings.rs` とした）
 
 ### 4.1 スレッドモデル
 
