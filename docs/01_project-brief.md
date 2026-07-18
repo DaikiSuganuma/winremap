@@ -209,6 +209,8 @@ winremap/
 │   ├── 02_development-plan.md  # 開発計画（フェーズ分解）
 │   ├── 03_rust-guidelines.md   # Rust 開発の作法
 │   ├── 04_config-spec.md       # §6 の確定仕様
+│   ├── 05_acceptance-checklist.md  # §9 の手動テスト記録
+│   ├── 06_release-operations.md    # §10 の運用手順（オーナー向け）
 │   ├── architecture.md         # §4 の詳細版
 │   └── decisions/              # ADR（1判断1ファイル、連番）
 │       └── 0001-use-windows-rs.md
