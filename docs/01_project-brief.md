@@ -208,8 +208,8 @@ winremap/
 │   ├── 01_project-brief.md     # 本ドキュメント（最初に読む）
 │   ├── 02_development-plan.md  # 開発計画（フェーズ分解）
 │   ├── 03_rust-guidelines.md   # Rust 開発の作法
+│   ├── 04_config-spec.md       # §6 の確定仕様
 │   ├── architecture.md         # §4 の詳細版
-│   ├── config-spec.md          # §6 の確定仕様
 │   └── decisions/              # ADR（1判断1ファイル、連番）
 │       └── 0001-use-windows-rs.md
 ├── examples/
