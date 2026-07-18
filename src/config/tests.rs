@@ -1,0 +1,182 @@
+use super::*;
+use crate::keymap::{KeyCombo, Output, Resolution, parse_key_combo};
+
+fn combo(spec: &str) -> KeyCombo {
+    parse_key_combo(spec).unwrap()
+}
+
+fn issues(source: &str) -> Vec<Issue> {
+    match parse_str(source) {
+        Err(ConfigError::Invalid(issues)) => issues,
+        other => panic!("expected Invalid, got {other:?}"),
+    }
+}
+
+#[test]
+fn compiles_valid_config() {
+    let table = parse_str(
+        r#"
+[[keymap]]
+name = "global"
+application = ["*"]
+
+[keymap.remap]
+"CapsLock" = "LCtrl"
+
+[[keymap]]
+application = ["phpstorm64.exe"]
+
+[keymap.remap]
+"C-h" = "Back"
+"#,
+    )
+    .unwrap();
+    assert_eq!(table.keymaps.len(), 2);
+    assert_eq!(table.keymaps[0].bare.len(), 1);
+    assert_eq!(table.keymaps[1].exact.len(), 1);
+    // Anonymous sections get a positional fallback name for diagnostics.
+    assert_eq!(table.keymaps[1].name, "keymap #2");
+}
+
+#[test]
+fn compiles_exclude_macro_and_sequence_rules() {
+    let table = parse_str(
+        r#"
+[[keymap]]
+name = "emacs"
+application = ["*"]
+exclude = ["Zed.exe"]
+
+[keymap.remap]
+"C-t" = ["C-Right", "C-Left", "C-S-Right"]
+"A-x u" = "C-z"
+"#,
+    )
+    .unwrap();
+    let keymap = &table.keymaps[0];
+    assert!(matches!(
+        keymap.exact.get(&combo("C-t")),
+        Some(Output::Seq(seq)) if seq.len() == 3
+    ));
+    assert_eq!(
+        table.resolve("zed.exe", combo("C-t")),
+        None,
+        "excluded app must not match"
+    );
+    assert_eq!(
+        table.resolve("notepad.exe", combo("A-x")),
+        Some(Resolution::Prefix)
+    );
+    assert_eq!(
+        table.resolve_second("notepad.exe", combo("A-x"), combo("u")),
+        Some(&Output::Chord(combo("C-z")))
+    );
+}
+
+#[test]
+fn reports_syntax_error_from_toml() {
+    let err = parse_str("[[keymap]\n").unwrap_err();
+    assert!(matches!(err, ConfigError::Toml(_)));
+}
+
+#[test]
+fn missing_application_is_an_error() {
+    let err = parse_str("[[keymap]]\nname = \"x\"\n").unwrap_err();
+    // Reported by serde as a missing field, with toml's span rendering.
+    assert!(err.to_string().contains("application"), "{err}");
+}
+
+#[test]
+fn unknown_field_is_an_error() {
+    let err = parse_str("[[keymap]]\napplication = [\"*\"]\napplicatoin = [\"x\"]\n");
+    assert!(err.is_err());
+}
+
+#[test]
+fn reports_bad_key_notation_with_line_numbers() {
+    let found = issues(
+        "\n[[keymap]]\nname = \"broken\"\napplication = [\"*\"]\n\n[keymap.remap]\n\"C-Bcak\" = \"Back\"\n\"C-h\" = \"Nope\"\n",
+    );
+    assert_eq!(found.len(), 2);
+    assert_eq!(found[0].line, 7);
+    assert!(found[0].message.contains("broken"));
+    assert!(found[0].message.contains("Bcak"));
+    assert_eq!(found[1].line, 8);
+    assert!(found[1].message.contains("Nope"));
+}
+
+#[test]
+fn rejects_wildcard_mixed_with_names() {
+    let found = issues("[[keymap]]\napplication = [\"*\", \"notepad.exe\"]\n");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].message.contains("wildcard"));
+}
+
+#[test]
+fn rejects_empty_application_list() {
+    let found = issues("[[keymap]]\napplication = []\n");
+    assert!(found[0].message.contains("must not be empty"));
+}
+
+#[test]
+fn rejects_exclude_without_wildcard() {
+    let found = issues("[[keymap]]\napplication = [\"notepad.exe\"]\nexclude = [\"zed.exe\"]\n");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].message.contains("requires application"));
+}
+
+#[test]
+fn rejects_modifier_target_on_bare_rule() {
+    let found =
+        issues("[[keymap]]\napplication = [\"*\"]\n[keymap.remap]\n\"CapsLock\" = \"C-a\"\n");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].message.contains("may not have modifiers"));
+    assert_eq!(found[0].line, 4);
+}
+
+#[test]
+fn rejects_macro_target_on_bare_rule() {
+    let found = issues(
+        "[[keymap]]\napplication = [\"*\"]\n[keymap.remap]\n\"CapsLock\" = [\"a\", \"b\"]\n",
+    );
+    assert_eq!(found.len(), 1);
+    assert!(found[0].message.contains("may not be a macro"));
+}
+
+#[test]
+fn rejects_modifier_key_as_input() {
+    let found = issues("[[keymap]]\napplication = [\"*\"]\n[keymap.remap]\n\"LCtrl\" = \"a\"\n");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].message.contains("cannot be a remap input"));
+}
+
+#[test]
+fn rejects_plain_and_prefix_conflict() {
+    let found = issues(
+        "[[keymap]]\napplication = [\"*\"]\n[keymap.remap]\n\"A-x\" = \"F2\"\n\"A-x h\" = \"C-a\"\n",
+    );
+    assert_eq!(found.len(), 1, "{found:?}");
+    let message = &found[0].message;
+    assert!(
+        message.contains("sequence prefix"),
+        "unexpected message: {message}"
+    );
+}
+
+#[test]
+fn rejects_overlong_macro() {
+    let found = issues(
+        "[[keymap]]\napplication = [\"*\"]\n[keymap.remap]\n\"C-t\" = [\"a\",\"a\",\"a\",\"a\",\"a\",\"a\",\"a\",\"a\",\"a\"]\n",
+    );
+    assert_eq!(found.len(), 1);
+    assert!(found[0].message.contains("exceeds"));
+}
+
+#[test]
+fn rejects_rules_that_normalize_to_the_same_combo() {
+    let found = issues(
+        "[[keymap]]\napplication = [\"*\"]\n[keymap.remap]\n\"C-h\" = \"Back\"\n\"c-H\" = \"Delete\"\n",
+    );
+    assert_eq!(found.len(), 1);
+    assert!(found[0].message.contains("duplicates"));
+}
