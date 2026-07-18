@@ -1,31 +1,37 @@
 //! Entry point: loads the config, installs the hooks, and pumps messages.
 //! Win32-facing modules live in the binary; the OS-independent core
 //! (keymap/config) is the `winremap` library crate so it stays testable on
-//! headless CI (project brief §9).
+//! headless CI (project brief §9). This file is `unsafe`-free — Win32 calls
+//! are wrapped by hook.rs / window.rs (AGENTS.md invariant 3, ADR 0009).
 
 mod hook;
 mod sender;
+mod tray;
 mod window;
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, bail};
-use windows::Win32::UI::Accessibility::UnhookWinEvent;
-use windows::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, GetMessageW, MSG, TranslateMessage,
-};
 use winremap::config;
 
 fn main() -> anyhow::Result<()> {
     let config_path = parse_args()?;
 
+    let instance = hook::acquire_single_instance().context("failed to create instance mutex")?;
+    let Some(_instance) = instance else {
+        bail!("winremap is already running (check the task tray)");
+    };
+
+    // A startup config error aborts: better to not run at all than to sit in
+    // the tray silently doing nothing the user asked for (config-spec §4).
     let table = config::load(&config_path)
         .with_context(|| format!("failed to load {}", config_path.display()))?;
+    let keymap_count = table.keymaps.len();
     println!(
         "winremap {}: {} keymap(s) loaded from {}",
         env!("CARGO_PKG_VERSION"),
-        table.keymaps.len(),
+        keymap_count,
         config_path.display()
     );
     hook::REMAP_TABLE.store(Some(Arc::new(table)));
@@ -36,24 +42,13 @@ fn main() -> anyhow::Result<()> {
     window::refresh_foreground_cache();
     let event_hook = window::install_foreground_watch().context("failed to watch foreground")?;
     let keyboard_hook = hook::install().context("failed to install keyboard hook")?;
-    println!("remapping active. Press Ctrl+C to quit.");
+    let tray = tray::init(config_path, keymap_count).context("failed to set up tray")?;
+    println!("remapping active. Use the tray icon to reload or quit.");
 
-    // Both hooks are serviced through this loop; it only exits on WM_QUIT
-    // (none in v0.1 — the process ends via Ctrl+C or the Phase 3 tray).
-    let mut msg = MSG::default();
-    // SAFETY: msg is a live local; a null HWND means "all messages of this
-    // thread", which is what hook dispatch requires.
-    while unsafe { GetMessageW(&mut msg, None, 0, 0) }.as_bool() {
-        // SAFETY: msg was filled in by the successful GetMessageW above.
-        unsafe {
-            let _ = TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-    }
+    hook::run_message_loop(|| tray.pump_events());
 
     hook::uninstall(keyboard_hook);
-    // SAFETY: handle returned by install_foreground_watch, unhooked once.
-    let _ = unsafe { UnhookWinEvent(event_hook) };
+    window::uninstall_foreground_watch(event_hook);
     Ok(())
 }
 

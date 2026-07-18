@@ -9,13 +9,19 @@
 //! runs on the thread that installed it, via its message loop.
 
 use std::cell::{Cell, RefCell};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use arc_swap::ArcSwapOption;
-use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
-use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, HC_ACTION, HHOOK, KBDLLHOOKSTRUCT, LLKHF_INJECTED, SetWindowsHookExW,
-    UnhookWindowsHookEx, WH_KEYBOARD_LL, WM_KEYDOWN, WM_SYSKEYDOWN,
+use windows::Win32::Foundation::{
+    CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE, LPARAM, LRESULT, WPARAM,
 };
+use windows::Win32::System::Threading::CreateMutexW;
+use windows::Win32::UI::WindowsAndMessaging::{
+    CallNextHookEx, DispatchMessageW, GetMessageW, HC_ACTION, HHOOK, KBDLLHOOKSTRUCT,
+    LLKHF_INJECTED, MSG, PostQuitMessage, SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx,
+    WH_KEYBOARD_LL, WM_KEYDOWN, WM_SYSKEYDOWN,
+};
+use windows::core::w;
 
 use crate::sender;
 use crate::sender::{ModAdjustment, SideMods};
@@ -25,6 +31,14 @@ use winremap::keymap::{KeyCombo, RemapKind, RemapTable};
 /// from the hook (ADR 0003). `None` (before startup finishes) passes all
 /// events through.
 pub static REMAP_TABLE: ArcSwapOption<RemapTable> = ArcSwapOption::const_empty();
+
+/// Tray toggle. Only gates *new* remaps: keys already remapped and held keep
+/// their translation until release so no target key gets stuck down.
+static ENABLED: AtomicBool = AtomicBool::new(true);
+
+pub fn set_enabled(enabled: bool) {
+    ENABLED.store(enabled, Ordering::Relaxed);
+}
 
 /// A key we suppressed and replaced, remembered until its physical release so
 /// the matching key-up is translated consistently even if the user changed
@@ -56,6 +70,63 @@ pub fn install() -> windows::core::Result<HHOOK> {
 pub fn uninstall(hook: HHOOK) {
     // SAFETY: called once at shutdown with the handle install() returned.
     let _ = unsafe { UnhookWindowsHookEx(hook) };
+}
+
+/// Owns the named mutex that prevents a second winremap instance — two
+/// processes would install two low-level hooks with undefined interleaving
+/// (brief §9-3). Lives in hook.rs because it protects hook integrity, and
+/// unsafe is confined to this module (AGENTS.md invariant 3, ADR 0009).
+pub struct SingleInstance(HANDLE);
+
+impl Drop for SingleInstance {
+    fn drop(&mut self) {
+        // SAFETY: the handle was created by acquire_single_instance and is
+        // closed exactly once here.
+        let _ = unsafe { CloseHandle(self.0) };
+    }
+}
+
+/// `Ok(None)` means another instance already holds the mutex. The `Local\`
+/// namespace scopes it per login session on purpose: hooks are per-session,
+/// so two different sessions may each run their own winremap.
+pub fn acquire_single_instance() -> windows::core::Result<Option<SingleInstance>> {
+    // SAFETY: the name is a static wide string; the returned handle is owned
+    // by SingleInstance and closed on drop.
+    let handle = unsafe { CreateMutexW(None, false, w!("Local\\winremap-single-instance")) }?;
+    // CreateMutexW succeeds even when the mutex exists; only the last-error
+    // state distinguishes "created" from "opened someone else's".
+    // SAFETY: reads calling thread's last-error slot, set by the call above.
+    if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
+        drop(SingleInstance(handle));
+        Ok(None)
+    } else {
+        Ok(Some(SingleInstance(handle)))
+    }
+}
+
+/// Pumps this thread's message queue until WM_QUIT. Both the keyboard hook
+/// and the WinEvent hook are serviced by this loop; `on_message` runs after
+/// each dispatched message so the tray can drain its event channel without a
+/// second thread.
+pub fn run_message_loop(mut on_message: impl FnMut()) {
+    let mut msg = MSG::default();
+    // SAFETY: msg is a live local; a null HWND means "all messages of this
+    // thread", which hook dispatch requires. `.0 > 0` also stops on the -1
+    // error return, which as_bool() would misread as "keep going".
+    while unsafe { GetMessageW(&mut msg, None, 0, 0) }.0 > 0 {
+        // SAFETY: msg was filled in by the successful GetMessageW above.
+        unsafe {
+            let _ = TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+        on_message();
+    }
+}
+
+/// Asks the message loop to exit (used by the tray's Quit item).
+pub fn post_quit() {
+    // SAFETY: no preconditions; posts WM_QUIT to the calling thread's queue.
+    unsafe { PostQuitMessage(0) };
 }
 
 unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
@@ -118,6 +189,10 @@ fn on_key_down(vk: u16) -> bool {
             RemapKind::KeyOnly => sender::send_key_only(remap.target.vk, false),
         }
         return true;
+    }
+
+    if !ENABLED.load(Ordering::Relaxed) {
+        return false;
     }
 
     let sides = SIDES.with(Cell::get);

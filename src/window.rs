@@ -13,7 +13,7 @@ use windows::Win32::Foundation::{CloseHandle, HWND, MAX_PATH};
 use windows::Win32::System::Threading::{
     OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
 };
-use windows::Win32::UI::Accessibility::{HWINEVENTHOOK, SetWinEventHook};
+use windows::Win32::UI::Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent};
 use windows::Win32::UI::WindowsAndMessaging::{
     EVENT_SYSTEM_FOREGROUND, GetForegroundWindow, GetWindowThreadProcessId, WINEVENT_OUTOFCONTEXT,
 };
@@ -66,6 +66,12 @@ pub fn install_foreground_watch() -> windows::core::Result<HWINEVENTHOOK> {
     } else {
         Ok(hook)
     }
+}
+
+pub fn uninstall_foreground_watch(hook: HWINEVENTHOOK) {
+    // SAFETY: called once at shutdown with the handle
+    // install_foreground_watch returned.
+    let _ = unsafe { UnhookWinEvent(hook) };
 }
 
 unsafe extern "system" fn on_foreground_changed(

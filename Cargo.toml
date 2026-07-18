@@ -14,4 +14,5 @@ arc-swap = "1.9.2"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 toml = "0.9"
-windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Accessibility", "Win32_System_Threading"] }
+tray-icon = "0.24.1"
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Accessibility", "Win32_System_Threading", "Win32_Security"] }
