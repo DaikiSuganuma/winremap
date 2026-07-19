@@ -41,6 +41,9 @@ flowchart TD
 - **Two-stroke sequences** (`"A-x h"`, Emacs-style prefix keys) and **macro
   outputs** (`"C-t" = ["C-Right", "C-Left", "C-S-Right"]`)
 - **Task tray resident**: enable/disable toggle, config hot-reload, quit
+- **IME status indicator** (opt-in): the moment the IME turns on, a
+  translucent "あ" panel flashes at the center of the active window so you
+  always know the input mode — display only; winremap never switches the IME
 - **Japanese and English UI**, auto-detected from the system language
   (`--lang en|ja` to override)
 - **Single binary, no runtime dependencies**
@@ -106,6 +109,25 @@ complete examples.
 - Config errors are reported with line numbers, all at once. Reloading a
   broken config from the tray keeps the previous working config.
 
+### IME status indicator (optional)
+
+Independent of remapping, an opt-in `[ime_indicator]` section shows the
+input mode: when the IME turns on — or you focus a window whose IME is on —
+a translucent "あ" panel flashes at the center of the active window.
+
+```toml
+[ime_indicator]
+enabled = true                # default: false
+# trigger_keys = ["C-Space"]  # if you toggle the IME with Ctrl+Space
+```
+
+Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are
+detected out of the box; add `trigger_keys` (key notation) for user-assigned
+toggles such as the Windows 11 IME's Ctrl+Space option. `duration_ms`
+(100-5000, default 800), `size` (32-256, default 96), and `opacity` (0-255,
+default 200) tune the panel. The panel never takes focus or input, and a
+problem in the indicator never affects remapping.
+
 The full specification lives in
 [docs/04_config-spec.md](docs/04_config-spec.md) (Japanese).
 
@@ -130,7 +152,14 @@ value to use, and which of your keymaps would apply.
   AutoHotkey, ...) remapping the same keys — stacked low-level hooks have
   undefined ordering.
 - winremap keeps a console window in v0.1 (reload errors are printed there).
-- IME control is out of scope by design; use the Windows 11 IME settings.
+- IME **control** is out of scope by design (the optional indicator only
+  *displays* the state); use the Windows 11 IME settings.
+- The IME indicator reads the state via the legacy IMM32 interface. It is
+  verified against the modern Microsoft IME on Windows 11, but some IME
+  environments (non-Microsoft IMEs, or future IME changes) may not answer
+  the query — the indicator then quietly shows nothing. It also cannot read
+  the state of elevated windows (UIPI), and exclusive-fullscreen apps may
+  hide the topmost panel.
 
 ## Security
 
