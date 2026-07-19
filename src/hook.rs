@@ -223,6 +223,10 @@ thread_local! {
     static MENU_GUARD: Cell<u8> = const { Cell::new(0) };
     /// Debug-mode event queue; drained by the message loop.
     static DEBUG_RING: RefCell<DebugRing> = const { RefCell::new(DebugRing::new()) };
+    /// Physical down-state per VK, to tell auto-repeats from fresh presses
+    /// of keys we do not remap (their repeats are not debug-logged so a held
+    /// key cannot flood the log).
+    static PHYS_DOWN: RefCell<[bool; 256]> = const { RefCell::new([false; 256]) };
 }
 
 const GUARD_ALT: u8 = 1;
@@ -403,6 +407,11 @@ fn handle_event(message: u32, event: &KBDLLHOOKSTRUCT) -> bool {
         return false;
     }
 
+    // Memory-only bookkeeping (hook-safe): a down while already down is an
+    // auto-repeat, which the pass-through debug log skips below.
+    let physical_repeat = down && PHYS_DOWN.with(|held| held.borrow()[usize::from(vk)]);
+    PHYS_DOWN.with(|held| held.borrow_mut()[usize::from(vk)] = down);
+
     if down {
         // IME indicator poke on toggle-candidate keys; bounded and
         // non-blocking, and the key always passes through unchanged
@@ -431,7 +440,11 @@ fn handle_event(message: u32, event: &KBDLLHOOKSTRUCT) -> bool {
         return false;
     }
 
-    if down { on_key_down(vk) } else { on_key_up(vk) }
+    if down {
+        on_key_down(vk, physical_repeat)
+    } else {
+        on_key_up(vk)
+    }
 }
 
 fn update_sides(bit: SideMods, down: bool) {
@@ -441,7 +454,7 @@ fn update_sides(bit: SideMods, down: bool) {
     });
 }
 
-fn on_key_down(vk: u16) -> bool {
+fn on_key_down(vk: u16, physical_repeat: bool) -> bool {
     // Auto-repeat: keep emitting the target chosen at the initial press even
     // if modifiers drifted since — releasing Ctrl mid-repeat must not morph
     // a remapped C-h back into plain h halfway through. Macro sources and
@@ -516,7 +529,12 @@ fn on_key_down(vk: u16) -> bool {
             ActiveKind::SuppressUp
         }
         None => {
-            log_debug(None, input, DebugAction::Pass);
+            // Log a passed key once per physical press: a held key (e.g. a
+            // push-to-talk F1) repeats dozens of times per second and would
+            // drown the log (ADR 0016's noise rule).
+            if !physical_repeat {
+                log_debug(None, input, DebugAction::Pass);
+            }
             return false;
         }
     };
