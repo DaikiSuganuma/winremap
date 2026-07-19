@@ -1,4 +1,4 @@
-# winremap
+# WinRemap
 
 [![CI](https://github.com/DaikiSuganuma/winremap/actions/workflows/ci.yml/badge.svg)](https://github.com/DaikiSuganuma/winremap/actions/workflows/ci.yml)
 
@@ -6,14 +6,14 @@ A per-application key remapper for Windows, written in Rust — inspired by
 [xremap](https://github.com/xremap/xremap) (Linux) and
 [Keyhac](https://github.com/crftwr/keyhac-win).
 
-> winremap is an independent project influenced by Keyhac — not a
+> WinRemap is an independent project influenced by Keyhac — not a
 > reimplementation or fork of it. It is also not affiliated with xremap.
 
 日本語版: [README.ja.md](README.ja.md)
 
 ## How it works
 
-All winremap does is replace keystrokes — it never invokes application
+All WinRemap does is replace keystrokes — it never invokes application
 functions directly. A low-level keyboard hook suppresses the physical key
 event and injects the replacement keys with `SendInput`. The application
 receives the injected keys as if you had typed them and applies its own
@@ -23,7 +23,7 @@ untouched, so rules never trigger each other or loop.
 
 ```mermaid
 flowchart TD
-    K["Physical keystroke<br/>(e.g. Alt+A)"] --> H{"winremap<br/>low-level hook"}
+    K["Physical keystroke<br/>(e.g. Alt+A)"] --> H{"WinRemap<br/>low-level hook"}
     H -->|"rule matches"| S["Suppress the<br/>original event"]
     S --> I["Inject the replacement keys<br/>with SendInput (e.g. Ctrl+A)"]
     I -.->|"re-enters the hook, marked<br/>as injected (LLKHF_INJECTED)"| H
@@ -43,7 +43,7 @@ flowchart TD
 - **Task tray resident**: enable/disable toggle, config hot-reload, quit
 - **IME status indicator** (opt-in): the moment the IME turns on, a
   translucent "あ" panel flashes at the center of the active window so you
-  always know the input mode — display only; winremap never switches the IME
+  always know the input mode — display only; WinRemap never switches the IME
 - **Japanese and English UI**, auto-detected from the system language
   (`--lang en|ja` to override)
 - **Single binary, no runtime dependencies**
@@ -140,7 +140,7 @@ value to use, and which of your keymaps would apply.
 ## Limitations
 
 - **Windows with elevated privileges** (admin) do not receive events from a
-  non-elevated hook (UIPI, User Interface Privilege Isolation). Run winremap
+  non-elevated hook (UIPI, User Interface Privilege Isolation). Run WinRemap
   elevated only if you need remapping there.
 - **Punctuation/OEM keys** (`;`, `,`, ...) are not supported yet — their
   virtual-key codes are keyboard-layout dependent.
@@ -150,10 +150,10 @@ value to use, and which of your keymaps would apply.
   flicker, please report it.
 - Games with anti-cheat and some virtualization software may ignore injected
   input.
-- Do not run winremap together with other keyboard-hook software (Keyhac,
+- Do not run WinRemap together with other keyboard-hook software (Keyhac,
   AutoHotkey, ...) remapping the same keys — stacked low-level hooks have
   undefined ordering.
-- winremap keeps a console window in v0.1 (reload errors are printed there).
+- WinRemap keeps a console window in v0.1 (reload errors are printed there).
 - IME **control** is out of scope by design (the optional indicator only
   *displays* the state); use the Windows 11 IME settings.
 - The IME indicator reads the state via the legacy IMM32 interface. It is
@@ -165,7 +165,7 @@ value to use, and which of your keymaps would apply.
 
 ## Security
 
-- winremap **never logs or stores keystrokes** and contains **no network
+- WinRemap **never logs or stores keystrokes** and contains **no network
   code** (no telemetry, no auto-update). The code base enforces this by
   policy; see [AGENTS.md](AGENTS.md).
 - Official binaries are distributed **only** via

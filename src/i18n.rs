@@ -59,10 +59,10 @@ static EN: Texts = Texts {
     menu_reload: "Reload config",
     menu_open: "Open config file",
     menu_quit: "Quit",
-    tooltip_disabled: "winremap (disabled)",
-    tooltip_reload_failed: "winremap — config reload FAILED (see console)",
+    tooltip_disabled: "WinRemap (disabled)",
+    tooltip_reload_failed: "WinRemap — config reload FAILED (see console)",
     remapping_active: "remapping active. Use the tray icon to reload or quit.",
-    already_running: "winremap is already running (check the task tray)",
+    already_running: "WinRemap is already running (check the task tray)",
     debug_none: "(none)",
     debug_foreground_unknown: "[debug] foreground: could not determine (possibly an elevated window)",
     debug_source_remap: "remap",
@@ -76,10 +76,10 @@ static JA: Texts = Texts {
     menu_reload: "設定を再読み込み",
     menu_open: "設定ファイルを開く",
     menu_quit: "終了",
-    tooltip_disabled: "winremap（無効）",
-    tooltip_reload_failed: "winremap — 設定の再読み込みに失敗（コンソール参照）",
+    tooltip_disabled: "WinRemap（無効）",
+    tooltip_reload_failed: "WinRemap — 設定の再読み込みに失敗（コンソール参照）",
     remapping_active: "リマップ稼働中。再読み込み・終了はトレイアイコンから。",
-    already_running: "winremap は既に起動しています（タスクトレイを確認してください）",
+    already_running: "WinRemap は既に起動しています（タスクトレイを確認してください）",
     debug_none: "（なし）",
     debug_foreground_unknown: "[debug] 前面アプリ: 取得できませんでした（管理者権限ウィンドウの可能性）",
     debug_source_remap: "置換",
@@ -99,11 +99,11 @@ pub fn startup_loaded(count: usize, path: &Path) -> String {
     let version = env!("CARGO_PKG_VERSION");
     match lang() {
         Lang::En => format!(
-            "winremap {version}: {count} keymap(s) loaded from {}",
+            "WinRemap {version}: {count} keymap(s) loaded from {}",
             path.display()
         ),
         Lang::Ja => format!(
-            "winremap {version}: {} からキーマップを {count} 件読み込みました",
+            "WinRemap {version}: {} からキーマップを {count} 件読み込みました",
             path.display()
         ),
     }
@@ -111,8 +111,8 @@ pub fn startup_loaded(count: usize, path: &Path) -> String {
 
 pub fn tooltip_status(count: usize) -> String {
     match lang() {
-        Lang::En => format!("winremap — {count} keymap(s)"),
-        Lang::Ja => format!("winremap — キーマップ {count} 件"),
+        Lang::En => format!("WinRemap — {count} keymap(s)"),
+        Lang::Ja => format!("WinRemap — キーマップ {count} 件"),
     }
 }
 
@@ -304,7 +304,7 @@ pub fn help_text() -> String {
     let version = env!("CARGO_PKG_VERSION");
     match lang() {
         Lang::En => format!(
-            "winremap {version} — per-application key remapper for Windows
+            "WinRemap {version} — per-application key remapper for Windows
 
 USAGE:
     winremap [OPTIONS]
@@ -319,7 +319,7 @@ OPTIONS:
     -h, --help             Print this help"
         ),
         Lang::Ja => format!(
-            "winremap {version} — Windows 用アプリ別キーリマッパー
+            "WinRemap {version} — Windows 用アプリ別キーリマッパー
 
 使い方:
     winremap [オプション]

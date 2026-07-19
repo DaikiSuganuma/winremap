@@ -1,4 +1,4 @@
-# winremap
+# WinRemap
 
 [![CI](https://github.com/DaikiSuganuma/winremap/actions/workflows/ci.yml/badge.svg)](https://github.com/DaikiSuganuma/winremap/actions/workflows/ci.yml)
 
@@ -6,17 +6,17 @@ Rust 製の Windows 用アプリ別キーリマッパー —
 [xremap](https://github.com/xremap/xremap)（Linux）と
 [Keyhac](https://github.com/crftwr/keyhac-win) に着想を得ています。
 
-> winremap は Keyhac の再実装・フォークではなく、影響を受けた独立プロジェクトです。xremap とも無関係です（Inspired by xremap; not affiliated）。
+> WinRemap は Keyhac の再実装・フォークではなく、影響を受けた独立プロジェクトです。xremap とも無関係です（Inspired by xremap; not affiliated）。
 
 English: [README.md](README.md)
 
 ## 動作のしくみ
 
-winremap がやるのはあくまで**キーストロークの置き換えだけ**で、アプリの機能を直接呼び出すことはありません。低レベルキーボードフックが物理キーイベントを抑止し、`SendInput` で置き換え先のキーを注入します。アプリは注入されたキーを「ユーザーが打ったキー」として受け取り、アプリ自身のネイティブな意味で解釈します。たとえば `A-a` を `C-a` にリマップすれば、アプリの Ctrl+A の動作（通常は全選択）がそのまま動きます。注入イベントはフックを素通しする（再変換しない）ため、ルール同士が連鎖したりループしたりすることはありません。
+WinRemap がやるのはあくまで**キーストロークの置き換えだけ**で、アプリの機能を直接呼び出すことはありません。低レベルキーボードフックが物理キーイベントを抑止し、`SendInput` で置き換え先のキーを注入します。アプリは注入されたキーを「ユーザーが打ったキー」として受け取り、アプリ自身のネイティブな意味で解釈します。たとえば `A-a` を `C-a` にリマップすれば、アプリの Ctrl+A の動作（通常は全選択）がそのまま動きます。注入イベントはフックを素通しする（再変換しない）ため、ルール同士が連鎖したりループしたりすることはありません。
 
 ```mermaid
 flowchart TD
-    K["物理キー入力<br/>（例: Alt+A）"] --> H{"winremap<br/>低レベルフック"}
+    K["物理キー入力<br/>（例: Alt+A）"] --> H{"WinRemap<br/>低レベルフック"}
     H -->|"ルールに一致"| S["元のイベントを抑止"]
     S --> I["SendInput で置き換え先のキーを注入<br/>（例: Ctrl+A）"]
     I -.->|"注入マーク付き（LLKHF_INJECTED）で<br/>再びフックを通る"| H
@@ -30,7 +30,7 @@ flowchart TD
 - **宣言的な TOML 設定**。キー記法（`C-h`、`A-f`、`Back` 等）は Keyhac / fakeymacs ユーザーに馴染む形式
 - **2 ストロークシーケンス**（`"A-x h"`、Emacs 風プレフィックスキー）と**マクロ出力**（`"C-t" = ["C-Right", "C-Left", "C-S-Right"]`）
 - **タスクトレイ常駐**: 有効/無効トグル、設定のホットリロード、終了
-- **IME 状態インジケーター**（opt-in）: IME がオンになった瞬間、アクティブウィンドウ中央に半透明の「あ」パネルを一瞬表示し、現在の入力モードを見失わないようにします。表示のみで、winremap が IME を切り替えることはありません
+- **IME 状態インジケーター**（opt-in）: IME がオンになった瞬間、アクティブウィンドウ中央に半透明の「あ」パネルを一瞬表示し、現在の入力モードを見失わないようにします。表示のみで、WinRemap が IME を切り替えることはありません
 - **UI は日本語・英語対応**。システム言語から自動選択（`--lang en|ja` で上書き可）
 - **単一バイナリ・依存なし**
 - フックコールバックはヒープ確保・ロック・I/O のない純 Rust。スクリプト駆動のリマッパーと比べ、最悪レイテンシと安定性（GC 停止によるフック切り離しが起きない）が改善します。平均のタイピングレイテンシは同程度です
@@ -95,7 +95,7 @@ enabled = true                # 既定: false
 
 ## 制限事項
 
-- **管理者権限で動作するウィンドウ**には通常権限のフックが効きません（UIPI: User Interface Privilege Isolation）。必要な場合のみ winremap を管理者権限で起動してください
+- **管理者権限で動作するウィンドウ**には通常権限のフックが効きません（UIPI: User Interface Privilege Isolation）。必要な場合のみ WinRemap を管理者権限で起動してください
 - **記号キー（OEM キー。OEM = Original Equipment Manufacturer）**（`;` `,` 等）は未対応です（VK（Virtual-Key）コードがキーボードレイアウト依存のため）
 - **tap/hold・マークモード**は未対応です。シーケンスは 2 ストロークまでです
 - **Alt / Win を含むコマンド**は、マスクキーの注入によりメニューバー/スタートメニューの誤発動を防いでいます。特定のアプリで問題が残る場合は報告してください
@@ -107,7 +107,7 @@ enabled = true                # 既定: false
 
 ## セキュリティ
 
-- winremap は**キー入力の記録・保存を行わず**、**ネットワーク通信のコードを含みません**（テレメトリ・自動アップデートなし）。この方針はコードベースの規約として強制されています（[AGENTS.md](AGENTS.md)）
+- WinRemap は**キー入力の記録・保存を行わず**、**ネットワーク通信のコードを含みません**（テレメトリ・自動アップデートなし）。この方針はコードベースの規約として強制されています（[AGENTS.md](AGENTS.md)）
 - 公式バイナリの配布は [GitHub Releases](https://github.com/DaikiSuganuma/winremap/releases) **のみ**です。他サイトで配布されているバイナリは非公式です。[SECURITY.md](SECURITY.md) の手順でチェックサムとビルド来歴を検証してください
 
 ## 謝辞

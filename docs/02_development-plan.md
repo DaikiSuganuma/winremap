@@ -1,4 +1,4 @@
-# winremap 開発計画（v0.1.0 まで）
+# WinRemap 開発計画（v0.1.0 まで）
 
 > 元資料: [01_project-brief.md](./01_project-brief.md)（以下「ブリーフ」）。本計画はブリーフ §11 のマイルストーンを実タスクに分解したもの。
 > Rust 実装の作法は [03_rust-guidelines.md](./03_rust-guidelines.md) を参照。

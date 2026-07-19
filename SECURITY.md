@@ -1,6 +1,6 @@
 # Security Policy
 
-winremap is a keyboard remapper: a maliciously modified build could act as a
+WinRemap is a keyboard remapper: a maliciously modified build could act as a
 keylogger. Please only use binaries from the official distribution channel
 and verify them as described below.
 
@@ -14,7 +14,7 @@ Do not open a public issue for security problems.
 
 Only the latest release receives security fixes.
 
-## What winremap does NOT do (by design)
+## What WinRemap does NOT do (by design)
 
 - No logging or persistence of keystrokes (debug output is key-name level at
   most and off by default)

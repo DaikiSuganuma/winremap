@@ -1,8 +1,8 @@
-# winremap minimal example.
+# WinRemap minimal example.
 #
 # Maps Ctrl+H to a plain Backspace, but only inside Notepad. Since Notepad's
 # default Ctrl+H opens the Replace dialog, this doubles as an easy way to
-# verify winremap is working: press Ctrl+H in Notepad and a character is
+# verify WinRemap is working: press Ctrl+H in Notepad and a character is
 # deleted instead. Other applications are not affected.
 
 [[keymap]]

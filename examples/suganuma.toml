@@ -2,7 +2,7 @@
 #
 # 移植メモ:
 # - IME 制御（無変換/変換、A-BackQuote、C-Space、Emacs 日本語入力モード）は
-#   winremap のスコープ外。Windows 11 の IME 設定で「無変換 = IME オフ /
+#   WinRemap のスコープ外。Windows 11 の IME 設定で「無変換 = IME オフ /
 #   変換 = IME オン」を割り当てて代替する。
 # - C-s は元設定（skip_settings_key）どおり意図的にリマップしない
 #   （ネイティブの保存のまま）。

@@ -1,4 +1,4 @@
-# Emacs-style keybindings for winremap (inspired by fakeymacs).
+# Emacs-style keybindings for WinRemap (inspired by fakeymacs).
 #
 # v0.1 supports single-chord remaps only: no key sequences (C-x C-c), no
 # mark mode (C-Space), and no app exclusion lists yet. Because of that, list
