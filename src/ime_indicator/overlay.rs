@@ -11,7 +11,6 @@
 use std::cell::Cell;
 
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, WPARAM};
-use windows::Win32::Graphics::Dwm::{DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute};
 use windows::Win32::Graphics::Gdi::{
     BeginPaint, CreateFontIndirectW, CreateRoundRectRgn, CreateSolidBrush, DT_CENTER,
     DT_SINGLELINE, DT_VCENTER, DeleteObject, DrawTextW, EndPaint, FillRect, InvalidateRect,
@@ -157,28 +156,21 @@ impl Drop for Overlay {
     }
 }
 
-/// Visual center of `target`. Prefers the DWM frame bounds: GetWindowRect
-/// includes the invisible resize borders, which would skew the center
-/// (design doc §3.3); it stays as the fallback for windows DWM rejects.
+/// Center of `target` via GetWindowRect. The DWM frame bounds would exclude
+/// the invisible resize borders, but they come back in *physical* pixels
+/// while this DPI-unaware process (and SetWindowPos) lives in virtualized
+/// coordinates — on a scaled display that offset pushes the panel off-screen
+/// (ADR 0022). GetWindowRect stays in our coordinate space; its few-pixel
+/// border skew is invisible in practice.
 fn target_center(target: isize) -> Option<(i32, i32)> {
     if target == 0 {
         return None;
     }
     let hwnd = HWND(target as *mut core::ffi::c_void);
     let mut rect = RECT::default();
-    // SAFETY: rect is a live local of exactly the size passed; a stale hwnd
-    // makes the calls fail, which the `ok` check handles.
-    let ok = unsafe {
-        DwmGetWindowAttribute(
-            hwnd,
-            DWMWA_EXTENDED_FRAME_BOUNDS,
-            (&raw mut rect).cast(),
-            size_of::<RECT>() as u32,
-        )
-        .is_ok()
-            || GetWindowRect(hwnd, &mut rect).is_ok()
-    };
-    if !ok {
+    // SAFETY: rect is a live local; a stale hwnd makes the call fail, which
+    // the `?`-style check handles.
+    if unsafe { GetWindowRect(hwnd, &mut rect) }.is_err() {
         return None;
     }
     Some(((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2))
