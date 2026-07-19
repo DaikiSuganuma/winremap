@@ -103,7 +103,7 @@ fn ime_indicator_defaults_when_section_absent() {
 #[test]
 fn parses_full_ime_indicator_section() {
     let table = parse_str(
-        "[ime_indicator]\nenabled = true\nduration_ms = 1500\nsize = 128\nopacity = 255\n\n[[keymap]]\napplication = [\"*\"]\n",
+        "[ime_indicator]\nenabled = true\nduration_ms = 1500\nsize = 128\nopacity = 255\nshow_app_name = true\n\n[[keymap]]\napplication = [\"*\"]\n",
     )
     .unwrap();
     let settings = table.ime_indicator;
@@ -111,6 +111,10 @@ fn parses_full_ime_indicator_section() {
     assert_eq!(settings.duration_ms, 1500);
     assert_eq!(settings.size, 128);
     assert_eq!(settings.opacity, 255);
+    assert!(settings.show_app_name);
+    // Opt-in: absent means off.
+    let table = parse_str("[[keymap]]\napplication = [\"*\"]\n").unwrap();
+    assert!(!table.ime_indicator.show_app_name);
 }
 
 #[test]

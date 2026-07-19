@@ -31,6 +31,8 @@ pub struct IndicatorSettings {
     /// user-assigned toggles like Ctrl+Space (Windows 11 IME option).
     /// Matched on the full chord — modifiers included (ADR 0021).
     pub trigger_keys: Vec<KeyCombo>,
+    /// Show the target application's exe name under the glyph (ADR 0024).
+    pub show_app_name: bool,
 }
 
 impl Default for IndicatorSettings {
@@ -41,6 +43,7 @@ impl Default for IndicatorSettings {
             size: 96,
             opacity: 200,
             trigger_keys: Vec::new(),
+            show_app_name: false,
         }
     }
 }

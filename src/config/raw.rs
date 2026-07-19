@@ -37,6 +37,9 @@ pub(super) struct RawImeIndicator {
     /// Extra toggle chords in key notation, e.g. `["C-Space"]` (ADR 0021).
     #[serde(default)]
     pub(super) trigger_keys: Option<Vec<Spanned<String>>>,
+    /// Show the target app's exe name under the glyph (ADR 0024).
+    #[serde(default)]
+    pub(super) show_app_name: Option<bool>,
 }
 
 #[derive(Deserialize)]

@@ -216,7 +216,14 @@ fn run(overlay: &overlay::Overlay) {
                 let is_on = sample.open == Some(true);
                 let shown = is_on && (!last_on || sample.target != last_target);
                 if shown {
-                    overlay.show(sample.target, &settings);
+                    // Exe name, not the window title: titles can carry
+                    // sensitive document names and churn constantly
+                    // (ADR 0024).
+                    let label = settings
+                        .show_app_name
+                        .then(|| crate::window::app_display_name(sample.target))
+                        .flatten();
+                    overlay.show(sample.target, &settings, label.as_deref());
                 } else if !is_on {
                     // Also covers "unknown" (query failed): prefer not
                     // showing over showing wrongly (design doc §3.2).

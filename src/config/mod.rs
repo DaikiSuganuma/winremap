@@ -202,5 +202,6 @@ fn compile_ime_indicator(
         // Cast is lossless: the 0-255 range was just enforced above.
         opacity: opacity as u8,
         trigger_keys,
+        show_app_name: raw.show_app_name.unwrap_or(defaults.show_app_name),
     }
 }

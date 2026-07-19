@@ -105,3 +105,5 @@ enabled = true
 # ここでは Windows 11 IME の「Ctrl + Space を使用して IME のオン/オフを
 # 切り替える」オプションに合わせて C-Space を追加している（ADR 0021）。
 trigger_keys = ["C-Space"]
+# パネルの下に対象アプリの exe 名を表示（ADR 0024）
+show_app_name = true

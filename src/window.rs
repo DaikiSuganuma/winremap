@@ -79,6 +79,18 @@ fn print_debug_info(full_path: Option<&str>, basename: &str) {
     );
 }
 
+/// Lowercase exe basename for an arbitrary window, for display purposes
+/// (IME indicator label, ADR 0024). Unlike the cache above this is safe to
+/// call from any thread: it only touches locals.
+pub fn app_display_name(target: isize) -> Option<String> {
+    if target == 0 {
+        return None;
+    }
+    let hwnd = HWND(target as *mut core::ffi::c_void);
+    let name = exe_basename(&query_exe_path(hwnd)?);
+    (!name.is_empty()).then_some(name)
+}
+
 /// Lowercase basename, i.e. the exact string to put in `application`.
 fn exe_basename(full_path: &str) -> String {
     full_path

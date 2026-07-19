@@ -2,19 +2,21 @@
 //!
 //! Owns everything `unsafe` on that thread: the layered click-through panel
 //! (design doc §3.3), its timers, and the thread-message helpers the safe
-//! orchestration in mod.rs builds on. The panel is a rounded square drawing
-//! a large "あ", shown without ever taking focus or input:
+//! orchestration in mod.rs builds on. The panel is a rounded rectangle
+//! drawing a large "あ" — optionally with the target app's exe name under
+//! it (ADR 0024) — shown without ever taking focus or input:
 //! WS_EX_TRANSPARENT (clicks fall through), WS_EX_NOACTIVATE (no focus
 //! steal), WS_EX_TOPMOST, WS_EX_TOOLWINDOW (no taskbar/Alt-Tab entry), and
 //! WS_EX_LAYERED with uniform alpha for translucency and the fade-out.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
-use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     BeginPaint, CreateFontIndirectW, CreateRoundRectRgn, CreateSolidBrush, DT_CENTER,
-    DT_SINGLELINE, DT_VCENTER, DeleteObject, DrawTextW, EndPaint, FillRect, InvalidateRect,
-    LOGFONTW, PAINTSTRUCT, SelectObject, SetBkMode, SetTextColor, SetWindowRgn, TRANSPARENT,
+    DT_END_ELLIPSIS, DT_SINGLELINE, DT_VCENTER, DeleteObject, DrawTextW, EndPaint, FillRect, GetDC,
+    GetTextExtentPoint32W, HFONT, InvalidateRect, LOGFONTW, PAINTSTRUCT, ReleaseDC, SelectObject,
+    SetBkMode, SetTextColor, SetWindowRgn, TRANSPARENT,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::GetCurrentThreadId;
@@ -36,27 +38,53 @@ const TIMER_HOLD: usize = 1;
 const TIMER_FADE: usize = 2;
 const FADE_INTERVAL_MS: u32 = 25;
 
-/// Panel colors (fixed v1 design): near-black background, white glyph.
+/// Panel colors (fixed v1 design): near-black background, white glyph,
+/// slightly dimmed label.
 const BG_COLOR: COLORREF = COLORREF(0x00201C1C);
 const TEXT_COLOR: COLORREF = COLORREF(0x00FFFFFF);
+const LABEL_COLOR: COLORREF = COLORREF(0x00D0D0D0);
 
-#[derive(Clone, Copy)]
+/// What the window procedure paints/fades with. `size` is the configured
+/// square edge; `width`/`height` are the actual window extent, which grow
+/// when a label is shown (ADR 0024).
 struct Panel {
     size: i32,
     opacity: u8,
+    width: i32,
+    height: i32,
+    /// UTF-16 exe name under the glyph; empty = glyph only.
+    label: Vec<u16>,
 }
 
 thread_local! {
-    /// What the window procedure paints/fades with. Thread-local is enough:
-    /// the overlay window and its wndproc live on the indicator thread only.
-    static PANEL: Cell<Panel> = const {
-        Cell::new(Panel {
+    /// Thread-local is enough: the overlay window and its wndproc live on
+    /// the indicator thread only.
+    static PANEL: RefCell<Panel> = const {
+        RefCell::new(Panel {
             size: 96,
             opacity: 200,
+            width: 96,
+            height: 96,
+            label: Vec::new(),
         })
     };
     /// Current alpha while TIMER_FADE is stepping it down.
     static FADE_ALPHA: Cell<u8> = const { Cell::new(0) };
+}
+
+fn glyph_font_height(size: i32) -> i32 {
+    // Negative = character height, so the glyph scales with the panel
+    // regardless of DPI virtualization.
+    -(size * 55 / 100)
+}
+
+fn label_font_height(size: i32) -> i32 {
+    -(size * 16 / 100)
+}
+
+/// The extra strip under the glyph square when a label is shown.
+fn label_strip_height(size: i32) -> i32 {
+    size * 3 / 10
 }
 
 /// The (hidden) overlay window; created and used on the indicator thread.
@@ -104,24 +132,41 @@ impl Overlay {
     /// Positions the panel at the center of `target` and (re)starts the
     /// show → hold → fade cycle. Does nothing when the target's rectangle
     /// cannot be determined (e.g. it just closed).
-    pub fn show(&self, target: isize, settings: &IndicatorSettings) {
+    pub fn show(&self, target: isize, settings: &IndicatorSettings, label: Option<&str>) {
         let Some((center_x, center_y)) = target_center(target) else {
             return;
         };
         let size = settings.size as i32;
-        PANEL.set(Panel {
-            size,
-            opacity: settings.opacity,
+        let label_utf16: Vec<u16> = label.unwrap_or_default().encode_utf16().collect();
+        let (width, height) = if label_utf16.is_empty() {
+            (size, size)
+        } else {
+            // Widen to fit the name, within limits; overlong names get an
+            // ellipsis from DrawTextW (ADR 0024).
+            let text_width = self.measure_label(&label_utf16, size);
+            (
+                (text_width + size / 3).clamp(size, size * 5 / 2),
+                size + label_strip_height(size),
+            )
+        };
+        PANEL.with(|panel| {
+            *panel.borrow_mut() = Panel {
+                size,
+                opacity: settings.opacity,
+                width,
+                height,
+                label: label_utf16,
+            };
         });
-        let x = center_x - size / 2;
-        let y = center_y - size / 2;
+        let x = center_x - width / 2;
+        let y = center_y - height / 2;
         // SAFETY: self.hwnd is our live window. The region handle created
         // here is owned by the system after SetWindowRgn.
         unsafe {
             let _ = KillTimer(Some(self.hwnd), TIMER_HOLD);
             let _ = KillTimer(Some(self.hwnd), TIMER_FADE);
             let radius = size / 4;
-            let region = CreateRoundRectRgn(0, 0, size + 1, size + 1, radius, radius);
+            let region = CreateRoundRectRgn(0, 0, width + 1, height + 1, radius, radius);
             let _ = SetWindowRgn(self.hwnd, Some(region), false);
             let _ = SetLayeredWindowAttributes(self.hwnd, COLORREF(0), settings.opacity, LWA_ALPHA);
             let _ = SetWindowPos(
@@ -129,8 +174,8 @@ impl Overlay {
                 Some(HWND_TOPMOST),
                 x,
                 y,
-                size,
-                size,
+                width,
+                height,
                 SWP_NOACTIVATE | SWP_SHOWWINDOW,
             );
             let _ = InvalidateRect(Some(self.hwnd), None, true);
@@ -144,6 +189,26 @@ impl Overlay {
             let _ = KillTimer(Some(self.hwnd), TIMER_HOLD);
             let _ = KillTimer(Some(self.hwnd), TIMER_FADE);
             let _ = ShowWindow(self.hwnd, SW_HIDE);
+        }
+    }
+
+    /// Pixel width of `label` when drawn at the label font size.
+    fn measure_label(&self, label: &[u16], size: i32) -> i32 {
+        // SAFETY: the DC is acquired/released in pairs and the font is
+        // deselected and deleted before returning; extent is a live local.
+        unsafe {
+            let hdc = GetDC(Some(self.hwnd));
+            if hdc.is_invalid() {
+                return 0;
+            }
+            let font = create_panel_font(label_font_height(size));
+            let previous = SelectObject(hdc, font.into());
+            let mut extent = SIZE::default();
+            let _ = GetTextExtentPoint32W(hdc, label, &mut extent);
+            SelectObject(hdc, previous);
+            let _ = DeleteObject(font.into());
+            ReleaseDC(Some(self.hwnd), hdc);
+            extent.cx
         }
     }
 }
@@ -176,6 +241,27 @@ fn target_center(target: isize) -> Option<(i32, i32)> {
     Some(((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2))
 }
 
+/// Yu Gothic UI at the given LOGFONT height; falls back via GDI font
+/// substitution if the face is missing.
+///
+/// SAFETY contract: caller deletes the returned font handle.
+unsafe fn create_panel_font(height: i32) -> HFONT {
+    let mut font_spec = LOGFONTW {
+        lfHeight: height,
+        lfWeight: 600, // semibold reads better at high translucency
+        ..Default::default()
+    };
+    for (slot, unit) in font_spec
+        .lfFaceName
+        .iter_mut()
+        .zip("Yu Gothic UI".encode_utf16())
+    {
+        *slot = unit;
+    }
+    // SAFETY: font_spec is a live, fully initialized local.
+    unsafe { CreateFontIndirectW(&font_spec) }
+}
+
 unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_PAINT => {
@@ -191,64 +277,84 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
     }
 }
 
-/// Fills the panel and draws a centered "あ" scaled to the panel size.
+/// Fills the panel, draws the centered "あ", and — when configured — the
+/// exe name in the strip under it.
 fn paint(hwnd: HWND) {
-    let panel = PANEL.get();
-    let mut ps = PAINTSTRUCT::default();
-    // SAFETY: hwnd is our live window; every GDI object created here is
-    // deselected/deleted before EndPaint closes the paint session.
-    unsafe {
-        let hdc = BeginPaint(hwnd, &mut ps);
-        if hdc.is_invalid() {
-            return;
-        }
-        let mut rect = RECT {
-            left: 0,
-            top: 0,
-            right: panel.size,
-            bottom: panel.size,
-        };
-        let brush = CreateSolidBrush(BG_COLOR);
-        let _ = FillRect(hdc, &rect, brush);
-        let _ = DeleteObject(brush.into());
+    PANEL.with(|panel| {
+        let panel = panel.borrow();
+        let mut ps = PAINTSTRUCT::default();
+        // SAFETY: hwnd is our live window; every GDI object created here is
+        // deselected/deleted before EndPaint closes the paint session.
+        unsafe {
+            let hdc = BeginPaint(hwnd, &mut ps);
+            if hdc.is_invalid() {
+                return;
+            }
+            let full = RECT {
+                left: 0,
+                top: 0,
+                right: panel.width,
+                bottom: panel.height,
+            };
+            let brush = CreateSolidBrush(BG_COLOR);
+            let _ = FillRect(hdc, &full, brush);
+            let _ = DeleteObject(brush.into());
+            let _ = SetBkMode(hdc, TRANSPARENT);
 
-        let mut font_spec = LOGFONTW {
-            // Negative = character height, so the glyph scales with the
-            // panel regardless of DPI virtualization.
-            lfHeight: -(panel.size * 55 / 100),
-            lfWeight: 600, // semibold reads better at high translucency
-            ..Default::default()
-        };
-        for (slot, unit) in font_spec
-            .lfFaceName
-            .iter_mut()
-            .zip("Yu Gothic UI".encode_utf16())
-        {
-            *slot = unit;
+            let glyph_font = create_panel_font(glyph_font_height(panel.size));
+            let previous_font = SelectObject(hdc, glyph_font.into());
+            let _ = SetTextColor(hdc, TEXT_COLOR);
+            let mut glyph = [0x3042u16]; // "あ"
+            let mut glyph_rect = RECT {
+                left: 0,
+                top: 0,
+                right: panel.width,
+                bottom: panel.size,
+            };
+            let _ = DrawTextW(
+                hdc,
+                &mut glyph,
+                &mut glyph_rect,
+                DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+            );
+            let _ = SelectObject(hdc, previous_font);
+            let _ = DeleteObject(glyph_font.into());
+
+            if !panel.label.is_empty() {
+                let label_font = create_panel_font(label_font_height(panel.size));
+                let previous_font = SelectObject(hdc, label_font.into());
+                let _ = SetTextColor(hdc, LABEL_COLOR);
+                // DrawTextW may modify the buffer for the ellipsis case, so
+                // draw from a scratch copy.
+                let mut label = panel.label.clone();
+                let margin = panel.size / 8;
+                let mut label_rect = RECT {
+                    left: margin,
+                    top: panel.size - panel.size / 12,
+                    right: panel.width - margin,
+                    bottom: panel.height - panel.size / 15,
+                };
+                let _ = DrawTextW(
+                    hdc,
+                    &mut label,
+                    &mut label_rect,
+                    DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
+                );
+                let _ = SelectObject(hdc, previous_font);
+                let _ = DeleteObject(label_font.into());
+            }
+            let _ = EndPaint(hwnd, &ps);
         }
-        let font = CreateFontIndirectW(&font_spec);
-        let previous_font = SelectObject(hdc, font.into());
-        let _ = SetBkMode(hdc, TRANSPARENT);
-        let _ = SetTextColor(hdc, TEXT_COLOR);
-        let mut glyph = [0x3042u16]; // "あ"
-        let _ = DrawTextW(
-            hdc,
-            &mut glyph,
-            &mut rect,
-            DT_CENTER | DT_VCENTER | DT_SINGLELINE,
-        );
-        let _ = SelectObject(hdc, previous_font);
-        let _ = DeleteObject(font.into());
-        let _ = EndPaint(hwnd, &ps);
-    }
+    });
 }
 
 /// Hold expiry starts the fade; each fade tick lowers the uniform alpha
 /// until the window hides.
 fn on_timer(hwnd: HWND, timer_id: usize) {
+    let opacity = PANEL.with(|panel| panel.borrow().opacity);
     match timer_id {
         TIMER_HOLD => {
-            FADE_ALPHA.set(PANEL.get().opacity);
+            FADE_ALPHA.set(opacity);
             // SAFETY: hwnd is our live window; swapping the hold timer for
             // the fade timer on the same window.
             unsafe {
@@ -257,7 +363,7 @@ fn on_timer(hwnd: HWND, timer_id: usize) {
             }
         }
         TIMER_FADE => {
-            let step = (PANEL.get().opacity / 12).max(8);
+            let step = (opacity / 12).max(8);
             let alpha = FADE_ALPHA.get().saturating_sub(step);
             FADE_ALPHA.set(alpha);
             // SAFETY: hwnd is our live window.
