@@ -89,7 +89,7 @@ application = ["chrome.exe", "msedge.exe", "firefox.exe"]
 
 [[keymap]]
 name = "acrobat-native-keys"
-application = ["Acrobat.exe"]
+application = ["acrobat.exe"]
 
 [keymap.remap]
 "C-w" = "C-w" # ドキュメントを閉じるを維持
@@ -98,10 +98,11 @@ application = ["Acrobat.exe"]
 # Windows Terminal だけ C-d をネイティブに素通しし、シェル側の標準挙動に任せる。
 [[keymap]]
 name = "terminal-native-keys"
-application = ["WindowsTerminal.exe"]
+application = ["WindowsTerminal.exe", "zed.exe", "phpstorm64.exe"]
 
 [keymap.remap]
 "C-d" = "C-d" # 空行での EOF/exit を維持（bash・PSReadLine の DeleteCharOrExit 用）
+#"C-k" = "C-k"
 
 
 # --- IME 状態インジケーター（リマップとは独立した表示機能） ---
