@@ -111,13 +111,11 @@
 
 ### タスク
 
-1. `docs/05_acceptance-checklist.md` に設計書 §7 の手動受け入れ項目を追加し、全項目を実施・記録
-2. README（英語・正）/ README.ja.md 更新:
-   - 機能紹介（opt-in であること、設定例）
-   - Limitations 追記: モダン IME 非互換の可能性と対処、UIPI（管理者権限ウィンドウでは表示されない）、フルスクリーン排他アプリ、Microsoft IME 以外は対象外
-3. `CHANGELOG.md` 更新（Keep a Changelog 形式、Added）
-4. バージョン判断（オーナー）: 機能追加のため v0.x のマイナーバージョンアップを想定
-5. タグ push → リリース（既存の release.yml 運用どおり）
+1. ~~`docs/05_acceptance-checklist.md` に手動受け入れ項目を追加~~ — 済（2026-07-19、7 項目。項目 1 は合格記録済み、残りの実施はオーナー）
+2. ~~README（英語・正）/ README.ja.md 更新~~ — 済（2026-07-19。Features・専用セクション（設定例・trigger_keys）・Limitations 3 点を追記）
+3. ~~`CHANGELOG.md` 更新~~ — 済（2026-07-19、Unreleased の Added に追記）
+4. バージョン判断（オーナー）: v0.1.0 は未リリース（タグ未作成）のため、本機能は**初回リリースにそのまま含まれる**。リリース番号は既存 Phase 4 の運用で判断
+5. タグ push → リリース（既存の release.yml 運用どおり。既存 Phase 4 のリリース作業に統合）
 
 ### 完了条件
 
