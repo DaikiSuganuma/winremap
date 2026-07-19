@@ -406,8 +406,11 @@ fn handle_event(message: u32, event: &KBDLLHOOKSTRUCT) -> bool {
     if down {
         // IME indicator poke on toggle-candidate keys; bounded and
         // non-blocking, and the key always passes through unchanged
-        // (invariant 2 exception 3, ADR 0020).
-        crate::ime_indicator::notify_toggle_keydown(vk);
+        // (invariant 2 exception 3, ADR 0020/0021).
+        crate::ime_indicator::notify_keydown(KeyCombo {
+            mods: sender::side_mods_to_mods(SIDES.with(Cell::get)),
+            vk,
+        });
     }
 
     if let Some(bit) = sender::side_bit(vk) {

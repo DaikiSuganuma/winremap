@@ -140,6 +140,33 @@ fn rejects_out_of_range_ime_indicator_values() {
 }
 
 #[test]
+fn parses_ime_indicator_trigger_keys() {
+    let table = parse_str(
+        "[ime_indicator]\nenabled = true\ntrigger_keys = [\"C-Space\", \"F13\"]\n\n[[keymap]]\napplication = [\"*\"]\n",
+    )
+    .unwrap();
+    assert_eq!(
+        table.ime_indicator.trigger_keys,
+        vec![combo("C-Space"), combo("F13")]
+    );
+    // Absent -> empty (built-in VK candidates only).
+    let table = parse_str("[[keymap]]\napplication = [\"*\"]\n").unwrap();
+    assert!(table.ime_indicator.trigger_keys.is_empty());
+}
+
+#[test]
+fn rejects_bad_ime_indicator_trigger_keys() {
+    let found = issues(
+        "[ime_indicator]\ntrigger_keys = [\"C-Bogus\", \"LCtrl\"]\n\n[[keymap]]\napplication = [\"*\"]\n",
+    );
+    assert_eq!(found.len(), 2, "{found:?}");
+    assert!(found[0].message.contains("trigger_keys"));
+    assert!(found[0].message.contains("Bogus"));
+    assert_eq!(found[0].line, 2);
+    assert!(found[1].message.contains("cannot be a trigger"));
+}
+
+#[test]
 fn unknown_ime_indicator_field_is_an_error() {
     let err = parse_str("[ime_indicator]\nenbaled = true\n[[keymap]]\napplication = [\"*\"]\n");
     assert!(err.is_err());

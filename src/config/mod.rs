@@ -19,7 +19,7 @@ use crate::ime_indicator_settings::{
     IndicatorSettings, MAX_INDICATOR_DURATION_MS, MAX_INDICATOR_SIZE, MIN_INDICATOR_DURATION_MS,
     MIN_INDICATOR_SIZE,
 };
-use crate::keymap::{Keymap, MAX_MACRO_DELAY_MS, RemapTable};
+use crate::keymap::{Keymap, MAX_MACRO_DELAY_MS, RemapTable, is_modifier_vk, parse_key_combo};
 use compile::{KeymapCompiler, compile_app_filter, issue_at_offset};
 use raw::{RawConfig, RawImeIndicator};
 
@@ -173,11 +173,34 @@ fn compile_ime_indicator(
         defaults.size,
     );
     let opacity = ranged(raw.opacity, "opacity", 0, 255, defaults.opacity.into());
+    let mut trigger_keys = Vec::new();
+    for item in raw.trigger_keys.into_iter().flatten() {
+        match parse_key_combo(item.get_ref()) {
+            // Modifier keys never reach the indicator's key check (the hook
+            // consumes them for chord state first), so reject them here
+            // instead of silently never firing.
+            Ok(combo) if is_modifier_vk(combo.vk) => issues.push(issue_at_offset(
+                source,
+                item.span().start,
+                &format!(
+                    "`ime_indicator.trigger_keys`: modifier key `{}` cannot be a trigger",
+                    item.get_ref()
+                ),
+            )),
+            Ok(combo) => trigger_keys.push(combo),
+            Err(e) => issues.push(issue_at_offset(
+                source,
+                item.span().start,
+                &format!("`ime_indicator.trigger_keys`: {e}"),
+            )),
+        }
+    }
     IndicatorSettings {
         enabled: raw.enabled.unwrap_or(defaults.enabled),
         duration_ms,
         size,
         // Cast is lossless: the 0-255 range was just enforced above.
         opacity: opacity as u8,
+        trigger_keys,
     }
 }

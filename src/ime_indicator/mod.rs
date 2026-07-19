@@ -25,6 +25,7 @@ use windows::Win32::UI::WindowsAndMessaging::{WM_APP, WM_TIMER};
 
 use crate::i18n;
 use winremap::ime_indicator_settings::IndicatorSettings;
+use winremap::keymap::KeyCombo;
 
 /// A toggle-candidate key went down; query the IME state shortly.
 const MSG_TOGGLE_POKE: u32 = WM_APP + 0x21;
@@ -50,24 +51,43 @@ const fn is_toggle_candidate(vk: u16) -> bool {
     matches!(vk, 0x15 | 0x16 | 0x19 | 0x1A | 0x1C | 0x1D | 0xF3 | 0xF4)
 }
 
+/// Owned snapshot for the indicator thread. NOT hook-safe: cloning the
+/// trigger list allocates, so hook-side checks below borrow instead.
 fn current_settings() -> IndicatorSettings {
     crate::hook::REMAP_TABLE
         .load()
         .as_ref()
-        .map(|table| table.ime_indicator)
+        .map(|table| table.ime_indicator.clone())
         .unwrap_or_default()
 }
 
-/// Hook-callback touch point. Hook-safe by construction: a `matches!` on the
-/// vk, two wait-free loads, and at most one `PostThreadMessageW` (AGENTS.md
-/// invariant 2, exception 3 / ADR 0020). The key itself always passes
-/// through; this function never influences remapping.
-pub fn notify_toggle_keydown(vk: u16) {
-    if !is_toggle_candidate(vk) {
+fn indicator_enabled() -> bool {
+    crate::hook::REMAP_TABLE
+        .load()
+        .as_ref()
+        .is_some_and(|table| table.ime_indicator.enabled)
+}
+
+/// Hook-callback touch point. Hook-safe by construction: wait-free loads, a
+/// borrow-only chord comparison (no allocation), and at most one
+/// `PostThreadMessageW` (AGENTS.md invariant 2, exception 3 / ADR 0020).
+/// The key itself always passes through; this never influences remapping.
+pub fn notify_keydown(input: KeyCombo) {
+    let tid = THREAD_ID.load(Ordering::Relaxed);
+    if tid == 0 {
         return;
     }
-    let tid = THREAD_ID.load(Ordering::Relaxed);
-    if tid == 0 || !current_settings().enabled {
+    let table = crate::hook::REMAP_TABLE.load();
+    let Some(table) = table.as_ref() else {
+        return;
+    };
+    let settings = &table.ime_indicator;
+    if !settings.enabled {
+        return;
+    }
+    // Built-in VK candidates match regardless of held modifiers; configured
+    // triggers (e.g. "C-Space") match on the full chord (ADR 0021).
+    if !is_toggle_candidate(input.vk) && !settings.trigger_keys.contains(&input) {
         return;
     }
     overlay::post_to_thread(tid, MSG_TOGGLE_POKE);
@@ -77,7 +97,7 @@ pub fn notify_toggle_keydown(vk: u16) {
 /// callback (not the keyboard hook), but is kept just as cheap.
 pub fn notify_foreground_changed() {
     let tid = THREAD_ID.load(Ordering::Relaxed);
-    if tid == 0 || !current_settings().enabled {
+    if tid == 0 || !indicator_enabled() {
         return;
     }
     overlay::post_to_thread(tid, MSG_FOREGROUND);
@@ -185,12 +205,17 @@ fn run(overlay: &overlay::Overlay) {
                 }
                 let sample = detect::query_foreground();
                 let is_on = sample.open == Some(true);
-                if is_on && (!last_on || sample.target != last_target) {
+                let shown = is_on && (!last_on || sample.target != last_target);
+                if shown {
                     overlay.show(sample.target, &settings);
                 } else if !is_on {
                     // Also covers "unknown" (query failed): prefer not
                     // showing over showing wrongly (design doc §3.2).
                     overlay.hide();
+                }
+                if crate::hook::debug_enabled() {
+                    // This thread is not the hook: printing here is fine.
+                    println!("{}", i18n::debug_ime_query(sample.open, shown));
                 }
                 last_on = is_on;
                 last_target = sample.target;

@@ -129,6 +129,34 @@ pub fn reload_failed(error: &str) -> String {
     }
 }
 
+/// Indicator-thread debug line: one query outcome and what was done.
+pub fn debug_ime_query(open: Option<bool>, shown: bool) -> String {
+    match lang() {
+        Lang::En => {
+            let state = match open {
+                Some(true) => "ON",
+                Some(false) => "OFF",
+                None => "unknown",
+            };
+            let action = if shown { "panel shown" } else { "no panel" };
+            format!("[debug] IME indicator: state={state} → {action}")
+        }
+        Lang::Ja => {
+            let state = match open {
+                Some(true) => "オン",
+                Some(false) => "オフ",
+                None => "不明",
+            };
+            let action = if shown {
+                "パネル表示"
+            } else {
+                "表示なし"
+            };
+            format!("[debug] IME インジケーター: 状態={state} → {action}")
+        }
+    }
+}
+
 /// The IME indicator could not start (or died); remapping keeps running.
 /// `error` stays in English on purpose (diagnostics policy above).
 pub fn ime_indicator_failed(error: &str) -> String {

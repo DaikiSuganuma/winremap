@@ -34,6 +34,9 @@ pub(super) struct RawImeIndicator {
     pub(super) size: Option<Spanned<u32>>,
     #[serde(default)]
     pub(super) opacity: Option<Spanned<u32>>,
+    /// Extra toggle chords in key notation, e.g. `["C-Space"]` (ADR 0021).
+    #[serde(default)]
+    pub(super) trigger_keys: Option<Vec<Spanned<String>>>,
 }
 
 #[derive(Deserialize)]

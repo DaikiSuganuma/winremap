@@ -93,3 +93,9 @@ application = ["Acrobat.exe"]
 
 [keymap.remap]
 "C-w" = "C-w" # ドキュメントを閉じるを維持
+
+[ime_indicator]
+enabled = true
+# Windows 11 IME の「Ctrl + Space を使用して IME のオン/オフを切り替える」に対応。
+# 変換/無変換・半角/全角などの標準キーは既定で検知されるため指定不要（ADR 0021）。
+trigger_keys = ["C-Space"]
