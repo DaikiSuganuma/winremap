@@ -1,4 +1,4 @@
-# winremap IME 状態インジケーター開発計画
+# WinRemap IME 状態インジケーター開発計画
 
 > 設計は [08_ime-indicator-design.md](08_ime-indicator-design.md)（以下「設計書」）、採用判断は [ADR 0020](decisions/0020-ime-indicator-scope.md) を参照。
 > 本計画は [02_development-plan.md](02_development-plan.md) と同じ運用（フェーズ直列、フェーズ完了ごとにオーナーレビュー）に従う。
@@ -195,3 +195,7 @@
 → 2026-07-19 オーナー再検証: **両件とも OK**（タスクバーは「シェル面 → 無視」がログで確認され、設定アプリは「パネル表示（CoreWindow 経由）」で追随）。チェックリスト項目 8・9 合格記録済み。
 
 3. **パネル下へのアプリ名表示の要望** → デメリット評価の上で `show_app_name`（既定 false）として採用（[ADR 0024](decisions/0024-ime-indicator-app-name.md)）。表示は exe 名のみ（ウィンドウタイトルは機密になり得るため不採用）。チェックリスト項目 10 で確認する
+
+→ 2026-07-19 オーナー確認: 項目 10 合格（アプリ名表示 OK）。
+
+4. **トレイの矢印（オーバーフロー）クリックで表示される** → シェル面のクラスリストにトレイオーバーフロー（`NotifyIconOverflowWindow` / `TopLevelWindowForOverflowXamlIsland`）と入力切替フライアウト（`Shell_InputSwitchTopLevelWindow`）を追加（ADR 0023 の原則の適用範囲拡大。設計書 §3.2 に反映）

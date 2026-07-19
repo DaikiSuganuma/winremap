@@ -49,11 +49,15 @@ impl Sample {
     }
 }
 
-/// Shell surfaces where an input-mode flash is never wanted: the taskbars
-/// and the desktop (`Progman`, or `WorkerW` when wallpaper hosting splits
-/// it). Clicking them must not show, hide, or reset the indicator.
+/// Shell surfaces where an input-mode flash is never wanted: the taskbars,
+/// the desktop (`Progman`, or `WorkerW` when wallpaper hosting splits it),
+/// the tray-overflow flyouts (Win10 `NotifyIconOverflowWindow`, Win11
+/// `TopLevelWindowForOverflowXamlIsland`), and the Win+Space input
+/// switcher. Clicking them must not show, hide, or reset the indicator.
 fn is_shell_surface(hwnd: HWND) -> bool {
-    let mut buf = [0u16; 32];
+    // 64 units: the longest class matched below is 35 chars and
+    // GetClassNameW truncates silently at the buffer size.
+    let mut buf = [0u16; 64];
     // SAFETY: hwnd is live (just returned by GetForegroundWindow); buf is a
     // live local and the returned length is bounded by its size.
     let len = unsafe { GetClassNameW(hwnd, &mut buf) };
@@ -63,7 +67,13 @@ fn is_shell_surface(hwnd: HWND) -> bool {
     let class = String::from_utf16_lossy(&buf[..len as usize]);
     matches!(
         class.as_str(),
-        "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Progman" | "WorkerW"
+        "Shell_TrayWnd"
+            | "Shell_SecondaryTrayWnd"
+            | "Progman"
+            | "WorkerW"
+            | "NotifyIconOverflowWindow"
+            | "TopLevelWindowForOverflowXamlIsland"
+            | "Shell_InputSwitchTopLevelWindow"
     )
 }
 

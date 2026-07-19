@@ -1,4 +1,4 @@
-# winremap IME 状態インジケーター設計書
+# WinRemap IME 状態インジケーター設計書
 
 > IME（日本語入力）がオンになった瞬間に、アクティブウィンドウの中央へ半透明のマークを一時表示する機能の設計書。
 > 採用判断の経緯は [ADR 0020](decisions/0020-ime-indicator-scope.md)、実施計画は [09_ime-indicator-plan.md](09_ime-indicator-plan.md) を参照。
@@ -32,15 +32,15 @@
 
 ### メリット
 
-1. **常駐基盤をほぼ全部使い回せる**: 元資料が要求するメッセージループ、タスクトレイ常駐、単一インスタンス保証、TOML 設定＋ホットリロード、フォアグラウンド変化検知（`window.rs` の `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)`）は winremap に既にある。単体プログラムをゼロから書くより実装量が少なく、常駐プロセスとトレイアイコンが 1 つで済む
-2. **代替検知手段が自然に手に入る**: モダン IME で `IMC_GETOPENSTATUS` が機能しない場合のフォールバック（半角/全角キー等のグローバル監視）は、winremap が既に持つ WH_KEYBOARD_LL フックそのもの。単体プログラムならこのためだけに 2 本目のキーボードフックを常駐させることになる
+1. **常駐基盤をほぼ全部使い回せる**: 元資料が要求するメッセージループ、タスクトレイ常駐、単一インスタンス保証、TOML 設定＋ホットリロード、フォアグラウンド変化検知（`window.rs` の `SetWinEventHook(EVENT_SYSTEM_FOREGROUND)`）は WinRemap に既にある。単体プログラムをゼロから書くより実装量が少なく、常駐プロセスとトレイアイコンが 1 つで済む
+2. **代替検知手段が自然に手に入る**: モダン IME で `IMC_GETOPENSTATUS` が機能しない場合のフォールバック（半角/全角キー等のグローバル監視）は、WinRemap が既に持つ WH_KEYBOARD_LL フックそのもの。単体プログラムならこのためだけに 2 本目のキーボードフックを常駐させることになる
 3. **利用者層が一致する**: Emacs 風キーバインドで日本語入力する利用者は IME 状態の見失いに悩みがちで、リマッパーと同じ設定ファイル・同じトレイで管理できるのは自然。単一バイナリ配布の方針とも合う
 
 ### デメリット・リスク
 
 1. **ブリーフの Non-goals と隣接する**: ブリーフ §3.3 は IMM32/TSF 領域を「複雑度が跳ね上がる」ため除外してきた。表示のみでも、Windows 11 22H2 以降のモダン Microsoft IME では `IMC_GETOPENSTATUS` が実際の状態に関わらず常に 0 を返す非互換が報告されており、環境によっては「以前のバージョンの Microsoft IME を使う」設定の案内が必要になり得る。「安定性 > 単純さ > 機能」の優先順位と緊張関係にある
 2. **不変条件 2（フック内処理制限）との整合に設計が要る**: IME 状態の照会は他プロセスの IME ウィンドウへの `SendMessage` 系呼び出しで、相手が無応答だとブロックする。フックコールバック内からは絶対に呼べず、「フックは通知のみ → 専用スレッドで照会・描画」という経路の新設が必要
-3. **初のウィンドウ描画サブシステムが入る**: レイヤードウィンドウ、フェードアウトのタイマー、DPI・マルチモニター対応は winremap にとって新領域で、unsafe を持つモジュールが増える。CI では一切テストできず、手動受け入れ項目が増える
+3. **初のウィンドウ描画サブシステムが入る**: レイヤードウィンドウ、フェードアウトのタイマー、DPI・マルチモニター対応は WinRemap にとって新領域で、unsafe を持つモジュールが増える。CI では一切テストできず、手動受け入れ項目が増える
 4. **Windows Update で壊れうる依存が増える**: モダン IME の挙動は非公開仕様に近い。「リマッパーとしては安定しているのに IME 表示だけ壊れる」リリースが起きると信頼性の見え方に響く
 5. **OS 標準機能との重複**: Microsoft IME には入力モード切り替え時に画面中央へ「あ」/「A」を表示する標準通知がある。差分は「アクティブウィンドウ中央への表示」と「表示時間・見た目の調整」
 
@@ -69,7 +69,7 @@
 ### 3.2 IME 状態の照会（専用スレッド上でのみ実行）
 
 1. `GetForegroundWindow` で対象ウィンドウの HWND を取得
-2. （2026-07-19 追加、[ADR 0023](decisions/0023-ime-indicator-query-target.md)）ウィンドウクラスがシェル面（`Shell_TrayWnd` / `Shell_SecondaryTrayWnd` / `Progman` / `WorkerW`）なら何もしない（表示・非表示・状態更新すべてスキップ）。UWP ホスト（ApplicationFrameHost 等）では直下の子 `Windows.UI.Core.CoreWindow` があればそちらを照会対象にする
+2. （2026-07-19 追加、[ADR 0023](decisions/0023-ime-indicator-query-target.md)）ウィンドウクラスがシェル面なら何もしない（表示・非表示・状態更新すべてスキップ）。対象クラス: `Shell_TrayWnd` / `Shell_SecondaryTrayWnd`（タスクバー）、`Progman` / `WorkerW`（デスクトップ）、`NotifyIconOverflowWindow` / `TopLevelWindowForOverflowXamlIsland`（トレイのオーバーフロー。同日追記: 矢印クリックで表示される報告への対処）、`Shell_InputSwitchTopLevelWindow`（Win+Space の入力切替フライアウト）。UWP ホスト（ApplicationFrameHost 等）では直下の子 `Windows.UI.Core.CoreWindow` があればそちらを照会対象にする
 3. `ImmGetDefaultIMEWnd(hwnd)` でデフォルト IME ウィンドウを取得
 4. `SendMessageTimeoutW(ime_wnd, WM_IME_CONTROL (0x0283), IMC_GETOPENSTATUS (0x0005), 0, SMTO_ABORTIFHUNG, timeout=100ms)` を送信。戻り値が非 0 なら IME オンと判定
 5. タイムアウト・失敗時は「不明」とし、表示しない（誤表示より非表示を優先）
