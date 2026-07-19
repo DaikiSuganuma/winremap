@@ -61,7 +61,8 @@
 | IME トグル操作 | キーボードフックがトグル候補キーの keydown を検知 → 専用スレッドへ通知 → 短い遅延（既定 50ms）後に状態照会 | 照会結果が「オン」かつ直前の既知状態が「オフ」なら表示 |
 | フォアグラウンド切替 | `EVENT_SYSTEM_FOREGROUND`（既存の window.rs 監視）→ 専用スレッドへ通知 → 状態照会 | 照会結果が「オン」なら表示（切替先でオンだと気づけるように） |
 
-- トグル候補キー（v1 はハードコード。検証フェーズで実測して確定する）: 半角/全角（`VK_KANJI` 0x19 系）、`VK_IME_ON` 0x16 / `VK_IME_OFF` 0x1A、変換 `VK_CONVERT` 0x1C、無変換 `VK_NONCONVERT` 0x1D、カタカナ/ひらがな `VK_KANA` 0x15
+- トグル候補キー（組み込み）: 半角/全角（`VK_KANJI` 0x19、JIS の `VK_OEM_AUTO` 0xF3 / `VK_OEM_ENLW` 0xF4）、`VK_IME_ON` 0x16 / `VK_IME_OFF` 0x1A、変換 `VK_CONVERT` 0x1C、無変換 `VK_NONCONVERT` 0x1D、カタカナ/ひらがな `VK_KANA` 0x15。修飾キーの状態は無視して VK のみで判定
+- 追加トリガー（2026-07-19 追加、[ADR 0021](decisions/0021-ime-indicator-trigger-keys.md)）: IME 切替キーはユーザーが IME 設定で自由に割り当てられるため（例: Windows 11 IME の Ctrl+Space）、`trigger_keys` 設定でコマンド（修飾キー込み完全一致）を追加できる。Phase I3 のオーナー検証で Ctrl+Space 切替が検知されない問題が発覚し導入した
 - トグルキー検知はあくまで「照会のきっかけ」であり、状態の正は常に照会結果とする（キー検知だけで状態を推測しない。マウスや他ツールによる切替はフォアグラウンド切替時・次回トグル時に追随）
 - 照会前の遅延はトグルキー処理が IME に反映されるまでの時間を吸収するため。専用スレッド上のタイマーで行い、フックは待たない
 
@@ -76,7 +77,7 @@
 
 ### 3.3 オーバーレイ表示
 
-- 表示位置: アクティブウィンドウの中央。矩形は `DwmGetWindowAttribute(DWMWA_EXTENDED_FRAME_BOUNDS)` を優先し（Windows 10/11 の不可視ボーダーを除いた見た目どおりの矩形）、失敗時は `GetWindowRect` にフォールバック
+- 表示位置: アクティブウィンドウの中央。矩形は `GetWindowRect` で取得する（2026-07-19 改訂: 当初優先としていた `DWMWA_EXTENDED_FRAME_BOUNDS` は物理ピクセル座標を返し、DPI 非対応プロセスの仮想化座標と食い違ってスケーリング環境でパネルが画面外に出るため不採用。[ADR 0022](decisions/0022-ime-indicator-getwindowrect.md)）
 - 表示内容: 半透明の角丸パネルに「あ」を 1 文字描画（v1 は固定デザイン。色・形状の設定化はしない）
 - ウィンドウ構成: レイヤードウィンドウ（`WS_EX_LAYERED`）＋以下の拡張スタイルを必須とする（元資料 §3.3）
   - `WS_EX_TRANSPARENT` — マウス入力を背後のウィンドウへ透過
@@ -199,7 +200,7 @@ src/
 - SetWinEventHook: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook
 - Extended Window Styles（WS_EX_LAYERED / TRANSPARENT / NOACTIVATE / TOPMOST / TOOLWINDOW）: https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
 - SetLayeredWindowAttributes: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setlayeredwindowattributes
-- DwmGetWindowAttribute / DWMWA_EXTENDED_FRAME_BOUNDS: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
+- DWMWINDOWATTRIBUTE（DWMWA_EXTENDED_FRAME_BOUNDS が物理ピクセルを返す根拠。ADR 0022 で不採用）: https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
 - Virtual-Key Codes（VK_IME_ON / VK_IME_OFF / VK_KANJI 等）: https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 - IME 状態取得の非互換に関する Microsoft Q&A（元資料の引用）: https://learn.microsoft.com/en-us/answers/questions/5612690/detecting-the-ime-status-of-other-windows
 

@@ -95,8 +95,9 @@
 
 ### 想定 ADR
 
-- ~~0021: indicator thread の通信設計~~ — 不要と判断（設計書 §4.1 の記載どおりに実装、新たな設計判断は発生せず）
-- ~~0022: DPI awareness 方針~~ — 不要と判断（マニフェスト変更なし、タスク 6 参照）
+- ~~indicator thread の通信設計~~ — 不要と判断(設計書 §4.1 の記載どおりに実装、新たな設計判断は発生せず)
+- ~~DPI awareness 方針~~ — マニフェスト変更は不要（タスク 6 参照）だったが、検証で DWM 矩形の物理ピクセル問題が発覚し [ADR 0022](decisions/0022-ime-indicator-getwindowrect.md) として記録
+- 検証で発覚した問題への対処として [ADR 0021（トリガーキー設定化）](decisions/0021-ime-indicator-trigger-keys.md)・[ADR 0022（GetWindowRect 統一）](decisions/0022-ime-indicator-getwindowrect.md) を追加（下記検証記録参照）
 
 ### 完了条件
 
@@ -163,3 +164,19 @@
 
 - トグル候補キーの実測 VK コード確認（`winremap --debug` のキーログで採取し、設計書 §3.1 の候補集合を確定）
 - Windows Terminal・メモ帳・ブラウザでのトグル追随の再確認（受け入れテスト時に実施）
+
+## 検証記録（Phase I3・1 回目: 2026-07-19）
+
+- 実施: オーナー（release ビルド + `--debug` + examples/suganuma.toml、`[ime_indicator] enabled = true` 設定済み）
+- 結果: **NG — パネルが一切表示されない**
+
+### 原因分析（デバッグログより）
+
+1. **トリガー不発（主因）**: オーナーの IME 切替は Ctrl+Space（Windows 11 IME のオプション）で、ログに `C-Space → 素通し` が多数記録されている。ハードコードされたトグル候補 VK セットに Ctrl+Space が含まれず、フックから indicator スレッドへの通知が飛んでいなかった → **[ADR 0021](decisions/0021-ime-indicator-trigger-keys.md): `trigger_keys` 設定を追加**（suganuma.toml に `["C-Space"]` を設定）
+2. **位置計算の潜在バグ**: `DWMWA_EXTENDED_FRAME_BOUNDS` は物理ピクセルを返すため、DPI 非対応プロセスの仮想化座標と食い違い、スケーリング環境でパネルが画面外に出得る → **[ADR 0022](decisions/0022-ime-indicator-getwindowrect.md): `GetWindowRect` に統一**
+3. オーバーレイ描画経路自体は正常: `ime_probe --overlay`（新設の視覚自己テスト）で SetWindowRgn / SetLayeredWindowAttributes / SetWindowPos 全て成功、`IsWindowVisible=true`、前面ウィンドウ中央の座標に配置されることを確認
+
+### 対処後の再検証手段
+
+- `cargo run --example ime_probe -- --overlay` — IME と無関係にパネル描画だけを目視確認
+- `winremap --debug` — 照会のたびに `[debug] IME インジケーター: 状態=オン → パネル表示` 形式の診断行を出力（今回追加）
