@@ -163,6 +163,16 @@ value to use, and which of your keymaps would apply.
   the state of elevated windows (UIPI), and exclusive-fullscreen apps may
   hide the topmost panel.
 
+## AI-assisted development
+
+WinRemap is developed primarily by AI agents (Claude Code), with a human
+owner reviewing and accepting every change. The repository carries the full
+context an agent needs — [AGENTS.md](AGENTS.md) (conventions and
+invariants), [docs/](docs/) (project brief, specs, plans), and
+[docs/decisions/](docs/decisions/) (ADRs recording why things are the way
+they are). Extending WinRemap is therefore easy: `git clone` the
+repository, point your AI agent at it, and describe the feature you want.
+
 ## Security
 
 - WinRemap **never logs or stores keystrokes** and contains **no network
