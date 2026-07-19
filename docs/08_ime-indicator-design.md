@@ -69,9 +69,10 @@
 ### 3.2 IME 状態の照会（専用スレッド上でのみ実行）
 
 1. `GetForegroundWindow` で対象ウィンドウの HWND を取得
-2. `ImmGetDefaultIMEWnd(hwnd)` でデフォルト IME ウィンドウを取得
-3. `SendMessageTimeoutW(ime_wnd, WM_IME_CONTROL (0x0283), IMC_GETOPENSTATUS (0x0005), 0, SMTO_ABORTIFHUNG, timeout=100ms)` を送信。戻り値が非 0 なら IME オンと判定
-4. タイムアウト・失敗時は「不明」とし、表示しない（誤表示より非表示を優先）
+2. （2026-07-19 追加、[ADR 0023](decisions/0023-ime-indicator-query-target.md)）ウィンドウクラスがシェル面（`Shell_TrayWnd` / `Shell_SecondaryTrayWnd` / `Progman` / `WorkerW`）なら何もしない（表示・非表示・状態更新すべてスキップ）。UWP ホスト（ApplicationFrameHost 等）では直下の子 `Windows.UI.Core.CoreWindow` があればそちらを照会対象にする
+3. `ImmGetDefaultIMEWnd(hwnd)` でデフォルト IME ウィンドウを取得
+4. `SendMessageTimeoutW(ime_wnd, WM_IME_CONTROL (0x0283), IMC_GETOPENSTATUS (0x0005), 0, SMTO_ABORTIFHUNG, timeout=100ms)` を送信。戻り値が非 0 なら IME オンと判定
+5. タイムアウト・失敗時は「不明」とし、表示しない（誤表示より非表示を優先）
 
 **`SendMessage`（無印）は使用禁止**。相手プロセスが無応答の場合にこちらのスレッドがブロックするため、必ず `SendMessageTimeoutW` を用いる。
 
