@@ -123,6 +123,21 @@ pub fn reload_ok(count: usize) -> String {
     }
 }
 
+/// Debug-mode marker for a config load (startup and reload), so the reload
+/// timing is visible inside the `[debug]` key-event stream.
+pub fn debug_config_loaded(path: &Path, count: usize) -> String {
+    match lang() {
+        Lang::En => format!(
+            "[debug] config loaded: {} ({count} keymap(s))",
+            path.display()
+        ),
+        Lang::Ja => format!(
+            "[debug] 設定ファイルを読み込みました: {}（キーマップ {count} 件）",
+            path.display()
+        ),
+    }
+}
+
 /// Console message for a failed reload; `error` stays in English on purpose
 /// (diagnostics policy above).
 pub fn reload_failed(error: &str) -> String {

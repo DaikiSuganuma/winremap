@@ -121,6 +121,9 @@ impl Tray {
                 self.keymap_count.set(count);
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
                 println!("{}", i18n::reload_ok(count));
+                if hook::debug_enabled() {
+                    println!("{}", i18n::debug_config_loaded(&self.config_path, count));
+                }
             }
             Err(e) => {
                 // Keep the previous table so remapping never stops on a bad

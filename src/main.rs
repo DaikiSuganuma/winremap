@@ -37,6 +37,9 @@ fn main() -> anyhow::Result<()> {
         .with_context(|| format!("failed to load {}", config_path.display()))?;
     let keymap_count = table.keymaps.len();
     println!("{}", i18n::startup_loaded(keymap_count, &config_path));
+    if hook::debug_enabled() {
+        println!("{}", i18n::debug_config_loaded(&config_path, keymap_count));
+    }
     // Precedence: --macro-delay > config's macro_delay_ms > 0 (ADR 0019).
     sender::set_macro_delay(cli.macro_delay_ms.unwrap_or(table.macro_delay_ms));
     hook::REMAP_TABLE.store(Some(Arc::new(table)));
