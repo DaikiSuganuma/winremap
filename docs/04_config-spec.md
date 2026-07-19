@@ -181,6 +181,7 @@ opacity = 200         # パネル全体の不透明度
 | `size` | 整数 | 32-256 | 96 | パネルの一辺（論理 px。DPI スケール前） |
 | `opacity` | 整数 | 0-255 | 200 | パネル全体の不透明度（255 = 不透明） |
 | `trigger_keys` | 文字列配列 | キー記法（§2） | `[]` | 組み込みのトグル候補キー（変換・無変換・かな・半角/全角・IME On/Off）に**追加**する切替検知キー（[ADR 0021](./decisions/0021-ime-indicator-trigger-keys.md)）。例: Windows 11 IME の Ctrl+Space 切替を使う場合は `["C-Space"]`。修飾キー込みの完全一致で判定。修飾キー単体は設定エラー |
+| `show_app_name` | 真偽値 | — | `false` | パネルの下に対象アプリの exe 名（例 `chrome.exe`）を表示する（[ADR 0024](./decisions/0024-ime-indicator-app-name.md)）。ウィンドウタイトルは表示しない。名前の幅に応じてパネル幅が広がり、上限を超える分は省略記号になる |
 
 - 全フィールド任意（`enabled = true` だけの指定も可。他は既定値）
 - タスクバー・デスクトップのクリックでは表示されない（シェル面は検知対象外。[ADR 0023](./decisions/0023-ime-indicator-query-target.md)）。UWP アプリ（設定アプリ等）は CoreWindow 経由で照会するベストエフォート対応

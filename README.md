@@ -125,8 +125,10 @@ Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are
 detected out of the box; add `trigger_keys` (key notation) for user-assigned
 toggles such as the Windows 11 IME's Ctrl+Space option. `duration_ms`
 (100-5000, default 800), `size` (32-256, default 96), and `opacity` (0-255,
-default 200) tune the panel. The panel never takes focus or input, and a
-problem in the indicator never affects remapping.
+default 200) tune the panel, and `show_app_name = true` adds the target
+app's exe name under the glyph (never the window title). The panel never
+takes focus or input, taskbar/desktop clicks are ignored, and a problem in
+the indicator never affects remapping.
 
 The full specification lives in
 [docs/04_config-spec.md](docs/04_config-spec.md) (Japanese).
