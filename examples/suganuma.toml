@@ -94,8 +94,14 @@ application = ["Acrobat.exe"]
 [keymap.remap]
 "C-w" = "C-w" # ドキュメントを閉じるを維持
 
+# --- IME 状態インジケーター（リマップとは独立した表示機能） ---
+# IME がオン（日本語入力）になった瞬間、アクティブウィンドウの中央に
+# 半透明の「あ」パネルを約 0.8 秒表示して現在の入力モードを知らせる。
+# 表示のみで IME の制御・切り替えは行わない。既定は無効（opt-in）。
+# 仕様: docs/04_config-spec.md §6 ／ 設計: docs/08_ime-indicator-design.md
 [ime_indicator]
 enabled = true
-# Windows 11 IME の「Ctrl + Space を使用して IME のオン/オフを切り替える」に対応。
-# 変換/無変換・半角/全角などの標準キーは既定で検知されるため指定不要（ADR 0021）。
+# 切替の検知キー。変換/無変換・半角/全角などの標準 IME キーは既定で検知される。
+# ここでは Windows 11 IME の「Ctrl + Space を使用して IME のオン/オフを
+# 切り替える」オプションに合わせて C-Space を追加している（ADR 0021）。
 trigger_keys = ["C-Space"]
