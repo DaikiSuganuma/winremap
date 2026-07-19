@@ -204,6 +204,15 @@ fn run(overlay: &overlay::Overlay) {
                     continue;
                 }
                 let sample = detect::query_foreground();
+                if sample.shell_surface {
+                    // Taskbar/desktop clicks: no flash, and no state changes
+                    // either, so refocusing the previous app is not treated
+                    // as a fresh transition (ADR 0023).
+                    if crate::hook::debug_enabled() {
+                        println!("{}", i18n::t().debug_ime_shell_skip);
+                    }
+                    continue;
+                }
                 let is_on = sample.open == Some(true);
                 let shown = is_on && (!last_on || sample.target != last_target);
                 if shown {
@@ -215,7 +224,10 @@ fn run(overlay: &overlay::Overlay) {
                 }
                 if crate::hook::debug_enabled() {
                     // This thread is not the hook: printing here is fine.
-                    println!("{}", i18n::debug_ime_query(sample.open, shown));
+                    println!(
+                        "{}",
+                        i18n::debug_ime_query(sample.open, shown, sample.via_core_window)
+                    );
                 }
                 last_on = is_on;
                 last_target = sample.target;

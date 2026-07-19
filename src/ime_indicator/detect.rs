@@ -8,11 +8,13 @@
 //! Verified against the modern Microsoft IME on Windows 11 Pro 26200 in plan
 //! Phase I1; `examples/ime_probe.rs` stays around as a regression check.
 
-use windows::Win32::Foundation::{LPARAM, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::UI::Input::Ime::ImmGetDefaultIMEWnd;
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_IME_CONTROL,
+    FindWindowExW, GetClassNameW, GetForegroundWindow, SMTO_ABORTIFHUNG, SendMessageTimeoutW,
+    WM_IME_CONTROL,
 };
+use windows::core::{PCWSTR, w};
 
 /// Bounded wait for the cross-process status query (design doc §3.2).
 const QUERY_TIMEOUT_MS: u32 = 100;
@@ -28,6 +30,41 @@ pub struct Sample {
     /// `None` when there is no foreground/IME window or the query failed or
     /// timed out — the caller shows nothing in that case.
     pub open: Option<bool>,
+    /// The foreground window is a shell surface (taskbar, desktop): the
+    /// caller ignores the sample entirely (ADR 0023).
+    pub shell_surface: bool,
+    /// The query went through a UWP CoreWindow child instead of the frame
+    /// window (ADR 0023); surfaced in the --debug line for diagnosis.
+    pub via_core_window: bool,
+}
+
+impl Sample {
+    fn none(target: isize) -> Self {
+        Self {
+            target,
+            open: None,
+            shell_surface: false,
+            via_core_window: false,
+        }
+    }
+}
+
+/// Shell surfaces where an input-mode flash is never wanted: the taskbars
+/// and the desktop (`Progman`, or `WorkerW` when wallpaper hosting splits
+/// it). Clicking them must not show, hide, or reset the indicator.
+fn is_shell_surface(hwnd: HWND) -> bool {
+    let mut buf = [0u16; 32];
+    // SAFETY: hwnd is live (just returned by GetForegroundWindow); buf is a
+    // live local and the returned length is bounded by its size.
+    let len = unsafe { GetClassNameW(hwnd, &mut buf) };
+    if len <= 0 {
+        return false;
+    }
+    let class = String::from_utf16_lossy(&buf[..len as usize]);
+    matches!(
+        class.as_str(),
+        "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Progman" | "WorkerW"
+    )
 }
 
 /// Queries whether the IME is on for the current foreground window.
@@ -36,17 +73,36 @@ pub fn query_foreground() -> Sample {
     // handled below.
     let hwnd = unsafe { GetForegroundWindow() };
     if hwnd.is_invalid() {
-        return Sample {
-            target: 0,
-            open: None,
-        };
+        return Sample::none(0);
     }
     let target = hwnd.0 as isize;
-    // SAFETY: hwnd was checked non-null above; a null result (no IME window)
+    if is_shell_surface(hwnd) {
+        return Sample {
+            shell_surface: true,
+            ..Sample::none(target)
+        };
+    }
+    // UWP hosts (ApplicationFrameHost: Settings, Store, ...) put the real
+    // input window in a child CoreWindow owned by the app's own process;
+    // querying the frame window always reads OFF. Prefer the child when one
+    // exists (ADR 0023).
+    // SAFETY: hwnd is live; a missing child is the normal Win32 case.
+    let input_wnd = unsafe {
+        FindWindowExW(
+            Some(hwnd),
+            None,
+            w!("Windows.UI.Core.CoreWindow"),
+            PCWSTR::null(),
+        )
+    }
+    .ok()
+    .filter(|child| !child.is_invalid());
+    let via_core_window = input_wnd.is_some();
+    // SAFETY: both handles are live windows; a null result (no IME window)
     // is handled below.
-    let ime_wnd = unsafe { ImmGetDefaultIMEWnd(hwnd) };
+    let ime_wnd = unsafe { ImmGetDefaultIMEWnd(input_wnd.unwrap_or(hwnd)) };
     if ime_wnd.is_invalid() {
-        return Sample { target, open: None };
+        return Sample::none(target);
     }
     let mut open_status = 0usize;
     // SAFETY: ime_wnd is a window handle owned by another process; even if
@@ -66,5 +122,7 @@ pub fn query_foreground() -> Sample {
     Sample {
         target,
         open: (sent.0 != 0).then_some(open_status != 0),
+        shell_surface: false,
+        via_core_window,
     }
 }

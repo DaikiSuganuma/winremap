@@ -51,6 +51,7 @@ pub struct Texts {
     pub debug_source_remap: &'static str,
     pub debug_source_compensation: &'static str,
     pub debug_source_external: &'static str,
+    pub debug_ime_shell_skip: &'static str,
 }
 
 static EN: Texts = Texts {
@@ -67,6 +68,7 @@ static EN: Texts = Texts {
     debug_source_remap: "remap",
     debug_source_compensation: "modifier adjust",
     debug_source_external: "EXTERNAL software",
+    debug_ime_shell_skip: "[debug] IME indicator: shell surface (taskbar/desktop) → ignored",
 };
 
 static JA: Texts = Texts {
@@ -83,6 +85,7 @@ static JA: Texts = Texts {
     debug_source_remap: "置換",
     debug_source_compensation: "修飾補正",
     debug_source_external: "外部ソフト",
+    debug_ime_shell_skip: "[debug] IME インジケーター: シェル面（タスクバー/デスクトップ）→ 無視",
 };
 
 pub fn t() -> &'static Texts {
@@ -130,7 +133,9 @@ pub fn reload_failed(error: &str) -> String {
 }
 
 /// Indicator-thread debug line: one query outcome and what was done.
-pub fn debug_ime_query(open: Option<bool>, shown: bool) -> String {
+/// `via_core_window` marks queries answered through a UWP CoreWindow child
+/// (ADR 0023) so UWP detection issues are visible in reports.
+pub fn debug_ime_query(open: Option<bool>, shown: bool, via_core_window: bool) -> String {
     match lang() {
         Lang::En => {
             let state = match open {
@@ -139,7 +144,12 @@ pub fn debug_ime_query(open: Option<bool>, shown: bool) -> String {
                 None => "unknown",
             };
             let action = if shown { "panel shown" } else { "no panel" };
-            format!("[debug] IME indicator: state={state} → {action}")
+            let via = if via_core_window {
+                " (via CoreWindow)"
+            } else {
+                ""
+            };
+            format!("[debug] IME indicator: state={state} → {action}{via}")
         }
         Lang::Ja => {
             let state = match open {
@@ -152,7 +162,12 @@ pub fn debug_ime_query(open: Option<bool>, shown: bool) -> String {
             } else {
                 "表示なし"
             };
-            format!("[debug] IME インジケーター: 状態={state} → {action}")
+            let via = if via_core_window {
+                "（CoreWindow 経由）"
+            } else {
+                ""
+            };
+            format!("[debug] IME インジケーター: 状態={state} → {action}{via}")
         }
     }
 }
