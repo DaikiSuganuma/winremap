@@ -199,3 +199,5 @@
 → 2026-07-19 オーナー確認: 項目 10 合格（アプリ名表示 OK）。
 
 4. **トレイの矢印（オーバーフロー）クリックで表示される** → シェル面のクラスリストにトレイオーバーフロー（`NotifyIconOverflowWindow` / `TopLevelWindowForOverflowXamlIsland`）と入力切替フライアウト（`Shell_InputSwitchTopLevelWindow`）を追加（ADR 0023 の原則の適用範囲拡大。設計書 §3.2 に反映）
+
+5. **シェル面経由で元のアプリに戻ったときに再表示されない** → シェル面観測時に対象ウィンドウの記憶をリセットし、復帰時に IME オンなら再表示するよう変更（[ADR 0026](decisions/0026-ime-indicator-reshow-after-shell.md)。ADR 0023 の状態保持の一部上書き）。チェックリスト項目 8 を新挙動で再確認する

@@ -205,9 +205,11 @@ fn run(overlay: &overlay::Overlay) {
                 }
                 let sample = detect::query_foreground();
                 if sample.shell_surface {
-                    // Taskbar/desktop clicks: no flash, and no state changes
-                    // either, so refocusing the previous app is not treated
-                    // as a fresh transition (ADR 0023).
+                    // Taskbar/desktop clicks: never flash over the shell
+                    // itself (ADR 0023), but forget the last target so that
+                    // refocusing the previous app re-flashes the panel when
+                    // its IME is still on (ADR 0026).
+                    last_target = 0;
                     if crate::hook::debug_enabled() {
                         println!("{}", i18n::t().debug_ime_shell_skip);
                     }
