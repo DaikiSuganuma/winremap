@@ -6,22 +6,40 @@
 //! The goal is to verify that `IMC_GETOPENSTATUS` reflects the real IME state
 //! on this machine's IME (design doc §6-1) before the feature is implemented.
 //!
+//! `--overlay` runs a visual self-test instead: it shows the same kind of
+//! layered panel as src/ime_indicator/overlay.rs at the center of the
+//! current foreground window for 3 seconds, independent of any IME state —
+//! isolating "is the overlay visible at all?" from "does IME detection
+//! work?" (plan Phase I3 verification).
+//!
 //! Standalone on purpose — it duplicates the exe-name lookup from
-//! src/window.rs instead of touching the remapper, so it stays usable as a
-//! regression check no matter how the main code evolves.
+//! src/window.rs (and the overlay drawing) instead of touching the remapper,
+//! so it stays usable as a regression check no matter how the code evolves.
 
 use std::time::{Duration, Instant};
 
-use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM, MAX_PATH, WPARAM};
+use windows::Win32::Foundation::{
+    COLORREF, CloseHandle, HWND, LPARAM, LRESULT, MAX_PATH, RECT, WPARAM,
+};
+use windows::Win32::Graphics::Gdi::{
+    BeginPaint, CreateFontIndirectW, CreateRoundRectRgn, CreateSolidBrush, DT_CENTER,
+    DT_SINGLELINE, DT_VCENTER, DeleteObject, DrawTextW, EndPaint, FillRect, LOGFONTW, PAINTSTRUCT,
+    SelectObject, SetBkMode, SetTextColor, SetWindowRgn, TRANSPARENT,
+};
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::{
     OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
 };
 use windows::Win32::UI::Input::Ime::ImmGetDefaultIMEWnd;
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, GetWindowThreadProcessId, SMTO_ABORTIFHUNG, SendMessageTimeoutW,
-    WM_IME_CONTROL,
+    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetForegroundWindow, GetWindowRect,
+    GetWindowThreadProcessId, HWND_TOPMOST, IsWindowVisible, LWA_ALPHA, MSG, PM_REMOVE,
+    PeekMessageW, RegisterClassW, SMTO_ABORTIFHUNG, SWP_NOACTIVATE, SWP_SHOWWINDOW,
+    SendMessageTimeoutW, SetLayeredWindowAttributes, SetWindowPos, TranslateMessage,
+    WM_IME_CONTROL, WM_PAINT, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
-use windows::core::PWSTR;
+use windows::core::{PWSTR, w};
 
 /// Cross-process queries must be bounded so a hung target cannot stall us
 /// (design doc §3.2 mandates the timeout variant of SendMessage).
@@ -32,6 +50,10 @@ const QUERY_TIMEOUT_MS: u32 = 100;
 const IMC_GETOPENSTATUS: usize = 0x0005;
 
 fn main() {
+    if std::env::args().any(|arg| arg == "--overlay") {
+        overlay_selftest();
+        return;
+    }
     println!("ime_probe: polling the foreground window's IME open status every second.");
     println!("Switch apps and toggle the IME; '*' marks a change. Ctrl+C to quit.");
     let mut last_status: Option<Option<bool>> = None;
@@ -149,4 +171,159 @@ fn query_exe_name(hwnd: HWND) -> Option<String> {
             .unwrap_or(&full)
             .to_ascii_lowercase(),
     )
+}
+
+// ---- --overlay visual self-test -------------------------------------------
+
+const PANEL_SIZE: i32 = 96;
+const PANEL_OPACITY: u8 = 200;
+const BG_COLOR: COLORREF = COLORREF(0x00201C1C);
+const TEXT_COLOR: COLORREF = COLORREF(0x00FFFFFF);
+
+/// Mirrors src/ime_indicator/overlay.rs: same extended styles, region, and
+/// drawing, but shown unconditionally so the rendering path can be verified
+/// without touching the IME.
+fn overlay_selftest() {
+    println!("overlay self-test: a translucent dark panel with \"\u{3042}\" should appear");
+    println!("at the center of the current foreground window for 3 seconds.");
+    // SAFETY: straight-line Win32 window setup on this thread; every handle
+    // used below is either checked or owned by this function until the end.
+    unsafe {
+        let foreground = GetForegroundWindow();
+        let mut target = RECT::default();
+        if foreground.is_invalid() || GetWindowRect(foreground, &mut target).is_err() {
+            println!("no foreground window rect; aborting");
+            return;
+        }
+        let instance = GetModuleHandleW(None).expect("own module handle");
+        let class = WNDCLASSW {
+            lpfnWndProc: Some(overlay_wndproc),
+            hInstance: instance.into(),
+            lpszClassName: w!("winremap.ime_probe_overlay"),
+            ..Default::default()
+        };
+        let _ = RegisterClassW(&class);
+        let hwnd = CreateWindowExW(
+            WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+            w!("winremap.ime_probe_overlay"),
+            w!("ime_probe overlay"),
+            WS_POPUP,
+            0,
+            0,
+            0,
+            0,
+            None,
+            None,
+            Some(instance.into()),
+            None,
+        )
+        .expect("create overlay window");
+        let x = (target.left + target.right) / 2 - PANEL_SIZE / 2;
+        let y = (target.top + target.bottom) / 2 - PANEL_SIZE / 2;
+        let radius = PANEL_SIZE / 4;
+        let region = CreateRoundRectRgn(0, 0, PANEL_SIZE + 1, PANEL_SIZE + 1, radius, radius);
+        let region_set = SetWindowRgn(hwnd, Some(region), false);
+        let alpha_set = SetLayeredWindowAttributes(hwnd, COLORREF(0), PANEL_OPACITY, LWA_ALPHA);
+        let pos_set = SetWindowPos(
+            hwnd,
+            Some(HWND_TOPMOST),
+            x,
+            y,
+            PANEL_SIZE,
+            PANEL_SIZE,
+            SWP_NOACTIVATE | SWP_SHOWWINDOW,
+        );
+        println!(
+            "target=({},{})-({},{})  panel at ({x},{y})  SetWindowRgn={region_set}  \
+             SetLayeredWindowAttributes={}  SetWindowPos={}",
+            target.left,
+            target.top,
+            target.right,
+            target.bottom,
+            alpha_set.is_ok(),
+            pos_set.is_ok()
+        );
+
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let mut reported = false;
+        while Instant::now() < deadline {
+            let mut msg = MSG::default();
+            while PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
+                let _ = TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+            if !reported {
+                // After the first paint pump, report what Windows thinks.
+                let mut shown = RECT::default();
+                let _ = GetWindowRect(hwnd, &mut shown);
+                println!(
+                    "IsWindowVisible={}  overlay rect=({},{})-({},{})",
+                    IsWindowVisible(hwnd).as_bool(),
+                    shown.left,
+                    shown.top,
+                    shown.right,
+                    shown.bottom
+                );
+                reported = true;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+    println!("overlay self-test finished.");
+}
+
+unsafe extern "system" fn overlay_wndproc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    if msg == WM_PAINT {
+        // SAFETY: hwnd is our live window; GDI objects are deleted before
+        // EndPaint closes the session (same drawing as overlay.rs).
+        unsafe {
+            let mut ps = PAINTSTRUCT::default();
+            let hdc = BeginPaint(hwnd, &mut ps);
+            if !hdc.is_invalid() {
+                let mut rect = RECT {
+                    left: 0,
+                    top: 0,
+                    right: PANEL_SIZE,
+                    bottom: PANEL_SIZE,
+                };
+                let brush = CreateSolidBrush(BG_COLOR);
+                let _ = FillRect(hdc, &rect, brush);
+                let _ = DeleteObject(brush.into());
+                let mut font_spec = LOGFONTW {
+                    lfHeight: -(PANEL_SIZE * 55 / 100),
+                    lfWeight: 600,
+                    ..Default::default()
+                };
+                for (slot, unit) in font_spec
+                    .lfFaceName
+                    .iter_mut()
+                    .zip("Yu Gothic UI".encode_utf16())
+                {
+                    *slot = unit;
+                }
+                let font = CreateFontIndirectW(&font_spec);
+                let previous_font = SelectObject(hdc, font.into());
+                let _ = SetBkMode(hdc, TRANSPARENT);
+                let _ = SetTextColor(hdc, TEXT_COLOR);
+                let mut glyph = [0x3042u16];
+                let _ = DrawTextW(
+                    hdc,
+                    &mut glyph,
+                    &mut rect,
+                    DT_CENTER | DT_VCENTER | DT_SINGLELINE,
+                );
+                let _ = SelectObject(hdc, previous_font);
+                let _ = DeleteObject(font.into());
+                let _ = EndPaint(hwnd, &ps);
+            }
+        }
+        return LRESULT(0);
+    }
+    // SAFETY: forwarding unchanged arguments as the contract requires.
+    unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
 }
