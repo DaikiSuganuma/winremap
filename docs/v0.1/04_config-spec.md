@@ -1,6 +1,6 @@
 # 設定ファイル仕様
 
-> [01_project-brief.md](./01_project-brief.md) §6 の TOML 案を確定させた仕様。実装は `src/keymap.rs`（キー記法・マッチング）と `src/config.rs`（読み込み・検証）。
+> [01_project-brief.md](../01_project-brief.md) §6 の TOML 案を確定させた仕様。実装は `src/keymap.rs`（キー記法・マッチング）と `src/config.rs`（読み込み・検証）。
 > マッチング優先順位の設計判断は [ADR 0004](./decisions/0004-keymap-matching-priority.md) を参照（ADR = Architecture Decision Record: 設計判断の記録）。
 
 - 作成日: 2026-07-18

@@ -98,7 +98,7 @@ enabled = true                # 既定: false
 
 変換/無変換・半角/全角・かな・IME On/Off などの標準 IME キーは設定なしで検知されます。Windows 11 IME の「Ctrl + Space で IME をオン/オフ」のようなユーザー割り当てキーを使っている場合は `trigger_keys`（キー記法）で追加してください。`duration_ms`（100-5000、既定 800）、`size`（32-256、既定 96）、`opacity`（0-255、既定 200）で表示を調整でき、`show_app_name = true` でパネル下に対象アプリの exe 名を表示できます（ウィンドウタイトルは表示しません）。パネルはフォーカスや入力を一切奪わず、タスクバー・デスクトップのクリックでは表示されず、インジケーター側の問題がリマップ動作に影響することはありません。
 
-仕様の詳細は [docs/04_config-spec.md](docs/04_config-spec.md) を参照してください。
+仕様の詳細は [docs/v0.1/04_config-spec.md](docs/v0.1/04_config-spec.md) を参照してください。
 
 `application` に何を書けばよいか分からない場合は `winremap.exe --debug` で起動してウィンドウを切り替えてください。前面アプリのフルパス、`application` に指定すべき値、適用されるキーマップが表示されます。
 
@@ -116,7 +116,7 @@ enabled = true                # 既定: false
 
 ## AI エージェントによる開発
 
-WinRemap は主に AI エージェント（Claude Code）が開発し、人間のオーナーがすべての変更をレビュー・承認しています。エージェントに必要な文脈 — [AGENTS.md](AGENTS.md)（規約と不変条件）、[docs/](docs/)（プロジェクトブリーフ・仕様・計画）、[docs/decisions/](docs/decisions/)（設計判断の理由を記録した ADR）— がリポジトリに揃っているため、`git clone` して AI エージェントに指示を出すだけで、機能追加も容易です。
+WinRemap は主に AI エージェント（Claude Code）が開発し、人間のオーナーがすべての変更をレビュー・承認しています。エージェントに必要な文脈 — [AGENTS.md](AGENTS.md)（規約と不変条件）、[docs/](docs/)（プロジェクトブリーフ・仕様・計画）、バージョン別の `docs/<version>/decisions/`（設計判断の理由を記録した ADR）— がリポジトリに揃っているため、`git clone` して AI エージェントに指示を出すだけで、機能追加も容易です。
 
 ## セキュリティ
 

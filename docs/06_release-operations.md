@@ -36,7 +36,7 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 
 ## 2. リリース手順（毎回）
 
-1. **受け入れテスト**: [05_acceptance-checklist.md](./05_acceptance-checklist.md) の「リリース前フルチェック」全項目を実施し、結果を記録・コミット
+1. **受け入れテスト**: [05_acceptance-checklist.md](./v0.1/05_acceptance-checklist.md) の「リリース前フルチェック」全項目を実施し、結果を記録・コミット
 2. **CHANGELOG**: `Unreleased` の内容を新バージョン見出し（例 `## [0.1.0] - 2026-07-XX`）に切り出す
 3. **バージョン**: `Cargo.toml` の `version` を更新（`Cargo.lock` も追随）
 4. **タグ push**:

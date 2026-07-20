@@ -140,7 +140,7 @@ takes focus or input, taskbar/desktop clicks are ignored, and a problem in
 the indicator never affects remapping.
 
 The full specification lives in
-[docs/04_config-spec.md](docs/04_config-spec.md) (Japanese).
+[docs/v0.1/04_config-spec.md](docs/v0.1/04_config-spec.md) (Japanese).
 
 Not sure what to put in `application`? Run `winremap.exe --debug` and switch
 windows: it prints each foreground app's full path, the exact `application`
@@ -177,9 +177,9 @@ value to use, and which of your keymaps would apply.
 WinRemap is developed primarily by AI agents (Claude Code), with a human
 owner reviewing and accepting every change. The repository carries the full
 context an agent needs — [AGENTS.md](AGENTS.md) (conventions and
-invariants), [docs/](docs/) (project brief, specs, plans), and
-[docs/decisions/](docs/decisions/) (ADRs recording why things are the way
-they are). Extending WinRemap is therefore easy: `git clone` the
+invariants), [docs/](docs/) (project brief, specs, plans), and the
+per-version `docs/<version>/decisions/` folders (ADRs recording why things
+are the way they are). Extending WinRemap is therefore easy: `git clone` the
 repository, point your AI agent at it, and describe the feature you want.
 
 ## Security

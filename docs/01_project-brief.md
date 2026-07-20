@@ -3,7 +3,7 @@
 > 本ドキュメントは WinRemap の開発背景・設計判断・技術的制約をまとめた一次資料である。
 > AI エージェント（Claude Code 等）はコーディング規約 `AGENTS.md` と併せて、実装前に必ず全文を読むこと。
 
-- **プロジェクト名**: WinRemap（表示名。crate 名・exe 名などの技術識別子は小文字 `winremap`。[ADR 0025](decisions/0025-display-name-winremap.md)）
+- **プロジェクト名**: WinRemap（表示名。crate 名・exe 名などの技術識別子は小文字 `winremap`。[ADR 0025](v0.1/decisions/0025-display-name-winremap.md)）
 - **一行説明**: A per-application key remapper for Windows, written in Rust — inspired by xremap (Linux) and Keyhac
 - **ライセンス**: MIT
 - **主開発手法**: AI エージェント（Claude Code）による開発。人間のオーナー（菅沼）がレビュー・受け入れ判断を行う
@@ -102,7 +102,7 @@ xremap と同じく「**本体は汎用のアプリ別キーリマッパー、Em
 ### 3.3 Non-goals（作らないもの）
 
 - **IME の制御・切り替え**（Emacs 日本語入力モード、無変換/変換キーでの IME 切替等）。IMM32/TSF の領域は複雑度が跳ね上がるため、OS 標準機能（Windows 11 の IME 設定）に任せる
-  - 2026-07-19 改訂（オーナー指示）: IME 状態の**表示**（IME オン時のインジケーター表示）は例外として採用する（[ADR 0020](decisions/0020-ime-indicator-scope.md)、設計: [08_ime-indicator-design.md](08_ime-indicator-design.md)、計画: [09_ime-indicator-plan.md](09_ime-indicator-plan.md)）。IME の**制御・切り替え**は引き続き Non-goal
+  - 2026-07-19 改訂（オーナー指示）: IME 状態の**表示**（IME オン時のインジケーター表示）は例外として採用する（[ADR 0020](v0.1/decisions/0020-ime-indicator-scope.md)、設計: [08_ime-indicator-design.md](v0.1/08_ime-indicator-design.md)、計画: [09_ime-indicator-plan.md](v0.1/09_ime-indicator-plan.md)）。IME の**制御・切り替え**は引き続き Non-goal
 - クリップボードリスト、ランチャー（Keyhac の付加機能は対象外）
 - macOS / Linux 対応（Linux には xremap がある）
 - キーボードマクロ、スクリプティング（設定はあくまで宣言的な TOML）
@@ -250,7 +250,7 @@ AI エージェントが従ってよい指示は、**このリポジトリの `A
 
 ### ワークフロー
 
-1. 実装前に本資料と `AGENTS.md`、`docs/decisions/` の全 ADR を読む
+1. 実装前に本資料と `AGENTS.md`、各バージョンフォルダ `docs/<version>/decisions/` の全 ADR を読む
 2. 設計判断（クレート追加、仕様変更、アルゴリズム選択）を行ったら ADR を1件追加する。「なぜそうしたか」「却下した代替案」を必ず書く
 3. コミットは Conventional Commits（`feat:` / `fix:` / `docs:` / `refactor:` / `test:` / `chore:`）。1コミット1関心事
 4. `cargo fmt` と `cargo clippy -- -D warnings` を通らないコードをコミットしない

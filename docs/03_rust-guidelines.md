@@ -2,7 +2,7 @@
 
 > 本プロジェクトで Rust コードを書く際の規約。[01_project-brief.md](./01_project-brief.md) §4（アーキテクチャ）・§5（不変条件）を前提とし、Rust 実装面の具体的な作法を定める。矛盾がある場合はブリーフ §5 が優先。
 > 各規約の根拠となる公式資料は末尾の [§12 参考資料](#12-参考資料公式) を参照。
-> 文中の ADR は Architecture Decision Record（設計判断の記録、`docs/decisions/` 配下）を指す。
+> 文中の ADR は Architecture Decision Record（設計判断の記録、各バージョンフォルダの `docs/<version>/decisions/` 配下）を指す。
 
 - 作成日: 2026-07-18
 - 作成: Claude Code（AI モデル: claude-fable-5）／レビュー・承認: オーナー
@@ -12,7 +12,7 @@
 ## 1. ツールチェーンとビルド
 
 - **チャネル**: stable のみ。nightly 機能は使用しない
-- **edition**: 2024（[ADR 0002](./decisions/0002-rust-edition-2024.md)）
+- **edition**: 2024（[ADR 0002](./v0.1/decisions/0002-rust-edition-2024.md)）
 - **MSRV**: 最新 stable に追随（CI が stable を使うため、明示的な MSRV 保証はしない。crates.io 公開を検討する段階で ADR により再判断）
 - コミット前に必ず通すこと:
   ```
@@ -97,7 +97,7 @@
 
 ## 11. UI テキストの多言語化
 
-- ユーザーに見える UI テキスト（トレイメニュー、ツールチップ、コンソールの案内文、CLI ヘルプ）は **`src/i18n.rs` を必ず経由**し、コードにハードコードしない。対応言語は日本語・英語（[ADR 0014](./decisions/0014-ui-localization.md)）
+- ユーザーに見える UI テキスト（トレイメニュー、ツールチップ、コンソールの案内文、CLI ヘルプ）は **`src/i18n.rs` を必ず経由**し、コードにハードコードしない。対応言語は日本語・英語（[ADR 0014](./v0.1/decisions/0014-ui-localization.md)）
 - 言語はシステムの UI 言語から自動選択（`ja*` → 日本語、それ以外 → 英語）。`--lang en|ja` で上書き可
 - エラーの技術的詳細（設定検証エラー、`anyhow` の context 文字列）は診断情報として**英語のまま**とする。テストが文言を検証していることと、Issue 報告時にそのまま貼れる利点のため
 - 新しい UI 文言を追加するときは英語・日本語の両方を同時に定義する（片方だけの追加はレビューで差し戻し）
