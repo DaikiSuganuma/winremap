@@ -38,6 +38,13 @@ pub fn init(
     macro_delay_override: Option<u32>,
 ) -> anyhow::Result<Tray> {
     let texts = i18n::t();
+    // Disabled on purpose: a caption, not a command. It also makes the menu
+    // self-identifying when several tray icons look alike.
+    let title_item = MenuItem::new(
+        format!("{} v{}", texts.app_name, env!("CARGO_PKG_VERSION")),
+        false,
+        None,
+    );
     let enabled_item = CheckMenuItem::new(texts.menu_enabled, true, true, None);
     let reload_item = MenuItem::new(texts.menu_reload, true, None);
     let open_item = MenuItem::new(texts.menu_open, true, None);
@@ -46,6 +53,8 @@ pub fn init(
 
     let menu = Menu::new();
     menu.append_items(&[
+        &title_item,
+        &PredefinedMenuItem::separator(),
         &enabled_item,
         &PredefinedMenuItem::separator(),
         &reload_item,
