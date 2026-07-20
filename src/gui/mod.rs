@@ -30,9 +30,9 @@ use eframe::egui;
 
 use crate::i18n;
 
-/// Repaint cadence while a window is up. Log lines are produced by another
-/// thread, so the GUI polls instead of waiting for input events.
-const POLL_INTERVAL: Duration = Duration::from_millis(200);
+/// Repaint cadence for the hidden root while a child window is up. It only
+/// has to keep the child declared, so it can be slower than the child itself.
+const ROOT_POLL_INTERVAL: Duration = Duration::from_millis(200);
 
 /// Whether the event-loop thread exists. Once started it runs for the rest of
 /// the process — see the module docs.
@@ -161,13 +161,20 @@ fn run_loop() {
     log::on_closed();
 }
 
-/// The title-bar / taskbar / Alt+Tab icon: the same keyboard mark as the tray
-/// and the exe. winit takes raw pixels rather than an .ico, so the 48 px PNG
-/// is decoded at startup — Windows only ever scales it down from there, and
-/// eframe already depends on a PNG decoder, so this costs no new crate.
+/// The window icon: the same keyboard mark as the tray and the exe. winit
+/// takes raw pixels rather than an .ico, so a PNG is decoded here — eframe
+/// already depends on a PNG decoder, so this costs no new crate.
+///
+/// 32 px on purpose. egui-winit installs the icon as `ICON_SMALL` only
+/// (winit's `set_window_icon`), and Windows renders that slot at 16 px in the
+/// title bar and 32 px where it wants a larger one, so 32 halves cleanly
+/// instead of the ragged 48→16 the first version produced. `ICON_BIG` stays
+/// unset because neither egui nor eframe exposes it; fixing that would mean
+/// calling `WM_SETICON` on the raw window handle ourselves.
+///
 /// `None` if it ever fails to decode; the window just gets the default icon.
 fn window_icon() -> Option<std::sync::Arc<egui::IconData>> {
-    let png = include_bytes!("../../assets/png/kbd-enabled-48.png");
+    let png = include_bytes!("../../assets/png/kbd-enabled-32.png");
     eframe::icon_data::from_png_bytes(png)
         .ok()
         .map(std::sync::Arc::new)
@@ -212,11 +219,32 @@ fn install_fonts(ctx: &egui::Context) {
 #[derive(Default)]
 struct GuiApp {
     config: config_window::ConfigWindow,
+    /// Counts down the frames over which eframe's first-frame reveal has to be
+    /// undone — see `keep_root_hidden`.
+    startup_frames: u8,
+}
+
+/// eframe shows the root window itself after painting its first frame, to
+/// avoid a white flash on startup (egui PR #2279). That overrides the
+/// `with_visible(false)` we build it with, so opening only the log window
+/// would pop the settings window too. Undo it for the first few frames, and
+/// ask for those frames immediately so the window is never really seen.
+fn keep_root_hidden(app: &mut GuiApp, ctx: &egui::Context) {
+    const STARTUP_FRAMES: u8 = 3;
+    if app.startup_frames >= STARTUP_FRAMES {
+        return;
+    }
+    app.startup_frames += 1;
+    if !CONFIG_OPEN.load(Ordering::Relaxed) {
+        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        ctx.request_repaint();
+    }
 }
 
 impl eframe::App for GuiApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        keep_root_hidden(self, &ctx);
 
         if SHOW_CONFIG.swap(false, Ordering::SeqCst) {
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
@@ -239,7 +267,7 @@ impl eframe::App for GuiApp {
         // even hidden, which eframe supports (ADR 0035). With both windows
         // closed nothing is scheduled and the thread sleeps.
         if CONFIG_OPEN.load(Ordering::Relaxed) || log::is_open() {
-            ctx.request_repaint_after(POLL_INTERVAL);
+            ctx.request_repaint_after(ROOT_POLL_INTERVAL);
         }
 
         self.config.ui(ui);

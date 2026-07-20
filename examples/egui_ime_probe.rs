@@ -22,7 +22,7 @@ fn main() -> eframe::Result {
         .with_title("WinRemap — egui IME probe")
         .with_inner_size([720.0, 620.0]);
     if let Ok(icon) =
-        eframe::icon_data::from_png_bytes(include_bytes!("../assets/png/kbd-enabled-48.png"))
+        eframe::icon_data::from_png_bytes(include_bytes!("../assets/png/kbd-enabled-32.png"))
     {
         viewport = viewport.with_icon(std::sync::Arc::new(icon));
     }

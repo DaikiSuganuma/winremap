@@ -8,6 +8,7 @@
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 use eframe::egui;
 
@@ -16,6 +17,10 @@ use crate::i18n;
 
 /// Bounded so a long debug session cannot grow the buffer without limit.
 const MAX_LINES: usize = 5000;
+
+/// How often the window redraws while it is up. Lines are produced by another
+/// thread, so it polls rather than waiting for input events.
+const POLL_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Whether the window is showing. Tells `emit` whether anyone is listening and
 /// keeps a second click from re-seeding the buffer.
@@ -110,6 +115,11 @@ pub fn show_viewport(ctx: &egui::Context) {
     ctx.show_viewport_deferred(egui::ViewportId::from_hash_of("winremap-log"), builder, {
         move |ui, _class| {
             let ctx = ui.ctx().clone();
+            // Inside the callback the current viewport is this window, so this
+            // schedules the log's own repaints. Without it the window would
+            // only redraw when the parent re-declares it, which lands each
+            // batch of lines a beat late.
+            ctx.request_repaint_after(POLL_INTERVAL);
             if FOCUS_REQUESTED.swap(false, Ordering::SeqCst) {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
