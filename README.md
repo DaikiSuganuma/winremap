@@ -11,6 +11,9 @@ A per-application key remapper for Windows, written in Rust — inspired by
 
 日本語版: [README.ja.md](README.ja.md)
 
+📖 **User guide / help:** [daikisuganuma.github.io/winremap](https://daikisuganuma.github.io/winremap/)
+([日本語](https://daikisuganuma.github.io/winremap/ja/))
+
 ## How it works
 
 All WinRemap does is replace keystrokes — it never invokes application

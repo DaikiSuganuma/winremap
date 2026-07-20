@@ -10,6 +10,9 @@ Rust 製の Windows 用アプリ別キーリマッパー —
 
 English: [README.md](README.md)
 
+📖 **ヘルプページ:** [daikisuganuma.github.io/winremap/ja/](https://daikisuganuma.github.io/winremap/ja/)
+([English](https://daikisuganuma.github.io/winremap/))
+
 ## 動作のしくみ
 
 WinRemap がやるのはあくまで**キーストロークの置き換えだけ**で、アプリの機能を直接呼び出すことはありません。低レベルキーボードフックが物理キーイベントを抑止し、`SendInput` で置き換え先のキーを注入します。アプリは注入されたキーを「ユーザーが打ったキー」として受け取り、アプリ自身のネイティブな意味で解釈します。たとえば `A-a` を `C-a` にリマップすれば、アプリの Ctrl+A の動作（通常は全選択）がそのまま動きます。注入イベントはフックを素通しする（再変換しない）ため、ルール同士が連鎖したりループしたりすることはありません。
