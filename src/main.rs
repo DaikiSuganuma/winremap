@@ -2,11 +2,19 @@
 //! Win32-facing modules live in the binary; the OS-independent core
 //! (keymap/config) is the `winremap` library crate so it stays testable on
 //! headless CI (project brief §9). This file is `unsafe`-free — Win32 calls
-//! are wrapped by hook.rs / window.rs (AGENTS.md invariant 3, ADR 0009).
+//! are wrapped by hook.rs / window.rs / notify.rs (AGENTS.md invariant 3,
+//! ADR 0009, ADR 0031).
+
+// A resident tray app must not flash a console window when launched from
+// Explorer, the Start menu, or the autostart entry. Terminal users still get
+// output because notify::attach_parent_console hooks up to their console
+// (ADR 0029).
+#![windows_subsystem = "windows"]
 
 mod hook;
 mod i18n;
 mod ime_indicator;
+mod notify;
 mod sender;
 mod tray;
 mod window;
@@ -17,7 +25,18 @@ use std::sync::Arc;
 use anyhow::{Context, bail};
 use winremap::config;
 
-fn main() -> anyhow::Result<()> {
+fn main() {
+    // Before any output, so even an early failure can reach the terminal.
+    notify::attach_parent_console();
+    if let Err(e) = run() {
+        // `{:#}` keeps anyhow's context chain, which is what makes a config
+        // error actionable ("failed to load ...: line 12: ...").
+        notify::error(&format!("{e:#}"));
+        std::process::exit(1);
+    }
+}
+
+fn run() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     // Language must be known before any user-facing output, including the
     // help text parse_args may print.
@@ -36,9 +55,9 @@ fn main() -> anyhow::Result<()> {
     let table = config::load(&config_path)
         .with_context(|| format!("failed to load {}", config_path.display()))?;
     let keymap_count = table.keymaps.len();
-    println!("{}", i18n::startup_loaded(keymap_count, &config_path));
+    notify::console_line(&i18n::startup_loaded(keymap_count, &config_path));
     if hook::debug_enabled() {
-        println!("{}", i18n::debug_config_loaded(&config_path, keymap_count));
+        notify::console_line(&i18n::debug_config_loaded(&config_path, keymap_count));
     }
     // Precedence: --macro-delay > config's macro_delay_ms > 0 (ADR 0019).
     sender::set_macro_delay(cli.macro_delay_ms.unwrap_or(table.macro_delay_ms));
@@ -55,7 +74,7 @@ fn main() -> anyhow::Result<()> {
     // IME indicator touch point: starts its thread only when the config
     // enables the feature (ADR 0020).
     ime_indicator::sync_with_config();
-    println!("{}", i18n::t().remapping_active);
+    notify::console_line(i18n::t().remapping_active);
 
     hook::run_message_loop(|| {
         tray.pump_events();
@@ -119,12 +138,14 @@ fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
                     || format!("invalid --macro-delay `{value}` (expected 0-{max})"),
                 )?);
             }
+            // Both go through notify so a shortcut carrying the flag still
+            // shows something instead of exiting silently.
             "--version" | "-V" => {
-                println!("winremap {}", env!("CARGO_PKG_VERSION"));
+                notify::info(&format!("winremap {}", env!("CARGO_PKG_VERSION")));
                 std::process::exit(0);
             }
             "--help" | "-h" => {
-                println!("{}", i18n::help_text());
+                notify::info(&i18n::help_text());
                 std::process::exit(0);
             }
             other => bail!("{}", i18n::unknown_argument(other)),

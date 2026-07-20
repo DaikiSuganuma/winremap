@@ -38,6 +38,8 @@ fn lang() -> Lang {
 
 /// Static UI strings. Formatted messages live as functions below.
 pub struct Texts {
+    /// Dialog caption. Product name is spelled WinRemap in UI text (ADR 0025).
+    pub app_name: &'static str,
     pub menu_enabled: &'static str,
     pub menu_reload: &'static str,
     pub menu_open: &'static str,
@@ -55,12 +57,13 @@ pub struct Texts {
 }
 
 static EN: Texts = Texts {
+    app_name: "WinRemap",
     menu_enabled: "Enabled",
     menu_reload: "Reload config",
     menu_open: "Open config file",
     menu_quit: "Quit",
     tooltip_disabled: "WinRemap (disabled)",
-    tooltip_reload_failed: "WinRemap — config reload FAILED (see console)",
+    tooltip_reload_failed: "WinRemap — config reload FAILED (previous config still active)",
     remapping_active: "remapping active. Use the tray icon to reload or quit.",
     already_running: "WinRemap is already running (check the task tray)",
     debug_none: "(none)",
@@ -72,12 +75,13 @@ static EN: Texts = Texts {
 };
 
 static JA: Texts = Texts {
+    app_name: "WinRemap",
     menu_enabled: "有効",
     menu_reload: "設定を再読み込み",
     menu_open: "設定ファイルを開く",
     menu_quit: "終了",
     tooltip_disabled: "WinRemap（無効）",
-    tooltip_reload_failed: "WinRemap — 設定の再読み込みに失敗（コンソール参照）",
+    tooltip_reload_failed: "WinRemap — 設定の再読み込みに失敗（前の設定で動作中）",
     remapping_active: "リマップ稼働中。再読み込み・終了はトレイアイコンから。",
     already_running: "WinRemap は既に起動しています（タスクトレイを確認してください）",
     debug_none: "（なし）",

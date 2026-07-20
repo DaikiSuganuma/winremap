@@ -120,15 +120,20 @@ impl Tray {
                 crate::ime_indicator::sync_with_config();
                 self.keymap_count.set(count);
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
-                println!("{}", i18n::reload_ok(count));
+                crate::notify::console_line(&i18n::reload_ok(count));
                 if hook::debug_enabled() {
-                    println!("{}", i18n::debug_config_loaded(&self.config_path, count));
+                    crate::notify::console_line(&i18n::debug_config_loaded(
+                        &self.config_path,
+                        count,
+                    ));
                 }
             }
             Err(e) => {
                 // Keep the previous table so remapping never stops on a bad
-                // edit (config-spec §4); surface the error where we can.
-                eprintln!("{}", i18n::reload_failed(&e.to_string()));
+                // edit (config-spec §4). The user just asked for this reload,
+                // so a dialog (when there is no console) is expected rather
+                // than intrusive — silence would look like success.
+                crate::notify::error(&i18n::reload_failed(&e.to_string()));
                 let _ = self.icon.set_tooltip(Some(i18n::t().tooltip_reload_failed));
             }
         }
