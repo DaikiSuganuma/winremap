@@ -85,6 +85,7 @@
     <li><strong>Enabled</strong> — toggle all remapping on/off without quitting</li>
     <li><strong>Reload config</strong> — apply config changes instantly (no restart, no lost keystrokes)</li>
     <li><strong>Open config</strong> — open <code>config.toml</code> in your editor</li>
+    <li><strong>Show log</strong> — watch what WinRemap does with each keystroke, live</li>
     <li><strong>Quit</strong></li>
   </ul>
   <p>Open the config and describe what you want, per application:</p>
@@ -101,8 +102,8 @@ application = ["notepad.exe"]
   other app still sees a normal Ctrl+H.</p>
 
   <div class="note">
-    <strong>Which name goes in <code>application</code>?</strong> Run
-    <code>winremap.exe --debug</code> and switch to the target window: it prints each
+    <strong>Which name goes in <code>application</code>?</strong> Pick
+    <em>Show log</em> from the tray and switch to the target window: the log shows each
     foreground app's full path, the exact <code>application</code> value to use, and
     which of your keymaps would apply.
   </div>
@@ -245,10 +246,11 @@ enabled = true                # default: false
 
   <details>
     <summary>My rule doesn't match — how do I debug it?</summary>
-    <p>Quit the tray instance, then run <code>winremap.exe --debug</code> from a terminal.
-    It shows the exact <code>application</code> value for each foreground window and logs
-    every key decision (pass-through / remap / macro / prefix) at key-name level.
-    Debug output never includes typed text.</p>
+    <p>Right-click the tray icon and pick <em>Show log</em>. It shows the exact
+    <code>application</code> value for each foreground window and logs every key decision
+    (pass-through / remap / macro / prefix) at key-name level, as you type. Prefer a
+    terminal? Start WinRemap with <code>winremap.exe --debug</code> and the same lines go
+    there. Debug output never includes typed text and is never written to disk.</p>
   </details>
 
   <details>
@@ -258,10 +260,12 @@ enabled = true                # default: false
   </details>
 
   <details>
-    <summary>Why does a console window stay open?</summary>
-    <p>In v0.1 WinRemap keeps a console window, where reload errors are printed. The
-    installer's start-at-sign-in shortcut launches it minimized. Closing the console
-    quits WinRemap — use the tray to keep it running.</p>
+    <summary>Where did the console window go?</summary>
+    <p>WinRemap no longer opens one: launching it from Explorer, the Start menu or at
+    sign-in is silent, and anything you must see (a startup error, a failed reload)
+    appears as a dialog. Start it from a terminal and it still prints there, though the
+    prompt returns immediately so output arrives interleaved with it. For a readable
+    running log, use <em>Show log</em> in the tray.</p>
   </details>
 
   <details>

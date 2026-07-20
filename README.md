@@ -142,9 +142,12 @@ the indicator never affects remapping.
 The full specification lives in
 [docs/v0.1/02_config-spec.md](docs/v0.1/02_config-spec.md) (Japanese).
 
-Not sure what to put in `application`? Run `winremap.exe --debug` and switch
-windows: it prints each foreground app's full path, the exact `application`
-value to use, and which of your keymaps would apply.
+Not sure what to put in `application`? Right-click the tray icon and pick
+**Show log**, then switch windows: the log shows each foreground app's full
+path, the exact `application` value to use, and which of your keymaps would
+apply — plus a line per keystroke explaining what WinRemap did with it. The
+same output goes to your terminal if you start `winremap.exe --debug` from
+one. Nothing is written to disk either way.
 
 ## Limitations
 
@@ -162,7 +165,8 @@ value to use, and which of your keymaps would apply.
 - Do not run WinRemap together with other keyboard-hook software (Keyhac,
   AutoHotkey, ...) remapping the same keys — stacked low-level hooks have
   undefined ordering.
-- WinRemap keeps a console window in v0.1 (reload errors are printed there).
+- Started from a terminal, WinRemap prints to that terminal but does not hold
+  it: the prompt returns immediately and output arrives interleaved with it.
 - IME **control** is out of scope by design (the optional indicator only
   *displays* the state); use the Windows 11 IME settings.
 - The IME indicator reads the state via the legacy IMM32 interface. It is
