@@ -13,9 +13,9 @@
 ## 決定
 
 1. **IME 状態の「表示」のみを採用**する。IME の制御・切り替え（Emacs 日本語入力モード等）は引き続き Non-goal
-2. 実装は **`src/ime_indicator/` ディレクトリに隔離した独立機能**とし、既存コードへの接点（main / hook / window）は通知 1 行レベルに限定する。詳細設計は [docs/08_ime-indicator-design.md](../08_ime-indicator-design.md)
+2. 実装は **`src/ime_indicator/` ディレクトリに隔離した独立機能**とし、既存コードへの接点（main / hook / window）は通知 1 行レベルに限定する。詳細設計は [docs/08_ime-indicator-design.md](../05_ime-indicator-design.md)
 3. 既定は **無効（opt-in）**。設定ファイル `[ime_indicator] enabled = true` で有効化する
-4. 実装前に**技術検証フェーズ（Go/No-Go）を必須**とする。Windows 11 のモダン Microsoft IME で `IMC_GETOPENSTATUS` が実際に信頼できるかをオーナー環境で確認してから本実装に進む（[docs/09_ime-indicator-plan.md](../09_ime-indicator-plan.md) Phase I1）
+4. 実装前に**技術検証フェーズ（Go/No-Go）を必須**とする。Windows 11 のモダン Microsoft IME で `IMC_GETOPENSTATUS` が実際に信頼できるかをオーナー環境で確認してから本実装に進む（[docs/09_ime-indicator-plan.md](../06_ime-indicator-plan.md) Phase I1）
 5. IME 状態の照会・オーバーレイ描画は**専用スレッド**で行い、フックコールバック内では非ブロッキングな `PostThreadMessageW` による通知のみを許す（不変条件 2 の第 3 の明示的例外として AGENTS.md / ブリーフ §5 を改訂する。改訂はオーナーレビュー必須）
 
 ## 理由

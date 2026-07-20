@@ -102,7 +102,7 @@ xremap と同じく「**本体は汎用のアプリ別キーリマッパー、Em
 ### 3.3 Non-goals（作らないもの）
 
 - **IME の制御・切り替え**（Emacs 日本語入力モード、無変換/変換キーでの IME 切替等）。IMM32/TSF の領域は複雑度が跳ね上がるため、OS 標準機能（Windows 11 の IME 設定）に任せる
-  - 2026-07-19 改訂（オーナー指示）: IME 状態の**表示**（IME オン時のインジケーター表示）は例外として採用する（[ADR 0020](v0.1/decisions/0020-ime-indicator-scope.md)、設計: [08_ime-indicator-design.md](v0.1/08_ime-indicator-design.md)、計画: [09_ime-indicator-plan.md](v0.1/09_ime-indicator-plan.md)）。IME の**制御・切り替え**は引き続き Non-goal
+  - 2026-07-19 改訂（オーナー指示）: IME 状態の**表示**（IME オン時のインジケーター表示）は例外として採用する（[ADR 0020](v0.1/decisions/0020-ime-indicator-scope.md)、設計: [08_ime-indicator-design.md](v0.1/05_ime-indicator-design.md)、計画: [09_ime-indicator-plan.md](v0.1/06_ime-indicator-plan.md)）。IME の**制御・切り替え**は引き続き Non-goal
 - クリップボードリスト、ランチャー（Keyhac の付加機能は対象外）
 - macOS / Linux 対応（Linux には xremap がある）
 - キーボードマクロ、スクリプティング（設定はあくまで宣言的な TOML）

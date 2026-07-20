@@ -1,5 +1,5 @@
 //! IME status indicator: shows a translucent panel in the center of the
-//! active window the moment the IME turns on (docs/v0.1/08_ime-indicator-design.md,
+//! active window the moment the IME turns on (docs/v0.1/05_ime-indicator-design.md,
 //! ADR 0020).
 //!
 //! This is a self-contained feature, deliberately isolated from the remapping

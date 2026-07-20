@@ -1,7 +1,7 @@
 # WinRemap IME 状態インジケーター開発計画
 
-> 設計は [08_ime-indicator-design.md](08_ime-indicator-design.md)（以下「設計書」）、採用判断は [ADR 0020](decisions/0020-ime-indicator-scope.md) を参照。
-> 本計画は [02_development-plan.md](02_development-plan.md) と同じ運用（フェーズ直列、フェーズ完了ごとにオーナーレビュー）に従う。
+> 設計は [08_ime-indicator-design.md](05_ime-indicator-design.md)（以下「設計書」）、採用判断は [ADR 0020](decisions/0020-ime-indicator-scope.md) を参照。
+> 本計画は [02_development-plan.md](01_development-plan.md) と同じ運用（フェーズ直列、フェーズ完了ごとにオーナーレビュー）に従う。
 
 - 作成日: 2026-07-19
 - 作成: Claude Code（AI モデル: claude-fable-5）／レビュー・承認: オーナー

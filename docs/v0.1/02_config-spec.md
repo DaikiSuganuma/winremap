@@ -164,7 +164,7 @@ invalid configuration:
 
 ## 6. IME 状態インジケーター（`[ime_indicator]`）
 
-IME がオンになった瞬間にアクティブウィンドウ中央へ半透明マークを一時表示する独立機能（[ADR 0020](./decisions/0020-ime-indicator-scope.md)、設計: [08_ime-indicator-design.md](./08_ime-indicator-design.md)）。**既定は無効（opt-in）**で、節ごと省略できる。
+IME がオンになった瞬間にアクティブウィンドウ中央へ半透明マークを一時表示する独立機能（[ADR 0020](./decisions/0020-ime-indicator-scope.md)、設計: [08_ime-indicator-design.md](./05_ime-indicator-design.md)）。**既定は無効（opt-in）**で、節ごと省略できる。
 
 ```toml
 [ime_indicator]

@@ -1,7 +1,7 @@
 # WinRemap IME 状態インジケーター設計書
 
 > IME（日本語入力）がオンになった瞬間に、アクティブウィンドウの中央へ半透明のマークを一時表示する機能の設計書。
-> 採用判断の経緯は [ADR 0020](decisions/0020-ime-indicator-scope.md)、実施計画は [09_ime-indicator-plan.md](09_ime-indicator-plan.md) を参照。
+> 採用判断の経緯は [ADR 0020](decisions/0020-ime-indicator-scope.md)、実施計画は [09_ime-indicator-plan.md](06_ime-indicator-plan.md) を参照。
 
 - 作成日: 2026-07-19
 - 作成: Claude Code（AI モデル: claude-fable-5）／レビュー・承認: オーナー

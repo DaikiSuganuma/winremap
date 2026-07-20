@@ -83,7 +83,7 @@ application = ["WindowsTerminal.exe", "zed.exe", "phpstorm64.exe"]
 # IME がオン（日本語入力）になった瞬間、アクティブウィンドウの中央に
 # 半透明の「あ」パネルを約 0.8 秒表示して現在の入力モードを知らせる。
 # 表示のみで IME の制御・切り替えは行わない。既定は無効（opt-in）。
-# 仕様: docs/v0.1/04_config-spec.md §6 ／ 設計: docs/v0.1/08_ime-indicator-design.md
+# 仕様: docs/v0.1/02_config-spec.md §6 ／ 設計: docs/v0.1/05_ime-indicator-design.md
 [ime_indicator]
 enabled = true
 # 切替の検知キー。変換/無変換・半角/全角などの標準 IME キーは既定で検知される。

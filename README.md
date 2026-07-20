@@ -140,7 +140,7 @@ takes focus or input, taskbar/desktop clicks are ignored, and a problem in
 the indicator never affects remapping.
 
 The full specification lives in
-[docs/v0.1/04_config-spec.md](docs/v0.1/04_config-spec.md) (Japanese).
+[docs/v0.1/02_config-spec.md](docs/v0.1/02_config-spec.md) (Japanese).
 
 Not sure what to put in `application`? Run `winremap.exe --debug` and switch
 windows: it prints each foreground app's full path, the exact `application`

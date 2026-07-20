@@ -1,4 +1,4 @@
-//! Settings for the IME status indicator (docs/v0.1/08_ime-indicator-design.md).
+//! Settings for the IME status indicator (docs/v0.1/05_ime-indicator-design.md).
 //!
 //! Only the pure config side of the feature lives in the library so it is
 //! testable on headless CI; the Win32 side (detection thread, overlay

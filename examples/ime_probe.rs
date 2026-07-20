@@ -1,5 +1,5 @@
 //! Phase I1 probe: polls the foreground window's IME open status once per
-//! second and prints one line per sample (docs/v0.1/09_ime-indicator-plan.md).
+//! second and prints one line per sample (docs/v0.1/06_ime-indicator-plan.md).
 //!
 //! Run with `cargo run --example ime_probe`, switch between apps, and toggle
 //! the IME; a leading `*` marks a status change since the previous sample.
