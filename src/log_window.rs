@@ -68,6 +68,12 @@ pub fn set_cli_debug(enabled: bool) {
 /// Called from the message loop, never from the hook callback.
 pub fn emit(line: &str) {
     crate::notify::console_line(line);
+    push(line);
+}
+
+/// Adds a line to the window only. For messages that already reached the user
+/// some other way (a dialog, `eprintln!`) but belong in the transcript too.
+pub fn push(line: &str) {
     if !OPEN.load(Ordering::Relaxed) {
         return;
     }
@@ -129,10 +135,15 @@ fn on_hidden() {
 }
 
 fn run_window() {
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_title(i18n::t().log_window_title)
+        .with_inner_size([760.0, 480.0]);
+    if let Some(icon) = window_icon() {
+        viewport = viewport.with_icon(icon);
+    }
+
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_title(i18n::t().log_window_title)
-            .with_inner_size([760.0, 480.0]),
+        viewport,
         // winit refuses a non-main-thread event loop unless asked; this is
         // what keeps the hook's message loop on the main thread untouched.
         // `winit` is a direct dependency only for this trait; it must stay
@@ -168,6 +179,18 @@ fn run_window() {
     }
     LOOP_RUNNING.store(false, Ordering::SeqCst);
     on_hidden();
+}
+
+/// The title-bar / taskbar / Alt+Tab icon: the same keyboard mark as the tray
+/// and the exe. winit takes raw pixels rather than an .ico, so the 48 px PNG
+/// is decoded at startup — Windows only ever scales it down from there, and
+/// eframe already depends on a PNG decoder, so this costs no new crate.
+/// `None` if it ever fails to decode; the window just gets the default icon.
+fn window_icon() -> Option<std::sync::Arc<egui::IconData>> {
+    let png = include_bytes!("../assets/png/kbd-enabled-48.png");
+    eframe::icon_data::from_png_bytes(png)
+        .ok()
+        .map(std::sync::Arc::new)
 }
 
 /// egui ships no CJK glyphs, so Japanese log lines would render as boxes.

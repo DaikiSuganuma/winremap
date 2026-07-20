@@ -135,12 +135,9 @@ impl Tray {
                 crate::ime_indicator::sync_with_config();
                 self.keymap_count.set(count);
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
-                crate::notify::console_line(&i18n::reload_ok(count));
+                crate::log_window::emit(&i18n::reload_ok(count));
                 if hook::debug_enabled() {
-                    crate::notify::console_line(&i18n::debug_config_loaded(
-                        &self.config_path,
-                        count,
-                    ));
+                    crate::log_window::emit(&i18n::debug_config_loaded(&self.config_path, count));
                 }
             }
             Err(e) => {

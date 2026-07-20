@@ -136,7 +136,7 @@ fn start_thread() {
     let handle = match spawned {
         Ok(handle) => handle,
         Err(e) => {
-            eprintln!("{}", i18n::ime_indicator_failed(&e.to_string()));
+            crate::notify::error(&i18n::ime_indicator_failed(&e.to_string()));
             return;
         }
     };
@@ -161,7 +161,7 @@ fn thread_main(ready: &mpsc::Sender<u32>) {
     let overlay = match overlay::Overlay::create() {
         Ok(overlay) => overlay,
         Err(e) => {
-            eprintln!("{}", i18n::ime_indicator_failed(&e.to_string()));
+            crate::notify::error(&i18n::ime_indicator_failed(&e.to_string()));
             return; // ready is dropped unsent; start_thread sees the Err
         }
     };
@@ -171,10 +171,7 @@ fn thread_main(ready: &mpsc::Sender<u32>) {
     let outcome = catch_unwind(AssertUnwindSafe(|| run(&overlay)));
     THREAD_ID.store(0, Ordering::Release);
     if outcome.is_err() {
-        eprintln!(
-            "{}",
-            i18n::ime_indicator_failed("indicator thread panicked")
-        );
+        crate::notify::error(&i18n::ime_indicator_failed("indicator thread panicked"));
     }
 }
 
@@ -211,7 +208,7 @@ fn run(overlay: &overlay::Overlay) {
                     // its IME is still on (ADR 0026).
                     last_target = 0;
                     if crate::hook::debug_enabled() {
-                        println!("{}", i18n::t().debug_ime_shell_skip);
+                        crate::log_window::emit(i18n::t().debug_ime_shell_skip);
                     }
                     continue;
                 }
@@ -232,11 +229,12 @@ fn run(overlay: &overlay::Overlay) {
                     overlay.hide();
                 }
                 if crate::hook::debug_enabled() {
-                    // This thread is not the hook: printing here is fine.
-                    println!(
-                        "{}",
-                        i18n::debug_ime_query(sample.open, shown, sample.via_core_window)
-                    );
+                    // This thread is not the hook: logging here is fine.
+                    crate::log_window::emit(&i18n::debug_ime_query(
+                        sample.open,
+                        shown,
+                        sample.via_child,
+                    ));
                 }
                 last_on = is_on;
                 last_target = sample.target;

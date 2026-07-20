@@ -97,6 +97,9 @@ fn adopt_console_handle(which: STD_HANDLE) {
 /// users keep a copyable transcript; falls back to a dialog when there is
 /// none, so a silent launch never swallows the message (ADR 0029).
 pub fn error(message: &str) {
+    // The log window shows it too when open: a dialog has to be dismissed,
+    // and the reason for a failed reload is worth keeping around.
+    crate::log_window::push(message);
     if has_console() {
         eprintln!("{message}");
     } else {

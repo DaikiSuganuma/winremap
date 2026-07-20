@@ -160,10 +160,9 @@ pub fn debug_config_loaded(path: &Path, count: usize) -> String {
     }
 }
 
-/// Console message for a failed reload; `error` stays in English on purpose
-/// (diagnostics policy above).
 /// The log window could not start (e.g. no usable GPU adapter). Remapping is
-/// unaffected, so the message says so rather than sounding fatal.
+/// unaffected, so the message says so rather than sounding fatal. `error`
+/// stays in English on purpose (diagnostics policy above).
 pub fn log_window_failed(error: &str) -> String {
     match lang() {
         Lang::En => {
@@ -175,6 +174,8 @@ pub fn log_window_failed(error: &str) -> String {
     }
 }
 
+/// Message for a failed reload; `error` stays in English on purpose
+/// (diagnostics policy above).
 pub fn reload_failed(error: &str) -> String {
     match lang() {
         Lang::En => format!("config reload failed, keeping previous config:\n{error}"),
@@ -183,9 +184,10 @@ pub fn reload_failed(error: &str) -> String {
 }
 
 /// Indicator-thread debug line: one query outcome and what was done.
-/// `via_core_window` marks queries answered through a UWP CoreWindow child
-/// (ADR 0023) so UWP detection issues are visible in reports.
-pub fn debug_ime_query(open: Option<bool>, shown: bool, via_core_window: bool) -> String {
+/// `via_child` marks answers that came from a child window's input thread
+/// rather than the foreground window's own (ADR 0033), so detection issues in
+/// UWP and WinUI 3 apps are visible in reports.
+pub fn debug_ime_query(open: Option<bool>, shown: bool, via_child: bool) -> String {
     match lang() {
         Lang::En => {
             let state = match open {
@@ -194,11 +196,7 @@ pub fn debug_ime_query(open: Option<bool>, shown: bool, via_core_window: bool) -
                 None => "unknown",
             };
             let action = if shown { "panel shown" } else { "no panel" };
-            let via = if via_core_window {
-                " (via CoreWindow)"
-            } else {
-                ""
-            };
+            let via = if via_child { " (via child window)" } else { "" };
             format!("[debug] IME indicator: state={state} → {action}{via}")
         }
         Lang::Ja => {
@@ -212,8 +210,8 @@ pub fn debug_ime_query(open: Option<bool>, shown: bool, via_core_window: bool) -
             } else {
                 "表示なし"
             };
-            let via = if via_core_window {
-                "（CoreWindow 経由）"
+            let via = if via_child {
+                "（子ウィンドウ経由）"
             } else {
                 ""
             };

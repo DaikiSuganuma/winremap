@@ -12,6 +12,13 @@
 //! isolating "is the overlay visible at all?" from "does IME detection
 //! work?" (plan Phase I3 verification).
 //!
+//! Note that this probe queries the foreground window's own thread only,
+//! which is what src/ime_indicator/detect.rs did until ADR 0033. Apps whose
+//! editor runs on a second UI thread (WinUI 3, e.g. the Windows 11 Notepad)
+//! therefore read OFF here while the real status is ON — that difference is
+//! itself useful when diagnosing, but do not read a plain OFF from this tool
+//! as "the indicator should show nothing".
+//!
 //! Standalone on purpose — it duplicates the exe-name lookup from
 //! src/window.rs (and the overlay drawing) instead of touching the remapper,
 //! so it stays usable as a regression check no matter how the code evolves.
