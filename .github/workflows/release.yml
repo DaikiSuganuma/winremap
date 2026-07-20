@@ -20,17 +20,29 @@ jobs:
         run: cargo test
       - name: Build
         run: cargo build --release
+      # Inno Setup (iscc) is preinstalled on windows-latest (ADR 0027).
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          iscc /DAppVersion=$version installer\winremap.iss
       - name: Prepare artifacts
         shell: pwsh
         run: |
           New-Item -ItemType Directory dist | Out-Null
           Copy-Item target/release/winremap.exe dist/
-          $hash = (Get-FileHash dist/winremap.exe -Algorithm SHA256).Hash.ToLower()
-          "$hash  winremap.exe" | Out-File -Encoding ascii dist/SHA256SUMS
+          Copy-Item installer/output/winremap-setup.exe dist/
+          $sums = foreach ($name in "winremap.exe", "winremap-setup.exe") {
+            $hash = (Get-FileHash dist/$name -Algorithm SHA256).Hash.ToLower()
+            "$hash  $name"
+          }
+          $sums | Out-File -Encoding ascii dist/SHA256SUMS
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: dist/winremap.exe
+          subject-path: |
+            dist/winremap.exe
+            dist/winremap-setup.exe
       # Draft on purpose: the owner reviews the notes and artifacts before
       # anything becomes publicly downloadable (docs/06_release-operations.md).
       - name: Create draft release
@@ -39,4 +51,5 @@ jobs:
           draft: true
           files: |
             dist/winremap.exe
+            dist/winremap-setup.exe
             dist/SHA256SUMS
