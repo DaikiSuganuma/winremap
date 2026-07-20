@@ -63,7 +63,7 @@ v0.1 は console subsystem でビルドされ、起動・リロード・`--debug
 
 1. ~~ADR 0029 — ログ出力方式の選定~~（起案済み: [ADR 0029](decisions/0029-attach-console-and-tray-log-window.md)）
 2. `#![windows_subsystem = "windows"]` 化と `AttachConsole(ATTACH_PARENT_PROCESS)` の実装
-   - 注意: `AttachConsole` 等の unsafe 呼び出しの配置は不変条件 3 の unsafe 隔離リスト（hook.rs / sender.rs / window.rs / ime_indicator）に含まれない。ADR 0009（bootstrap unsafe の配置）の改訂または新 ADR での明示的な例外追加が必要（**オーナー承認事項**）
+   - unsafe 隔離リスト（hook.rs / sender.rs / window.rs / ime_indicator）への**例外追加はオーナー承認済み**（2026-07-20、ADR 0029）。専用ファイル（`console.rs` 等）を許可リストに加える改訂 ADR を実装着手時に起こし、AGENTS.md 不変条件 3・ブリーフ §5-3 を更新する
 3. トレイメニュー「ログ表示」— 選択でログウィンドウを開き、開いている間はデバッグモードのログをそのウィンドウへ出力する。ログはフックから既存のロックフリーキュー（ADR 0016 の機構）経由で受け取り、フックコールバック内に処理を追加しない。ウィンドウを閉じたときの挙動（デバッグモード解除）も設計する
 4. `--help` / `--version` / 設定エラー時の動作確認と通知先の再設計（無音起動時のエラーはメッセージボックスまたはトレイバルーンで通知）
 5. インストーラー（Inno Setup）・ショートカット経由の起動確認
@@ -82,13 +82,15 @@ v0.1 は console subsystem でビルドされ、起動・リロード・`--debug
 
 ### タスク
 
-1. ADR 0030 — GUI 技術選定。候補比較（いずれも MIT/Apache-2.0 系であること、ネットワーク通信を行わないこと):
+1. ADR 0030 — GUI 技術選定。候補比較（いずれも MIT/Apache-2.0 系であること、ネットワーク通信を行わないこと）。オーナーは **gpui-component** を検討中であり、egui / Slint との比較調査を [02_gui-framework-study.md](02_gui-framework-study.md) にまとめてある:
+   - gpui-component（Zed の gpui ベースのコンポーネント集。オーナー検討中）
    - egui/eframe（即時モード、単一 exe に同梱しやすい）
-   - Slint（宣言的 UI、royalty-free ライセンスの確認要）
+   - Slint（宣言的 UI、ライセンス条件の確認要）
    - iced（Elm 風）
    - ネイティブ Win32（依存ゼロだが開発コスト大）
    - Tauri（WebView ベース。WebView2 依存とフットプリントの評価要）
    - 別プロセスにするか本体組み込みにするか（フック安定性への影響が判断軸。**安定性 > 単純さ > 機能** の優先順位に従う）
+   - Phase A のログ表示ウィンドウを同じフレームワークで実装できるか（自前 Win32 の unsafe を増やさずに済むかの判断材料）
 2. `docs/v0.2/02_config-gui-design.md` — 画面設計・編集モデルの設計書
    - 対象範囲: キーマップの閲覧・編集・保存・リロード連携、バリデーションエラーの行番号表示、`[ime_indicator]` 等トップレベル設定の編集
    - TOML との往復編集（コメント保持の可否）の方針
@@ -151,7 +153,7 @@ Phase A（コンソール非表示） → Phase B（設定 GUI） → Phase D（
 
 | フェーズ | 判断事項 |
 |---|---|
-| A | ~~ログ出力方式の採用案~~（2026-07-20 決定済み: [ADR 0029](decisions/0029-attach-console-and-tray-log-window.md)）、unsafe 隔離リストの例外追加 |
+| A | ~~ログ出力方式の採用案~~・~~unsafe 隔離リストへの例外追加の可否~~（いずれも 2026-07-20 決定済み: [ADR 0029](decisions/0029-attach-console-and-tray-log-window.md)）。残るは実装時に確定する追加ファイル名の承認 |
 | B | GUI フレームワークの選定承認（ライセンス確認込み）、GUI の機能範囲 |
 | C | scoop の提出先（Extras か自前バケットか）、winget/scoop 提出を v0.2.0 前に行うか後に行うか |
 | D | v0.2.0 リリース判断 |
