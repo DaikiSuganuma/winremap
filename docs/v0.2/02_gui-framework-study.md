@@ -2,7 +2,7 @@
 
 > v0.2 の目玉機能である設定 GUI（[01_development-plan.md](01_development-plan.md) Phase B）のフレームワーク選定のための調査。
 > オーナーが **gpui-component** を検討中であることを受け、egui・Slint との違いを調べた。
-> 本書は調査資料であり決定ではない。決定は ADR 0030 で行う。
+> **決着済み**: 本調査を受け、オーナーは 2026-07-20 に **egui** の採用を決定した（[ADR 0030](decisions/0030-config-gui-framework-egui.md)）。本書は判断の根拠資料として残す。
 
 - 作成日: 2026-07-20
 - 作成: Claude Code（AI モデル: claude-fable-5）／レビュー・承認: オーナー
