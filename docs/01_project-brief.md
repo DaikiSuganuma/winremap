@@ -86,7 +86,7 @@ xremap と同じく「**本体は汎用のアプリ別キーリマッパー、Em
 3. **前面ウィンドウのプロセス名（exe 名）によるアプリ別キーマップ切り替え**（ワイルドカード指定 `*` でグローバル適用）
 4. TOML 設定ファイル（`%APPDATA%\winremap\config.toml` を既定とし、`--config` で上書き可）
 5. 設定のホットリロード（タスクトレイメニューまたはファイル監視）
-6. タスクトレイ常駐（有効/無効トグル、設定リロード、設定ファイルを開く、終了）
+6. タスクトレイ常駐（有効/無効トグル、設定、設定リロード、ログを表示、終了）
 7. 同梱サンプル設定: `examples/minimal.toml`（Ctrl+H → Backspace のみ）、`examples/emacs.toml`（fakeymacs 相当の Emacs 風設定）
 
 最初の実用ゴール（受け入れテスト）: **PHPStorm（phpstorm64.exe）でのみ Ctrl+H を Backspace として送り、Claude Code のプロンプトで1文字削除になること。他アプリには影響しないこと。**

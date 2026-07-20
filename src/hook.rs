@@ -179,10 +179,10 @@ pub fn drain_debug_log() {
                     i18n::debug_injected(vk, up, source)
                 }
             };
-            crate::log_window::emit(&line);
+            crate::gui::log::emit(&line);
         }
         if ring.dropped > 0 {
-            crate::log_window::emit(&i18n::debug_events_dropped(ring.dropped));
+            crate::gui::log::emit(&i18n::debug_events_dropped(ring.dropped));
         }
         ring.len = 0;
         ring.dropped = 0;

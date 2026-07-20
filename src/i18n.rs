@@ -42,9 +42,13 @@ pub struct Texts {
     pub app_name: &'static str,
     pub menu_enabled: &'static str,
     pub menu_reload: &'static str,
-    pub menu_open: &'static str,
+    pub menu_settings: &'static str,
     pub menu_log: &'static str,
     pub menu_quit: &'static str,
+    pub config_window_title: &'static str,
+    pub config_window_placeholder: &'static str,
+    pub config_window_file: &'static str,
+    pub config_window_open_in_editor: &'static str,
     pub log_window_title: &'static str,
     pub log_window_hint: &'static str,
     pub log_window_follow: &'static str,
@@ -66,9 +70,13 @@ static EN: Texts = Texts {
     app_name: "WinRemap",
     menu_enabled: "Enabled",
     menu_reload: "Reload config",
-    menu_open: "Open config file",
+    menu_settings: "Settings",
     menu_log: "Show log",
     menu_quit: "Quit",
+    config_window_title: "WinRemap — settings",
+    config_window_placeholder: "Editing arrives in a later build. For now, edit the file directly.",
+    config_window_file: "Config file",
+    config_window_open_in_editor: "Open in text editor",
     log_window_title: "WinRemap — log",
     log_window_hint: "Debug logging is on while this window is open. Press keys to see how they are handled.",
     log_window_follow: "Follow newest",
@@ -90,9 +98,13 @@ static JA: Texts = Texts {
     app_name: "WinRemap",
     menu_enabled: "有効",
     menu_reload: "設定を再読み込み",
-    menu_open: "設定ファイルを開く",
+    menu_settings: "設定",
     menu_log: "ログを表示",
     menu_quit: "終了",
+    config_window_title: "WinRemap — 設定",
+    config_window_placeholder: "編集機能は今後のビルドで追加します。今はファイルを直接編集してください。",
+    config_window_file: "設定ファイル",
+    config_window_open_in_editor: "テキストエディタで開く",
     log_window_title: "WinRemap — ログ",
     log_window_hint: "このウィンドウを開いている間、デバッグログを記録します。キーを押すと処理内容が表示されます。",
     log_window_follow: "最新に追従",
@@ -171,16 +183,16 @@ pub fn debug_config_loaded(path: &Path, count: usize) -> String {
     }
 }
 
-/// The log window could not start (e.g. no usable GPU adapter). Remapping is
+/// The GUI could not start (e.g. no usable GPU adapter). Remapping is
 /// unaffected, so the message says so rather than sounding fatal. `error`
 /// stays in English on purpose (diagnostics policy above).
-pub fn log_window_failed(error: &str) -> String {
+pub fn gui_failed(error: &str) -> String {
     match lang() {
         Lang::En => {
-            format!("could not open the log window (remapping is unaffected):\n{error}")
+            format!("could not open the window (remapping is unaffected):\n{error}")
         }
         Lang::Ja => {
-            format!("ログウィンドウを開けませんでした（リマップ動作には影響ありません）:\n{error}")
+            format!("ウィンドウを開けませんでした（リマップ動作には影響ありません）:\n{error}")
         }
     }
 }

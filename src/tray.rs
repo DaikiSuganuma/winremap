@@ -1,4 +1,4 @@
-//! Task tray UI: enable/disable toggle, config reload, open config, quit.
+//! Task tray UI: enable/disable toggle, settings, config reload, log, quit.
 //!
 //! Uses the `tray-icon` crate so this module stays free of `unsafe`
 //! (AGENTS.md invariant 3, ADR 0007). Menu events arrive on this thread's
@@ -6,7 +6,7 @@
 //! extra thread or locking is involved.
 
 use std::cell::Cell;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -21,7 +21,7 @@ pub struct Tray {
     icon: TrayIcon,
     enabled_item: CheckMenuItem,
     reload_item: MenuItem,
-    open_item: MenuItem,
+    settings_item: MenuItem,
     log_item: MenuItem,
     quit_item: MenuItem,
     config_path: PathBuf,
@@ -47,7 +47,7 @@ pub fn init(
     );
     let enabled_item = CheckMenuItem::new(texts.menu_enabled, true, true, None);
     let reload_item = MenuItem::new(texts.menu_reload, true, None);
-    let open_item = MenuItem::new(texts.menu_open, true, None);
+    let settings_item = MenuItem::new(texts.menu_settings, true, None);
     let log_item = MenuItem::new(texts.menu_log, true, None);
     let quit_item = MenuItem::new(texts.menu_quit, true, None);
 
@@ -57,8 +57,8 @@ pub fn init(
         &PredefinedMenuItem::separator(),
         &enabled_item,
         &PredefinedMenuItem::separator(),
+        &settings_item,
         &reload_item,
-        &open_item,
         &log_item,
         &PredefinedMenuItem::separator(),
         &quit_item,
@@ -76,7 +76,7 @@ pub fn init(
         icon,
         enabled_item,
         reload_item,
-        open_item,
+        settings_item,
         log_item,
         quit_item,
         config_path,
@@ -109,13 +109,13 @@ impl Tray {
                 i18n::t().tooltip_disabled.to_string()
             };
             let _ = self.icon.set_tooltip(Some(tooltip));
-            crate::log_window::emit(&i18n::toggle_state(enabled));
+            crate::gui::log::emit(&i18n::toggle_state(enabled));
         } else if id == self.reload_item.id() {
             self.reload();
-        } else if id == self.open_item.id() {
-            open_in_default_editor(&self.config_path);
+        } else if id == self.settings_item.id() {
+            crate::gui::open_config();
         } else if id == self.log_item.id() {
-            crate::log_window::open();
+            crate::gui::open_log();
         } else if id == self.quit_item.id() {
             hook::post_quit();
         }
@@ -136,9 +136,9 @@ impl Tray {
                 crate::ime_indicator::sync_with_config();
                 self.keymap_count.set(count);
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
-                crate::log_window::emit(&i18n::reload_ok(count));
+                crate::gui::log::emit(&i18n::reload_ok(count));
                 if hook::debug_enabled() {
-                    crate::log_window::emit(&i18n::debug_config_loaded(&self.config_path, count));
+                    crate::gui::log::emit(&i18n::debug_config_loaded(&self.config_path, count));
                 }
             }
             Err(e) => {
@@ -151,14 +151,6 @@ impl Tray {
             }
         }
     }
-}
-
-fn open_in_default_editor(path: &Path) {
-    // `start` defers to the user's .toml file association; the empty string
-    // fills start's window-title slot so the path is not mistaken for it.
-    let _ = std::process::Command::new("cmd")
-        .args(["/C", "start", "", &path.to_string_lossy()])
-        .spawn();
 }
 
 /// Loads the owner-designed icon (assets/kbd*.ico, gray when disabled) from

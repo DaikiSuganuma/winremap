@@ -11,10 +11,10 @@
 // (ADR 0029).
 #![windows_subsystem = "windows"]
 
+mod gui;
 mod hook;
 mod i18n;
 mod ime_indicator;
-mod log_window;
 mod notify;
 mod sender;
 mod tray;
@@ -47,7 +47,8 @@ fn run() -> anyhow::Result<()> {
     hook::set_debug(cli.debug);
     // Remembered so closing the log window restores this instead of
     // silencing a `--debug` session that was running before it opened.
-    log_window::set_cli_debug(cli.debug);
+    gui::log::set_cli_debug(cli.debug);
+    gui::set_config_path(config_path.clone());
 
     let instance = hook::acquire_single_instance().context("failed to create instance mutex")?;
     let Some(_instance) = instance else {

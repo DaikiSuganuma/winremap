@@ -208,7 +208,7 @@ fn run(overlay: &overlay::Overlay) {
                     // its IME is still on (ADR 0026).
                     last_target = 0;
                     if crate::hook::debug_enabled() {
-                        crate::log_window::emit(i18n::t().debug_ime_shell_skip);
+                        crate::gui::log::emit(i18n::t().debug_ime_shell_skip);
                     }
                     continue;
                 }
@@ -230,7 +230,7 @@ fn run(overlay: &overlay::Overlay) {
                 }
                 if crate::hook::debug_enabled() {
                     // This thread is not the hook: logging here is fine.
-                    crate::log_window::emit(&i18n::debug_ime_query(
+                    crate::gui::log::emit(&i18n::debug_ime_query(
                         sample.open,
                         shown,
                         sample.via_child,

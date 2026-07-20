@@ -1,7 +1,7 @@
 //! Phase B prototype: does Japanese IME input work in egui text fields?
 //!
 //! ADR 0030 listed three risks to settle before designing the config GUI.
-//! Two are already answered by the tray log window (`src/log_window.rs`):
+//! Two are already answered by the tray log window (`src/gui/log.rs`):
 //! Japanese glyphs render from a system font, and the hook keeps running
 //! while an eframe window is up. The third — IME input — needed a text field,
 //! which the log window has none of, hence this probe.
@@ -12,7 +12,7 @@
 //!
 //! Standalone on purpose: it must be runnable while WinRemap itself is
 //! resident, so it installs no hook, no tray icon, and no single-instance
-//! guard. It duplicates the font loading from src/log_window.rs rather than
+//! guard. It duplicates the font loading from src/gui/log.rs rather than
 //! sharing it, so the probe keeps working however that file evolves.
 
 use eframe::egui;
@@ -39,7 +39,7 @@ fn main() -> eframe::Result {
     )
 }
 
-/// Same candidates and ordering as src/log_window.rs: borrow a CJK face from
+/// Same candidates and ordering as src/gui/log.rs: borrow a CJK face from
 /// the system instead of embedding megabytes of font.
 fn install_fonts(ctx: &egui::Context) {
     const CANDIDATES: &[(&str, u32)] = &[

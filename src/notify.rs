@@ -99,7 +99,7 @@ fn adopt_console_handle(which: STD_HANDLE) {
 pub fn error(message: &str) {
     // The log window shows it too when open: a dialog has to be dismissed,
     // and the reason for a failed reload is worth keeping around.
-    crate::log_window::push(message);
+    crate::gui::log::push(message);
     if has_console() {
         eprintln!("{message}");
     } else {
