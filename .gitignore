@@ -1,4 +1,5 @@
 /target/
+/installer/output/
 .mcp.json
 *.log
 *.stackdump
