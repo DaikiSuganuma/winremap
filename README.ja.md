@@ -38,14 +38,20 @@ flowchart TD
 ## クイックスタート
 
 1. [Releases](https://github.com/DaikiSuganuma/winremap/releases) から
-   `winremap.exe` と `SHA256SUMS` をダウンロード（検証手順は
-   [SECURITY.md](SECURITY.md)）、またはソースからビルド:
+   `winremap-setup.exe` をダウンロードして実行します（検証手順は
+   [SECURITY.md](SECURITY.md)）。インストーラーは管理者権限不要の
+   ユーザー単位インストールで、スタートメニューへの登録、サインイン時の
+   自動起動（任意）に対応し、設定ファイルがまだ無い場合は
+   `%APPDATA%\winremap\config.toml` を最小サンプルから作成します。
+
+   ポータブル運用にしたい場合は単体の `winremap.exe` をダウンロードするか、
+   ソースからビルドしてください:
 
    ```powershell
    cargo build --release   # -> target\release\winremap.exe
    ```
 
-2. `%APPDATA%\winremap\config.toml` を作成（例からのコピーでも可）:
+2. `%APPDATA%\winremap\config.toml` を編集します（例からのコピーでも可）:
 
    ```toml
    # メモ帳でのみ Ctrl+H を素の Backspace にする

@@ -46,14 +46,15 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
    git push origin v0.1.0
    ```
 
-5. release.yml が起動し、テスト → ビルド → `SHA256SUMS` 生成 → **ビルド来歴の attestation** → **ドラフトリリース**作成まで自動で行う
+5. release.yml が起動し、テスト → ビルド → インストーラー生成（Inno Setup、ADR 0027） → `SHA256SUMS` 生成 → **ビルド来歴の attestation** → **ドラフトリリース**作成まで自動で行う
 6. GitHub → Releases のドラフトを開き、以下を確認して **Publish release**:
-   - 添付物が `winremap.exe` と `SHA256SUMS` の 2 点であること
+   - 添付物が `winremap.exe`・`winremap-setup.exe`・`SHA256SUMS` の 3 点であること
    - リリースノート（CHANGELOG から転記・調整）
 7. 公開後の検証（利用者と同じ手順で最終確認）:
 
    ```powershell
    gh attestation verify .\winremap.exe --repo DaikiSuganuma/winremap
+   gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
    ```
 
 ## 3. 配布ポリシー（ブリーフ §10-3）

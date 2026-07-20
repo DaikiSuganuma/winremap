@@ -30,7 +30,9 @@ Official binaries are published **only** on
 Binaries from any other site are unofficial.
 
 Each release includes `SHA256SUMS` and a GitHub build-provenance
-attestation. To verify a download:
+attestation covering both the portable `winremap.exe` and the installer
+`winremap-setup.exe`. To verify a download (swap in `winremap-setup.exe`
+to check the installer):
 
 ```powershell
 # 1. Checksum matches SHA256SUMS

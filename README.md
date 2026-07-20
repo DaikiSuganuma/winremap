@@ -54,15 +54,21 @@ flowchart TD
 
 ## Quick start
 
-1. Download `winremap.exe` and `SHA256SUMS` from
-   [Releases](https://github.com/DaikiSuganuma/winremap/releases)
-   (see [SECURITY.md](SECURITY.md) for verification), or build from source:
+1. Download `winremap-setup.exe` from
+   [Releases](https://github.com/DaikiSuganuma/winremap/releases) and run it
+   (see [SECURITY.md](SECURITY.md) for verification). The installer needs no
+   admin rights: it installs per-user, adds a Start Menu shortcut, can start
+   WinRemap at sign-in, and — if you have no config yet — creates
+   `%APPDATA%\winremap\config.toml` from the minimal example.
+
+   Prefer a portable setup? Download the single `winremap.exe` instead, or
+   build from source:
 
    ```powershell
    cargo build --release   # -> target\release\winremap.exe
    ```
 
-2. Create `%APPDATA%\winremap\config.toml` (or start with an example):
+2. Edit `%APPDATA%\winremap\config.toml` (or start with an example):
 
    ```toml
    # Ctrl+H sends a plain Backspace, but only inside Notepad
