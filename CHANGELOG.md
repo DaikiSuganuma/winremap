@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-20
+
 ### Added
 
 - Project scaffolding: Cargo project, CI workflow, development docs (project brief, development plan, Rust guidelines), agent conventions (`AGENTS.md`).
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--macro-delay <ms>` (0-15, default 0): opt-in pacing between macro strokes for apps that mishandle burst-injected input.
 - Top-level `macro_delay_ms` config option (CLI `--macro-delay` overrides it), applied on reload too; `examples/suganuma.toml` sets 8 ms, confirmed to stabilize macros in the WinUI Notepad.
 - IME status indicator (`[ime_indicator]`, opt-in, ADR 0020-0022): flashes a translucent "あ" panel at the center of the active window the moment the IME turns on (or a focused window's IME is on), fading out after `duration_ms`. Detection combines standard IME toggle keys with configurable `trigger_keys` (e.g. `["C-Space"]`) plus foreground-change checks via `IMC_GETOPENSTATUS`; runs on a dedicated thread so remapping is never affected. Display only — WinRemap never switches the IME. Shell surfaces (taskbar, desktop, tray-overflow, and input-switcher flyouts) never show the panel — but returning from them to an app whose IME is on re-flashes it — UWP apps (Settings, ...) are queried through their CoreWindow child, and `show_app_name = true` adds the target app's exe name under the glyph. Ships with the `ime_probe` example (status polling and `--overlay` visual self-test) and `--debug` query diagnostics.
+- Windows installer `winremap-setup.exe` (Inno Setup, ADR 0027): per-user install requiring no admin rights, English/Japanese installer UI, Start Menu shortcut, optional start-at-sign-in, and a starter config created from `examples/minimal.toml` only when `%APPDATA%\winremap\config.toml` does not exist yet. The portable single exe remains available; both artifacts are covered by `SHA256SUMS` and the build-provenance attestation.
 
 ### Changed
 
