@@ -54,7 +54,7 @@ pub fn refresh_foreground_cache() {
 /// `application` value to use, and which configured keymaps would apply.
 fn print_debug_info(full_path: Option<&str>, basename: &str) {
     let Some(full_path) = full_path else {
-        println!("{}", crate::i18n::t().debug_foreground_unknown);
+        crate::log_window::emit(crate::i18n::t().debug_foreground_unknown);
         return;
     };
     let table = crate::hook::REMAP_TABLE.load();
@@ -73,10 +73,7 @@ fn print_debug_info(full_path: Option<&str>, basename: &str) {
     } else {
         names.join(", ")
     };
-    println!(
-        "{}",
-        crate::i18n::debug_foreground(full_path, basename, &list)
-    );
+    crate::log_window::emit(&crate::i18n::debug_foreground(full_path, basename, &list));
 }
 
 /// Lowercase exe basename for an arbitrary window, for display purposes

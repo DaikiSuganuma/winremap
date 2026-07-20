@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tray menu item **Show log** (ADR 0029): opens a window that streams the debug log live, so diagnosing a keymap no longer requires starting WinRemap from a terminal. Debug logging is on only while the window is open, the log is never written to disk, and the window runs on its own thread so remapping is unaffected. Built with egui (ADR 0030), which also covers the v0.2 config GUI.
 - Help site on GitHub Pages (ADR 0028): a single-page user guide (English and Japanese) covering install, quick start, configuration reference, IME indicator, and troubleshooting, deployed from `site/` via GitHub Actions.
 
 ## [0.1.0] - 2026-07-20
@@ -34,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows installer `winremap-setup.exe` (Inno Setup, ADR 0027): per-user install requiring no admin rights, English/Japanese installer UI, Start Menu shortcut, optional start-at-sign-in, and a starter config created from `examples/minimal.toml` only when `%APPDATA%\winremap\config.toml` does not exist yet. The portable single exe remains available; both artifacts are covered by `SHA256SUMS` and the build-provenance attestation.
 
 ### Changed
+
+- **No console window on startup** (ADR 0029): WinRemap is now a windows-subsystem binary, so launching it from Explorer, the Start menu, or the sign-in autostart entry no longer flashes a console. Started from a terminal it attaches to that terminal and prints as before (`--debug`, `--help`, `--version`), and redirects like `winremap --help > out.txt` keep working. Messages that must not be missed — a startup failure, a failed config reload — become a dialog when there is no terminal to print to.
 
 - The product name is written **WinRemap** in documentation and UI strings (matching the WinMerge/WinSCP naming convention); technical identifiers — the crate, `winremap.exe`, `%APPDATA%\winremap\`, repository URLs — stay lowercase (ADR 0025).
 - `--debug` logs pass-through keys once per physical press: auto-repeats of keys WinRemap does not remap (e.g. a held push-to-talk key) no longer flood the log.

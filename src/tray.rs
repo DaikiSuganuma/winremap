@@ -22,6 +22,7 @@ pub struct Tray {
     enabled_item: CheckMenuItem,
     reload_item: MenuItem,
     open_item: MenuItem,
+    log_item: MenuItem,
     quit_item: MenuItem,
     config_path: PathBuf,
     /// Remembered so re-enabling can restore the "N keymap(s)" tooltip.
@@ -40,6 +41,7 @@ pub fn init(
     let enabled_item = CheckMenuItem::new(texts.menu_enabled, true, true, None);
     let reload_item = MenuItem::new(texts.menu_reload, true, None);
     let open_item = MenuItem::new(texts.menu_open, true, None);
+    let log_item = MenuItem::new(texts.menu_log, true, None);
     let quit_item = MenuItem::new(texts.menu_quit, true, None);
 
     let menu = Menu::new();
@@ -48,6 +50,7 @@ pub fn init(
         &PredefinedMenuItem::separator(),
         &reload_item,
         &open_item,
+        &log_item,
         &PredefinedMenuItem::separator(),
         &quit_item,
     ])
@@ -65,6 +68,7 @@ pub fn init(
         enabled_item,
         reload_item,
         open_item,
+        log_item,
         quit_item,
         config_path,
         keymap_count: Cell::new(keymap_count),
@@ -100,6 +104,8 @@ impl Tray {
             self.reload();
         } else if id == self.open_item.id() {
             open_in_default_editor(&self.config_path);
+        } else if id == self.log_item.id() {
+            crate::log_window::open();
         } else if id == self.quit_item.id() {
             hook::post_quit();
         }

@@ -61,13 +61,12 @@ v0.1 は console subsystem でビルドされ、起動・リロード・`--debug
 
 ### タスク
 
-1. ~~ADR 0029 — ログ出力方式の選定~~（起案済み: [ADR 0029](decisions/0029-attach-console-and-tray-log-window.md)）
-2. `#![windows_subsystem = "windows"]` 化と `AttachConsole(ATTACH_PARENT_PROCESS)` の実装
-   - unsafe 隔離リスト（hook.rs / sender.rs / window.rs / ime_indicator）への**例外追加はオーナー承認済み**（2026-07-20、ADR 0029）。専用ファイル（`console.rs` 等）を許可リストに加える改訂 ADR を実装着手時に起こし、AGENTS.md 不変条件 3・ブリーフ §5-3 を更新する
-3. トレイメニュー「ログ表示」— 選択でログウィンドウを開き、開いている間はデバッグモードのログをそのウィンドウへ出力する。ログはフックから既存のロックフリーキュー（ADR 0016 の機構）経由で受け取り、フックコールバック内に処理を追加しない。ウィンドウを閉じたときの挙動（デバッグモード解除）も設計する
-4. `--help` / `--version` / 設定エラー時の動作確認と通知先の再設計（無音起動時のエラーはメッセージボックスまたはトレイバルーンで通知）
-5. インストーラー（Inno Setup）・ショートカット経由の起動確認
-6. v0.2 用の受け入れチェックリストを `docs/v0.2/` に作成し（v0.1 の[受け入れチェックリスト](../v0.1/03_acceptance-checklist.md)を基に）、確認項目を追加
+1. ~~ADR 0029 — ログ出力方式の選定~~（[ADR 0029](decisions/0029-attach-console-and-tray-log-window.md)）
+2. ~~`#![windows_subsystem = "windows"]` 化と `AttachConsole(ATTACH_PARENT_PROCESS)` の実装~~ — 済（`src/notify.rs`）。unsafe 隔離リストへの例外追加は [ADR 0031](decisions/0031-notify-module-unsafe-allowlist.md) で確定し、AGENTS.md 不変条件 3・ブリーフ §5-3 を改訂済み
+3. ~~トレイメニュー「ログを表示」~~ — 済（`src/log_window.rs`、egui / ADR 0030）。ログは既存の `drain_debug_log`（メッセージループ上、ADR 0016）から受け取り、フックコールバックには一切手を入れていない。ウィンドウは専用スレッドで動かし、閉じると `--debug` 起動時の状態へ戻る
+4. ~~`--help` / `--version` / 設定エラー時の通知先の再設計~~ — 済（コンソールがあれば印字、無ければダイアログ。リダイレクト時はリダイレクト先を優先）
+5. **手動受け入れテスト** — [03_acceptance-checklist.md](03_acceptance-checklist.md) の Phase A 項目（A-1〜A-20）をオーナーが実施・記録。**インストーラー／ショートカット／自動起動からの無音起動**と、**ログウィンドウを開いたままリマップが遅延しないこと**（A-12）が要点
+6. README（en/ja）・ヘルプサイト（`site/`）へ「ログを表示」とコンソール挙動の変更を反映
 
 ### 完了条件
 
@@ -87,7 +86,7 @@ v0.1 は console subsystem でビルドされ、起動・リロード・`--debug
    - 日本語フォントの読込方式（システムフォント読込 or 埋め込み）を決める
    - **キーフック稼働中に GUI ウィンドウを開閉してもフックが止まらない・遅延しないこと**（最重要。`eframe` で足りるか `egui-winit` + `egui-wgpu` で自前ループを持つ必要があるか、GUI をどのスレッド／プロセスで動かすかの判断材料）
    - 日本語 IME での入力（テキスト入力欄を設ける場合）
-3. `docs/v0.2/03_config-gui-design.md` — 画面設計・編集モデルの設計書（プロトタイプの結果を踏まえて書く）
+3. `docs/v0.2/04_config-gui-design.md` — 画面設計・編集モデルの設計書（プロトタイプの結果を踏まえて書く）
    - 対象範囲: キーマップの閲覧・編集・保存・リロード連携、バリデーションエラーの行番号表示、`[ime_indicator]` 等トップレベル設定の編集
    - TOML との往復編集（コメント保持の可否）の方針
    - GUI をどのスレッド／プロセスで動かすか（**安定性 > 単純さ > 機能** の優先順位に従って確定）
@@ -130,7 +129,7 @@ v0.1 は console subsystem でビルドされ、起動・リロード・`--debug
 ## 5. Phase D — リリース（v0.2.0）
 
 1. `CHANGELOG.md` 0.2.0 化（Unreleased のヘルプサイト分を含む）
-2. v0.2 用受け入れチェックリスト（`docs/v0.2/`、Phase A タスク 6 で作成）で手動受け入れテスト実施・記録
+2. [03_acceptance-checklist.md](03_acceptance-checklist.md) と v0.1 の全項目で手動受け入れテスト実施・記録
 3. タグ `v0.2.0` → GitHub Release（installer + portable + SHA256SUMS + attestation）
 4. winget / scoop マニフェストの更新提出（Phase C の手順に従う）
 

@@ -43,7 +43,13 @@ pub struct Texts {
     pub menu_enabled: &'static str,
     pub menu_reload: &'static str,
     pub menu_open: &'static str,
+    pub menu_log: &'static str,
     pub menu_quit: &'static str,
+    pub log_window_title: &'static str,
+    pub log_window_hint: &'static str,
+    pub log_window_follow: &'static str,
+    pub log_window_clear: &'static str,
+    pub log_window_copy: &'static str,
     pub tooltip_disabled: &'static str,
     pub tooltip_reload_failed: &'static str,
     pub remapping_active: &'static str,
@@ -61,7 +67,13 @@ static EN: Texts = Texts {
     menu_enabled: "Enabled",
     menu_reload: "Reload config",
     menu_open: "Open config file",
+    menu_log: "Show log",
     menu_quit: "Quit",
+    log_window_title: "WinRemap — log",
+    log_window_hint: "Debug logging is on while this window is open. Press keys to see how they are handled.",
+    log_window_follow: "Follow newest",
+    log_window_clear: "Clear",
+    log_window_copy: "Copy all",
     tooltip_disabled: "WinRemap (disabled)",
     tooltip_reload_failed: "WinRemap — config reload FAILED (previous config still active)",
     remapping_active: "remapping active. Use the tray icon to reload or quit.",
@@ -79,7 +91,13 @@ static JA: Texts = Texts {
     menu_enabled: "有効",
     menu_reload: "設定を再読み込み",
     menu_open: "設定ファイルを開く",
+    menu_log: "ログを表示",
     menu_quit: "終了",
+    log_window_title: "WinRemap — ログ",
+    log_window_hint: "このウィンドウを開いている間、デバッグログを記録します。キーを押すと処理内容が表示されます。",
+    log_window_follow: "最新に追従",
+    log_window_clear: "消去",
+    log_window_copy: "全体をコピー",
     tooltip_disabled: "WinRemap（無効）",
     tooltip_reload_failed: "WinRemap — 設定の再読み込みに失敗（前の設定で動作中）",
     remapping_active: "リマップ稼働中。再読み込み・終了はトレイアイコンから。",
@@ -144,6 +162,19 @@ pub fn debug_config_loaded(path: &Path, count: usize) -> String {
 
 /// Console message for a failed reload; `error` stays in English on purpose
 /// (diagnostics policy above).
+/// The log window could not start (e.g. no usable GPU adapter). Remapping is
+/// unaffected, so the message says so rather than sounding fatal.
+pub fn log_window_failed(error: &str) -> String {
+    match lang() {
+        Lang::En => {
+            format!("could not open the log window (remapping is unaffected):\n{error}")
+        }
+        Lang::Ja => {
+            format!("ログウィンドウを開けませんでした（リマップ動作には影響ありません）:\n{error}")
+        }
+    }
+}
+
 pub fn reload_failed(error: &str) -> String {
     match lang() {
         Lang::En => format!("config reload failed, keeping previous config:\n{error}"),
