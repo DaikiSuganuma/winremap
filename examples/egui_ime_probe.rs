@@ -78,6 +78,11 @@ struct Probe {
     rows: Vec<String>,
     /// Last IME event seen, so composition can be observed without a debugger.
     ime_events: Vec<String>,
+    /// `Visuals::ime_composition.legacy_visuals`, exposed so the two
+    /// renderings can be compared side by side. egui defaults it to `true` on
+    /// Windows, which draws the preedit as a plain selection — no underline,
+    /// and no visible boundary for the segment being converted.
+    legacy_ime_visuals: bool,
 }
 
 impl eframe::App for Probe {
@@ -106,10 +111,22 @@ impl eframe::App for Probe {
         }
 
         egui::CentralPanel::default().show(ui, |ui| {
+            // Child widgets inherit this Ui's visuals, so setting it here
+            // covers every text field below.
+            ui.visuals_mut().ime_composition.legacy_visuals = self.legacy_ime_visuals;
+
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.heading("egui 日本語 IME プローブ");
                 ui.label(
                     "IME をオンにして各欄に日本語を入力し、下のチェック項目を確認してください。",
+                );
+                ui.checkbox(
+                    &mut self.legacy_ime_visuals,
+                    "旧来の未確定表示（legacy_visuals: egui の Windows 既定値）",
+                );
+                ui.label(
+                    "オフのときだけ未確定文字に下線が付き、変換中の文節が区別されます。\
+                     オン・オフを切り替えて見比べてください。",
                 );
                 ui.separator();
 
@@ -138,7 +155,8 @@ impl eframe::App for Probe {
                 ui.separator();
                 ui.label("確認項目");
                 ui.label("・変換候補ウィンドウが入力位置（キャレット）の近くに出るか");
-                ui.label("・未確定文字（下線付き）が欄の中に表示されるか");
+                ui.label("・未確定文字が欄の中に表示されるか。上のチェックを外すと下線が付くか");
+                ui.label("・下線あり表示で、変換対象の文節が他の文節と区別できるか");
                 ui.label("・確定した文字が欠けず、重複せず入るか");
                 ui.label("・Esc / 変換 / 無変換 で候補操作ができ、欄からフォーカスが外れないか");
                 ui.label("・WinRemap 常駐中に入力しても取りこぼしが起きないか");
