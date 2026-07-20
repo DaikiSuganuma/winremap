@@ -138,6 +138,17 @@ pub fn tooltip_status(count: usize) -> String {
     }
 }
 
+/// Tray toggle result. Worth a log line: it explains why remapping suddenly
+/// stopped, which is the first thing to check when a rule "broke".
+pub fn toggle_state(enabled: bool) -> String {
+    match (lang(), enabled) {
+        (Lang::En, true) => "remapping enabled".to_owned(),
+        (Lang::En, false) => "remapping disabled".to_owned(),
+        (Lang::Ja, true) => "リマップを有効にしました".to_owned(),
+        (Lang::Ja, false) => "リマップを無効にしました".to_owned(),
+    }
+}
+
 pub fn reload_ok(count: usize) -> String {
     match lang() {
         Lang::En => format!("config reloaded: {count} keymap(s)"),

@@ -109,6 +109,7 @@ impl Tray {
                 i18n::t().tooltip_disabled.to_string()
             };
             let _ = self.icon.set_tooltip(Some(tooltip));
+            crate::log_window::emit(&i18n::toggle_state(enabled));
         } else if id == self.reload_item.id() {
             self.reload();
         } else if id == self.open_item.id() {

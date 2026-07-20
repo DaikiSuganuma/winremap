@@ -65,7 +65,7 @@ v0.1 は console subsystem でビルドされ、起動・リロード・`--debug
 2. ~~`#![windows_subsystem = "windows"]` 化と `AttachConsole(ATTACH_PARENT_PROCESS)` の実装~~ — 済（`src/notify.rs`）。unsafe 隔離リストへの例外追加は [ADR 0031](decisions/0031-notify-module-unsafe-allowlist.md) で確定し、AGENTS.md 不変条件 3・ブリーフ §5-3 を改訂済み
 3. ~~トレイメニュー「ログを表示」~~ — 済（`src/log_window.rs`、egui / ADR 0030）。ログは既存の `drain_debug_log`（メッセージループ上、ADR 0016）から受け取り、フックコールバックには一切手を入れていない。ウィンドウは専用スレッドで動かし、閉じると `--debug` 起動時の状態へ戻る
 4. ~~`--help` / `--version` / 設定エラー時の通知先の再設計~~ — 済（コンソールがあれば印字、無ければダイアログ。リダイレクト時はリダイレクト先を優先）
-5. **手動受け入れテスト** — [03_acceptance-checklist.md](03_acceptance-checklist.md) の Phase A 項目（A-1〜A-20）をオーナーが実施・記録。**インストーラー／ショートカット／自動起動からの無音起動**と、**ログウィンドウを開いたままリマップが遅延しないこと**（A-12）が要点
+5. ~~手動受け入れテスト~~ — [03_acceptance-checklist.md](03_acceptance-checklist.md) の Phase A 項目をオーナーが 2026-07-21 に全件実施。実施中に見つかった 3 件（ログウィンドウの再オープン失敗 → [ADR 0032](decisions/0032-log-window-hide-instead-of-close.md)、メモ帳で IME インジケーターが出ない → [ADR 0033](decisions/0033-ime-status-across-input-threads.md)、リロードがログウィンドウに出ない）を修正済み
 6. README（en/ja）・ヘルプサイト（`site/`）へ「ログを表示」とコンソール挙動の変更を反映
 
 ### 完了条件
@@ -83,9 +83,9 @@ v0.1 は console subsystem でビルドされ、起動・リロード・`--debug
 
 1. ~~ADR 0030 — GUI 技術選定~~（決定済み: **egui** を採用。[ADR 0030](decisions/0030-config-gui-framework-egui.md)。候補比較は [02_gui-framework-study.md](02_gui-framework-study.md)）
 2. **プロトタイプ検証**（設計書より前に、ADR 0030 の「実装前に潰すべきリスク」3 点を小さく確かめる）
-   - 日本語フォントの読込方式（システムフォント読込 or 埋め込み）を決める
-   - **キーフック稼働中に GUI ウィンドウを開閉してもフックが止まらない・遅延しないこと**（最重要。`eframe` で足りるか `egui-winit` + `egui-wgpu` で自前ループを持つ必要があるか、GUI をどのスレッド／プロセスで動かすかの判断材料）
-   - 日本語 IME での入力（テキスト入力欄を設ける場合）
+   - ~~日本語フォントの読込方式~~ — **システムフォントを実行時に読み込む**方式で決着。ログウィンドウで実装・確認済み（A-11）。メイリオ → 游ゴシック → MS ゴシックの順に最初に見つかったものを egui の既定フォントに追加する。CJK フォント埋め込みによる数 MB の肥大化を避けるため
+   - ~~キーフック稼働中の GUI 開閉~~ — **`eframe` で足り、GUI は専用スレッドで動かす**方式で決着。ログウィンドウで実装・確認済み（A-12・A-13・A-17）。ログ行は既存の `drain_debug_log`（メッセージループ上、ADR 0016）から受け取り、フックコールバックには触れない。winit のイベントループはプロセスに 1 つしか作れないため、閉じる操作はウィンドウを隠す（[ADR 0032](decisions/0032-log-window-hide-instead-of-close.md)）
+   - **日本語 IME での入力** — 唯一未確認のリスク。ログウィンドウにはテキスト入力欄がないため確かめられなかった。`examples/egui_ime_probe.rs`（プローブ）を用意した。確認手順はチェックリスト B-1〜B-7
 3. `docs/v0.2/04_config-gui-design.md` — 画面設計・編集モデルの設計書（プロトタイプの結果を踏まえて書く）
    - 対象範囲: キーマップの閲覧・編集・保存・リロード連携、バリデーションエラーの行番号表示、`[ime_indicator]` 等トップレベル設定の編集
    - TOML との往復編集（コメント保持の可否）の方針

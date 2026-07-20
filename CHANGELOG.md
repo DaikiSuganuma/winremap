@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Tray menu item **Show log** (ADR 0029): opens a window that streams the debug log live, so diagnosing a keymap no longer requires starting WinRemap from a terminal. Debug logging is on only while the window is open, the log is never written to disk, and the window runs on its own thread so remapping is unaffected. Built with egui (ADR 0030), which also covers the v0.2 config GUI. Closing the window hides it and keeps its event loop alive — winit allows only one per process — so it can be reopened any number of times (ADR 0032). It carries the WinRemap icon, and config reloads and error messages show up in it as well.
+- Tray menu item **Show log** (ADR 0029): opens a window that streams the debug log live, so diagnosing a keymap no longer requires starting WinRemap from a terminal. Debug logging is on only while the window is open, the log is never written to disk, and the window runs on its own thread so remapping is unaffected. Built with egui (ADR 0030), which also covers the v0.2 config GUI. Closing the window hides it and keeps its event loop alive — winit allows only one per process — so it can be reopened any number of times (ADR 0032). It carries the WinRemap icon, and the tray's enable/disable toggle, config reloads, and error messages show up in it as well.
 - The tray menu now opens with a disabled caption line showing the app name and version (`WinRemap v0.1.0`).
 
 ### Fixed
