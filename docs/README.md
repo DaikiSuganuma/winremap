@@ -26,7 +26,7 @@
 |---|---|
 | [v0.1/](v0.1/) | v0.1.0 の開発計画（01）、設定仕様（02）、受け入れチェックリスト（03）、アイコン（04）、IME インジケーター設計・計画（05・06）、decisions/（ADR 0001-0028）、notes/ |
 | [v0.2/](v0.2/) | v0.2 開発計画（[01_development-plan.md](v0.2/01_development-plan.md)）、GUI フレームワーク比較調査（[02_gui-framework-study.md](v0.2/02_gui-framework-study.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v0.2/03_acceptance-checklist.md)）、設定 GUI 設計書（[04_config-gui-design.md](v0.2/04_config-gui-design.md)）、decisions/（ADR 0029-0042） |
-| [v0.3/](v0.3/) | v0.3 開発計画（[01_development-plan.md](v0.3/01_development-plan.md)）。多言語ファイル化・マクロ記憶機能・winget/scoop 対応。ADR は 0043 から |
+| [v0.3/](v0.3/) | v0.3 開発計画（[01_development-plan.md](v0.3/01_development-plan.md)）。マクロ記憶機能・winget/scoop 対応・README/ヘルプサイト反映、decisions/（ADR 0043-） |
 
 設定ファイルの利用者向け説明は、docs ではなく[ヘルプサイト](../site/)（GitHub Pages）で分かりやすく提供する運用とする（詳細仕様書 `v0.1/02_config-spec.md` は開発者向け）。
 
