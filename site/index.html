@@ -6,9 +6,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WinRemap — Help</title>
-<meta name="description" content="WinRemap help: install, configure, and troubleshoot the per-application key remapper for Windows.">
+<meta name="description" content="WinRemap help: a per-application key remapper for Windows. Install, configure, record macros, and troubleshoot.">
 <meta name="color-scheme" content="light dark">
-<!-- Bootstrap 5.3.3 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
+<!-- Bootstrap 5.3.8 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
 <link rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
       integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
@@ -50,11 +50,10 @@
     </button>
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link" href="#install">Install</a></li>
-        <li class="nav-item"><a class="nav-link" href="#quickstart">Quick start</a></li>
+        <li class="nav-item"><a class="nav-link" href="install.html">Install</a></li>
         <li class="nav-item"><a class="nav-link" href="config.html">Configuration</a></li>
-        <li class="nav-item"><a class="nav-link" href="#record">Macro recording</a></li>
-        <li class="nav-item"><a class="nav-link" href="#ime">IME indicator</a></li>
+        <li class="nav-item"><a class="nav-link" href="macro.html">Macro recording</a></li>
+        <li class="nav-item"><a class="nav-link" href="ime.html">IME indicator</a></li>
         <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
       </ul>
       <ul class="navbar-nav">
@@ -82,174 +81,62 @@
 
 <main>
 
-<section id="install" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>Install</h2>
-  <ol>
-    <li>Download <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><code>winremap-setup.exe</code></a> and run it.
-      No administrator rights are needed — WinRemap installs per-user.</li>
-    <li>Choose whether WinRemap should <strong>start automatically when you sign in</strong> (recommended for daily use; you can change this later).</li>
-    <li>Finish the wizard. WinRemap starts and a keyboard icon appears in the task tray.</li>
-  </ol>
-  <p>The installer also creates a starter config at
-  <code>%APPDATA%\winremap\config.toml</code> — only if you don't already have one.
-  Your existing config is never touched, and uninstalling keeps it.</p>
-
-  <div class="alert alert-warning d-flex gap-2" role="alert">
-    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-    <div><strong>"Windows protected your PC" (SmartScreen)?</strong> WinRemap binaries are not
-    code-signed (signing certificates are costly for a free tool), so Windows may show this
-    warning for a new download. Click <em>More info</em> → <em>Run anyway</em>.
-    You can — and should — verify the download instead of trusting it blindly:
-    every release ships with a <code>SHA256SUMS</code> file and a GitHub build-provenance
-    attestation proving it was built from this repository's public source.
-    See <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a> for the two commands.</div>
+<section id="docs" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-compass text-primary me-2"></i>Where to go</h2>
+  <div class="row row-cols-1 row-cols-md-2 g-3">
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>Install &amp; quick start</h3>
+          <p class="card-text text-body-secondary">Download, run, and make your first per-application remap.</p>
+          <a href="install.html" class="stretched-link">Get started<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-gear text-primary me-2"></i>Configuration guide</h3>
+          <p class="card-text text-body-secondary">Every option in <code>config.toml</code>, the key-notation table, and worked examples.</p>
+          <a href="config.html" class="stretched-link">Read the guide<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-record-circle text-primary me-2"></i>Macro recording</h3>
+          <p class="card-text text-body-secondary">Record what you do and play it back, for one-off repetitive edits.</p>
+          <a href="macro.html" class="stretched-link">How it works<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-translate text-primary me-2"></i>IME status indicator</h3>
+          <p class="card-text text-body-secondary">Flash an 「あ」 panel when the IME turns on, so you know your input mode.</p>
+          <a href="ime.html" class="stretched-link">See the option<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
   </div>
-
-  <h3 class="h5 mt-4">Portable use (no installer)</h3>
-  <p>Prefer a single file? Download
-  <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><code>winremap.exe</code></a>
-  and run it from anywhere. It reads the same
-  <code>%APPDATA%\winremap\config.toml</code>, or any file you pass with
-  <code>--config path\to\file.toml</code>. There are no other files or registry entries.</p>
 </section>
 
-<section id="quickstart" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-rocket-takeoff text-primary me-2"></i>Quick start</h2>
-  <p>WinRemap lives in the task tray. The tray menu has everything:</p>
+<section id="about" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-shield-check text-primary me-2"></i>Security &amp; scope</h2>
   <ul>
-    <li><strong>Enabled</strong> — toggle all remapping on/off without quitting</li>
-    <li><strong>Settings</strong> — see the config in effect right now (below), and hand <code>config.toml</code> to your text editor</li>
-    <li><strong>Reload config</strong> — apply config changes instantly (no restart, no lost keystrokes)</li>
-    <li><strong>Show log</strong> — watch what WinRemap does with each keystroke, live</li>
-    <li><strong>Quit</strong></li>
+    <li>WinRemap <strong>never logs or stores keystrokes</strong> — enforced as repository
+      policy, not just good intentions.</li>
+    <li><strong>No network code</strong> at all: no telemetry, no auto-update.</li>
+    <li>The hook callback is pure Rust with no heap allocation, locking, or I/O, which keeps
+      worst-case latency low and avoids the hook timeouts that plague script-based remappers.</li>
+    <li>Out of scope by design: IME <em>control</em> (the indicator only displays state),
+      clipboard tools, launchers, macOS/Linux (use <a href="https://github.com/xremap/xremap">xremap</a> on Linux).</li>
   </ul>
-  <p>Open the config and describe what you want, per application:</p>
-<pre class="bg-body-tertiary border rounded p-3"><code># Ctrl+H sends a plain Backspace, but only inside Notepad
-[[keymap]]
-name = "notepad"
-application = ["notepad.exe"]
-
-[keymap.remap]
-"C-h" = "Back"
-</code></pre>
-  <p>Save, choose <em>Reload config</em> from the tray, and press
-  <kbd>Ctrl</kbd>+<kbd>H</kbd> in Notepad — it now deletes one character, while every
-  other app still sees a normal Ctrl+H.</p>
-
-  <div class="alert alert-info d-flex gap-2" role="alert">
-    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
-    <div><strong>Which name goes in <code>application</code>?</strong> Pick
-    <em>Show log</em> from the tray and switch to the target window: the log shows each
-    foreground app's full path, the exact <code>application</code> value to use, and
-    which of your keymaps would apply.</div>
-  </div>
-
-  <p>Ready-made configs to copy from:
-  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/minimal.toml">minimal.toml</a> (the example above),
-  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/emacs.toml">emacs.toml</a> (fakeymacs-style Emacs bindings), and
-  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/suganuma.toml">suganuma.toml</a>
-  (a full personal setup with exclusion lists, macros, and prefix keys).</p>
 </section>
 
-<section id="config" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-gear text-primary me-2"></i>Configuration</h2>
-  <p>The config is a list of <code>[[keymap]]</code> blocks. Each names the applications it
-  applies to and the key rules for them.</p>
-
-<pre class="bg-body-tertiary border rounded p-3"><code># Applies everywhere except the listed apps
-[[keymap]]
-name = "global-emacs"
-application = ["*"]
-exclude = ["windowsterminal.exe", "mintty.exe"]
-
-[keymap.remap]
-"C-p" = "Up"
-
-# Applies only to these two apps — app rules always win over "*" rules
-[[keymap]]
-application = ["phpstorm64.exe", "idea64.exe"]
-
-[keymap.remap]
-"C-h" = "Back"
-</code></pre>
-
-  <p>A rule's left side is what you press, its right side is what the app receives.
-  <code>"C-h" = "Back"</code> matches that exact chord and replaces the modifiers too;
-  <code>"CapsLock" = "LCtrl"</code> swaps the key whatever else is held. Two-stroke
-  prefixes (<code>"A-x u"</code>) and macros
-  (<code>["C-Right", "C-Left", "C-S-Right"]</code>) go in the same place.</p>
-
-  <p>Config errors are reported all at once, with line numbers. If a reload fails, the
-  previous working config stays active — a typo never disables your keyboard setup.</p>
-
-  <p class="mt-4">
-    <a class="btn btn-primary" href="config.html"><i class="bi bi-book me-1"></i>Configuration guide</a>
-  </p>
-  <p class="text-body-secondary">Every option explained, the full key-notation table, worked examples for
-  CapsLock, Emacs bindings, per-app exceptions and macros, and what each error message
-  means.</p>
-</section>
-
-<section id="record" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-record-circle text-primary me-2"></i>Macro recording <span class="badge text-bg-secondary align-middle">optional</span></h2>
-  <p>Name the keys and WinRemap can record what you do and play it back. Nothing
-  happens until you name them.</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>[macro]
-record_start = "S-F10"  # press to start recording
-# record_stop = "S-F11" # omit it and the start key stops it too
-record_play  = "F10"    # press to replay
-</code></pre>
-  <p>Press <kbd>Shift</kbd>+<kbd>F10</kbd>, do the work, press it again, then press
-  <kbd>F10</kbd> as often as you like. While a recording runs, a banner sits at the bottom
-  of whichever display holds the app you are typing into:</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>Recording macro  3/20   notepad.exe in progress   —   S-F10 to stop, F10 to replay
-</code></pre>
-  <p>It follows you as you switch apps and displays, names the app receiving the
-  keystrokes, and repeats the keys that end and replay the recording — so a recording
-  never runs unnoticed, and you never have to open the config file to find out how to stop
-  it. Replay shows the same banner with the commands it is sending.</p>
-  <p>Worth knowing before you rely on it:</p>
-  <ul>
-    <li><strong>20 commands per recording.</strong> A command is one chord: <code>C-a</code>
-    is one, the two strokes of <code>A-x h</code> are two. The 21st ends the recording and
-    says so; nothing is dropped quietly.</li>
-    <li><strong>Nothing is written to disk.</strong> The recording lives in memory and is
-    gone when WinRemap exits, and it is never saved to your config file. To keep a
-    sequence, write it as a macro rule instead.</li>
-    <li><strong>What is recorded is what WinRemap emitted</strong>, not the keys you
-    pressed. With <code>"C-h" = "Back"</code> in effect, the recording holds
-    <code>Back</code>.</li>
-    <li><strong>Order, not timing.</strong> Each command is tapped once, in order. How long
-    you held a key, and holding one key while pressing another, are not reproduced —
-    Emacs keyboard macros behave the same way.</li>
-    <li>One recording is kept; recording again replaces it. The replay key does nothing
-    while a replay is running, and an in-progress recording is dropped if you disable
-    WinRemap or reload the config, since the key that would end it comes from that file.</li>
-  </ul>
-  <p><code>delay_ms</code> paces a replay exactly as it paces a config macro.</p>
-</section>
-
-<section id="ime" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-translate text-primary me-2"></i>IME status indicator <span class="badge text-bg-secondary align-middle">optional</span></h2>
-  <p>Independent of remapping, WinRemap can flash a translucent
-  <strong>「あ」</strong> panel at the center of the active window the moment the IME
-  turns on — or when you focus a window whose IME is on — so you always know your
-  input mode before typing. Display only: WinRemap never switches the IME.</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>[ime_indicator]
-enabled = true                # default: false
-# trigger_keys = ["C-Space"]  # if you toggle the IME with Ctrl+Space
-# duration_ms = 800           # 100–5000
-# size = 96                   # 32–256
-# opacity = 200               # 0–255
-# show_app_name = true        # exe name under the glyph
-</code></pre>
-  <p>Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are detected
-  out of the box; add <code>trigger_keys</code> if you use a custom toggle like the
-  Windows 11 IME's Ctrl+Space option. The panel never takes focus or input, and a problem
-  in the indicator never affects remapping.</p>
-</section>
-
-<section id="faq" class="container py-4 border-bottom">
+<section id="faq" class="container py-4">
   <h2 class="mb-3"><i class="bi bi-question-circle text-primary me-2"></i>FAQ &amp; troubleshooting</h2>
 
   <div class="accordion" id="faqAccordion">
@@ -359,19 +246,6 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
       </div>
     </div>
   </div>
-</section>
-
-<section id="about" class="container py-4">
-  <h2 class="mb-3"><i class="bi bi-shield-check text-primary me-2"></i>Security &amp; scope</h2>
-  <ul>
-    <li>WinRemap <strong>never logs or stores keystrokes</strong> — enforced as repository
-      policy, not just good intentions.</li>
-    <li><strong>No network code</strong> at all: no telemetry, no auto-update.</li>
-    <li>The hook callback is pure Rust with no heap allocation, locking, or I/O, which keeps
-      worst-case latency low and avoids the hook timeouts that plague script-based remappers.</li>
-    <li>Out of scope by design: IME <em>control</em> (the indicator only displays state),
-      clipboard tools, launchers, macOS/Linux (use <a href="https://github.com/xremap/xremap">xremap</a> on Linux).</li>
-  </ul>
 </section>
 
 </main>

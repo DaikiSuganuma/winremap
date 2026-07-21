@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<!-- Created: 2026-07-22 by Claude Code (model: claude-opus-4-8). Japanese
+     translation of site/macro.html — keep in sync with the English original. -->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WinRemap — マクロ記憶</title>
+<meta name="description" content="WinRemap で操作を記憶して再生する。仕組みと、何が記録され何が記録されないか。">
+<meta name="color-scheme" content="light dark">
+<!-- Bootstrap 5.3.8 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous">
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+"
+      crossorigin="anonymous">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/kbd-enabled-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../assets/kbd-enabled-16.png">
+<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/macro.html">
+<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/macro.html">
+<!-- Follow the OS light/dark setting (Bootstrap 5.3 switches on data-bs-theme).
+     Inline and self-contained — the site loads no third-party scripts. -->
+<script>
+  (function () {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function apply() {
+      document.documentElement.setAttribute(
+        'data-bs-theme', mq.matches ? 'dark' : 'light');
+    }
+    apply();
+    mq.addEventListener('change', apply);
+  })();
+</script>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-body-tertiary sticky-top border-bottom">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="index.html">
+      <img src="../assets/kbd-enabled-32.png" alt="" width="24" height="24">WinRemap
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#nav" aria-controls="nav" aria-expanded="false"
+            aria-label="ナビゲーション切り替え">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="install.html">インストール</a></li>
+        <li class="nav-item"><a class="nav-link" href="config.html">設定</a></li>
+        <li class="nav-item"><a class="nav-link active" aria-current="page" href="macro.html">マクロ記憶</a></li>
+        <li class="nav-item"><a class="nav-link" href="ime.html">IME 表示</a></li>
+        <li class="nav-item"><a class="nav-link" href="index.html#faq">FAQ</a></li>
+      </ul>
+      <ul class="navbar-nav">
+        <li class="nav-item"><a class="nav-link" href="../macro.html" lang="en">English</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <h1 class="display-5 fw-bold">マクロ記憶 <span class="badge text-bg-secondary align-middle fs-6">任意</span></h1>
+    <p class="lead text-body-secondary mb-0">操作を記憶して再生する。<a href="index.html">ヘルプ目次</a>へ戻る。</p>
+  </div>
+</header>
+
+<main>
+
+<section id="record" class="container py-4">
+  <p>キーを設定すると、操作を記憶して再生できるようになります。書かない限り機能は
+  動きません。</p>
+<pre class="bg-body-tertiary border rounded p-3"><code>[macro]
+record_start = "S-F10"  # 記憶開始
+# record_stop = "S-F11" # 省略すると開始キーが終了キーも兼ねます
+record_play  = "F10"    # 再生
+</code></pre>
+  <p><kbd>Shift</kbd>+<kbd>F10</kbd> を押して操作し、もう一度押して終了。あとは
+  <kbd>F10</kbd> で何度でも再生できます。記憶中は、<strong>今入力しているアプリがある
+  ディスプレイ</strong>の下部にバナーが出続けます。</p>
+<pre class="bg-body-tertiary border rounded p-3"><code>マクロ記憶中  3/20   notepad.exe で記憶中   —   S-F10 で終了 / F10 で再生
+</code></pre>
+  <p>アプリやディスプレイを切り替えるとバナーも追従し、打鍵が入っているアプリ名と、
+  記憶を終了するキー・再生するキーを常に表示します。気づかないうちに記録が走ることはなく、
+  終了キーを設定ファイルに確認しに行く必要もありません。再生中も同じバナーに、送出している
+  コマンドが表示されます。</p>
+
+  <h2 class="h4 mt-4 mb-3">使う前に知っておくとよいこと</h2>
+  <ul>
+    <li><strong>記憶できるのは 20 コマンド。</strong> 1 コマンドは 1 つのキーコンビネーションで、
+    <code>C-a</code> は 1 コマンド、<code>A-x h</code> の 2 ストロークは 2 コマンドです。
+    21 コマンド目で記憶を打ち切り、その旨を表示します(黙って切り捨てることはありません)。</li>
+    <li><strong>ディスクには書きません。</strong> 記憶内容はメモリ上だけにあり、WinRemap を
+    終了すると消えます。設定ファイルにも保存されません。繰り返し使いたい操作は、
+    マクロのルールとして書いてください。</li>
+    <li><strong>記憶されるのは「押したキー」ではなく「WinRemap が出力した内容」</strong>です。
+    <code>"C-h" = "Back"</code> が効いていれば、記憶されるのは <code>Back</code> です。</li>
+    <li><strong>記録するのは順序であって、タイミングではありません。</strong> 各コマンドを
+    順に 1 回ずつ叩きます。キーを押していた長さや、押しっぱなしにしながら別のキーを
+    押したことは再現しません(Emacs のキーボードマクロと同じ性質です)。</li>
+    <li>記憶は 1 本だけ保持します(記憶し直すと上書き)。再生中に再生キーを押しても
+    二重には走りません。WinRemap を無効にしたり設定をリロードしたりすると、記憶中の
+    内容は破棄されます(記憶終了キー自体が設定ファイルから来るためです)。</li>
+  </ul>
+  <p>再生の間隔には <code>delay_ms</code> がそのまま使われます。設定ガイドの
+  <a href="config.html#sections"><code>[macro]</code></a> を参照してください。</p>
+
+  <div class="alert alert-info d-flex gap-2" role="alert">
+    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+    <div>何度も使う操作なら、設定ファイルの<a href="config.html#rules">マクロのルール</a>が
+    恒久版です。記憶機能はその場かぎりの繰り返し編集向けです。</div>
+  </div>
+</section>
+
+</main>
+
+<footer class="border-top py-4 text-body-secondary">
+  <div class="container small d-grid gap-2">
+    <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
+    <span><a href="https://getbootstrap.com/">Bootstrap</a> と
+      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>（MIT）で構築しています。</span>
+    <span><a href="index.html">ヘルプ</a> ·
+      <a href="https://github.com/DaikiSuganuma/winremap">ソース</a> ·
+      <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
+      <a href="../macro.html" lang="en">English</a></span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
+</body>
+</html>

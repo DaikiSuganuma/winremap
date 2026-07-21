@@ -50,14 +50,11 @@
     </button>
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link" href="index.html">Help</a></li>
-        <li class="nav-item"><a class="nav-link" href="#shape">File shape</a></li>
-        <li class="nav-item"><a class="nav-link" href="#apps">Targeting apps</a></li>
-        <li class="nav-item"><a class="nav-link" href="#rules">Rules</a></li>
-        <li class="nav-item"><a class="nav-link" href="#sections">Settings</a></li>
-        <li class="nav-item"><a class="nav-link" href="#keys">Key notation</a></li>
-        <li class="nav-item"><a class="nav-link" href="#recipes">Examples</a></li>
-        <li class="nav-item"><a class="nav-link" href="#errors">Errors</a></li>
+        <li class="nav-item"><a class="nav-link" href="install.html">Install</a></li>
+        <li class="nav-item"><a class="nav-link active" aria-current="page" href="config.html">Configuration</a></li>
+        <li class="nav-item"><a class="nav-link" href="macro.html">Macro recording</a></li>
+        <li class="nav-item"><a class="nav-link" href="ime.html">IME indicator</a></li>
+        <li class="nav-item"><a class="nav-link" href="index.html#faq">FAQ</a></li>
       </ul>
       <ul class="navbar-nav">
         <li class="nav-item"><a class="nav-link" href="ja/config.html" lang="ja">日本語</a></li>
@@ -282,7 +279,7 @@ record_play  = "F10"
         </tr>
         <tr>
           <td><code>record_start</code><br><code>record_stop</code><br><code>record_play</code></td>
-          <td>Keys for <a href="index.html#record">macro recording</a>. Recording is off until
+          <td>Keys for <a href="macro.html">macro recording</a>. Recording is off until
             you name <code>record_start</code> and <code>record_play</code>;
             <code>record_stop</code> defaults to the start key, which makes it a toggle. These
             keys are taken before any keymap lookup, so binding one of them in
@@ -444,7 +441,7 @@ record_play  = "F10"     # F10 replays
   <p>For edits not worth a permanent rule: press <kbd>Shift</kbd>+<kbd>F10</kbd>, do the
   work once, press it again, then press <kbd>F10</kbd> down the rest of the file. The
   recording holds 20 commands, lives in memory only, and is gone when WinRemap exits.
-  See <a href="index.html#record">macro recording</a> for what it does and does not
+  See <a href="macro.html">macro recording</a> for what it does and does not
   capture.</p>
 
   <h3 class="h5 mt-4">A starting file</h3>

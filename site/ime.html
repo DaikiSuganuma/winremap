@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!-- Created: 2026-07-22 by Claude Code (model: claude-opus-4-8). English is the
+     primary version; keep site/ja/ime.html in sync (AGENTS.md workflow 6). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WinRemap — IME status indicator</title>
+<meta name="description" content="WinRemap can flash an 「あ」 panel when the IME turns on, so you know your input mode before typing.">
+<meta name="color-scheme" content="light dark">
+<!-- Bootstrap 5.3.8 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous">
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+"
+      crossorigin="anonymous">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/kbd-enabled-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/kbd-enabled-16.png">
+<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/ime.html">
+<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/ime.html">
+<!-- Follow the OS light/dark setting (Bootstrap 5.3 switches on data-bs-theme).
+     Inline and self-contained — the site loads no third-party scripts. -->
+<script>
+  (function () {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function apply() {
+      document.documentElement.setAttribute(
+        'data-bs-theme', mq.matches ? 'dark' : 'light');
+    }
+    apply();
+    mq.addEventListener('change', apply);
+  })();
+</script>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-body-tertiary sticky-top border-bottom">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="index.html">
+      <img src="assets/kbd-enabled-32.png" alt="" width="24" height="24">WinRemap
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#nav" aria-controls="nav" aria-expanded="false"
+            aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="install.html">Install</a></li>
+        <li class="nav-item"><a class="nav-link" href="config.html">Configuration</a></li>
+        <li class="nav-item"><a class="nav-link" href="macro.html">Macro recording</a></li>
+        <li class="nav-item"><a class="nav-link active" aria-current="page" href="ime.html">IME indicator</a></li>
+        <li class="nav-item"><a class="nav-link" href="index.html#faq">FAQ</a></li>
+      </ul>
+      <ul class="navbar-nav">
+        <li class="nav-item"><a class="nav-link" href="ja/ime.html" lang="ja">日本語</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <h1 class="display-5 fw-bold">IME status indicator <span class="badge text-bg-secondary align-middle fs-6">optional</span></h1>
+    <p class="lead text-body-secondary mb-0">Know your input mode before you type. Back to the
+    <a href="index.html">help index</a>.</p>
+  </div>
+</header>
+
+<main>
+
+<section id="ime" class="container py-4">
+  <p>Independent of remapping, WinRemap can flash a translucent
+  <strong>「あ」</strong> panel at the center of the active window the moment the IME
+  turns on — or when you focus a window whose IME is on — so you always know your
+  input mode before typing. Display only: WinRemap never switches the IME.</p>
+<pre class="bg-body-tertiary border rounded p-3"><code>[ime_indicator]
+enabled = true                # default: false
+# trigger_keys = ["C-Space"]  # if you toggle the IME with Ctrl+Space
+# duration_ms = 800           # 100–5000
+# size = 96                   # 32–256
+# opacity = 200               # 0–255
+# show_app_name = true        # exe name under the glyph
+</code></pre>
+  <p>Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are detected
+  out of the box; add <code>trigger_keys</code> if you use a custom toggle like the
+  Windows 11 IME's Ctrl+Space option. The panel never takes focus or input, and a problem
+  in the indicator never affects remapping.</p>
+</section>
+
+</main>
+
+<footer class="border-top py-4 text-body-secondary">
+  <div class="container small d-grid gap-2">
+    <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
+    <span>Built with <a href="https://getbootstrap.com/">Bootstrap</a> and
+      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a> (MIT).</span>
+    <span><a href="index.html">Help</a> ·
+      <a href="https://github.com/DaikiSuganuma/winremap">Source</a> ·
+      <a href="https://github.com/DaikiSuganuma/winremap/issues">Report an issue</a> ·
+      <a href="ja/ime.html" lang="ja">日本語版</a></span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
+</body>
+</html>

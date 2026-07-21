@@ -6,7 +6,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WinRemap — ヘルプ</title>
-<meta name="description" content="WinRemap ヘルプ: Windows 用アプリ別キーリマッパーのインストール・設定・トラブルシューティング。">
+<meta name="description" content="WinRemap ヘルプ: Windows 用アプリ別キーリマッパー。インストール・設定・マクロ記憶・トラブルシューティング。">
 <meta name="color-scheme" content="light dark">
 <!-- Bootstrap 5.3.8 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
 <link rel="stylesheet"
@@ -50,11 +50,10 @@
     </button>
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link" href="#install">インストール</a></li>
-        <li class="nav-item"><a class="nav-link" href="#quickstart">クイックスタート</a></li>
+        <li class="nav-item"><a class="nav-link" href="install.html">インストール</a></li>
         <li class="nav-item"><a class="nav-link" href="config.html">設定</a></li>
-        <li class="nav-item"><a class="nav-link" href="#record">マクロ記憶</a></li>
-        <li class="nav-item"><a class="nav-link" href="#ime">IME 表示</a></li>
+        <li class="nav-item"><a class="nav-link" href="macro.html">マクロ記憶</a></li>
+        <li class="nav-item"><a class="nav-link" href="ime.html">IME 表示</a></li>
         <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
       </ul>
       <ul class="navbar-nav">
@@ -82,174 +81,63 @@
 
 <main>
 
-<section id="install" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>インストール</h2>
-  <ol>
-    <li><a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><code>winremap-setup.exe</code></a>
-      をダウンロードして実行します。ユーザー単位のインストールなので<strong>管理者権限は不要</strong>です。</li>
-    <li><strong>サインイン時に自動起動</strong>するかを選びます(常用するなら推奨。後から変更できます)。</li>
-    <li>ウィザードを完了すると WinRemap が起動し、タスクトレイにキーボードのアイコンが現れます。</li>
-  </ol>
-  <p>設定ファイルがまだ無い場合のみ、インストーラーが初期設定
-  <code>%APPDATA%\winremap\config.toml</code> を作成します。既存の設定には一切触れず、
-  アンインストールしても設定は残ります。</p>
-
-  <div class="alert alert-warning d-flex gap-2" role="alert">
-    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-    <div><strong>「Windows によって PC が保護されました」(SmartScreen) が出たら?</strong>
-    WinRemap のバイナリはコード署名されていないため(無料ツールには署名証明書の費用負担が大きいため)、
-    ダウンロード直後は
-    この警告が表示されることがあります。<em>詳細情報</em> → <em>実行</em> で起動できます。
-    やみくもに信用する代わりに、ダウンロードの検証を推奨します: 各リリースには
-    <code>SHA256SUMS</code> と、このリポジトリの公開ソースからビルドされたことを証明する
-    GitHub の attestation(ビルド来歴証明)が付属します。手順は
-    <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a> を参照してください。</div>
+<section id="docs" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-compass text-primary me-2"></i>目的別に選ぶ</h2>
+  <div class="row row-cols-1 row-cols-md-2 g-3">
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>インストールとクイックスタート</h3>
+          <p class="card-text text-body-secondary">ダウンロードして起動し、最初のアプリ別リマップを作ります。</p>
+          <a href="install.html" class="stretched-link">はじめる<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-gear text-primary me-2"></i>設定ガイド</h3>
+          <p class="card-text text-body-secondary"><code>config.toml</code> の全項目、キー記法の一覧表、記述例。</p>
+          <a href="config.html" class="stretched-link">ガイドを読む<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-record-circle text-primary me-2"></i>マクロ記憶</h3>
+          <p class="card-text text-body-secondary">その場かぎりの繰り返し編集のために、操作を記憶して再生します。</p>
+          <a href="macro.html" class="stretched-link">仕組みを見る<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-translate text-primary me-2"></i>IME 状態インジケーター</h3>
+          <p class="card-text text-body-secondary">IME がオンになった瞬間に「あ」パネルを表示し、入力モードを知らせます。</p>
+          <a href="ime.html" class="stretched-link">オプションを見る<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
   </div>
-
-  <h3 class="h5 mt-4">ポータブル利用(インストーラーなし)</h3>
-  <p>1 ファイルで使いたい場合は
-  <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><code>winremap.exe</code></a>
-  をダウンロードして好きな場所から実行してください。設定は同じ
-  <code>%APPDATA%\winremap\config.toml</code>、または
-  <code>--config パス\ファイル.toml</code> で指定したファイルを読みます。
-  ほかのファイルやレジストリ項目は作りません。</p>
 </section>
 
-<section id="quickstart" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-rocket-takeoff text-primary me-2"></i>クイックスタート</h2>
-  <p>WinRemap はタスクトレイに常駐します。操作はすべてトレイメニューから:</p>
+<section id="about" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-shield-check text-primary me-2"></i>セキュリティと設計方針</h2>
   <ul>
-    <li><strong>有効</strong> — リマップ全体の一時 ON/OFF(終了せずに切替)</li>
-    <li><strong>設定</strong> — 今効いている設定を確認する(下記。<code>config.toml</code> をテキストエディタで開くこともできます)</li>
-    <li><strong>設定をリロード</strong> — 設定変更を即時反映(再起動不要・キー取りこぼしなし)</li>
-    <li><strong>ログを表示</strong> — キーがどう処理されたかをその場で確認する</li>
-    <li><strong>終了</strong></li>
+    <li>WinRemap は<strong>キー入力を記録・保存しません</strong> — 単なる方針ではなく
+      リポジトリ規約として強制されています。</li>
+    <li><strong>ネットワーク通信コードは一切ありません</strong>: テレメトリも自動アップデートもなし。</li>
+    <li>フック処理はヒープ確保・ロック・I/O のない純 Rust。最悪レイテンシを低く保ち、
+      スクリプト型リマッパーで起きがちなフックのタイムアウト(切り離し)を回避します。</li>
+    <li>設計上の対象外: IME の<em>制御</em>(インジケーターは表示のみ)、クリップボード
+      ツール、ランチャー、macOS/Linux 対応(Linux には
+      <a href="https://github.com/xremap/xremap">xremap</a> があります)。</li>
   </ul>
-  <p>設定を開いて、アプリごとにやりたいことを書きます:</p>
-<pre class="bg-body-tertiary border rounded p-3"><code># メモ帳でのみ Ctrl+H を素の Backspace にする
-[[keymap]]
-name = "notepad"
-application = ["notepad.exe"]
-
-[keymap.remap]
-"C-h" = "Back"
-</code></pre>
-  <p>保存してトレイの<em>設定をリロード</em>を選び、メモ帳で
-  <kbd>Ctrl</kbd>+<kbd>H</kbd> を押すと 1 文字削除になります。他のアプリには
-  通常の Ctrl+H がそのまま届きます。</p>
-
-  <div class="alert alert-info d-flex gap-2" role="alert">
-    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
-    <div><strong><code>application</code> に何を書けばいい?</strong>
-    トレイから<em>ログを表示</em>を選んで対象ウィンドウに切り替えると、
-    前面アプリのフルパス、<code>application</code> に指定すべき値、
-    適用されるキーマップが表示されます。</div>
-  </div>
-
-  <p>コピーして使える設定例:
-  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/minimal.toml">minimal.toml</a>(上の例)、
-  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/emacs.toml">emacs.toml</a>(fakeymacs 風 Emacs キーバインド)、
-  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/suganuma.toml">suganuma.toml</a>
-  (除外リスト・マクロ・プレフィックスキーを使った実運用例)。</p>
 </section>
 
-<section id="config" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-gear text-primary me-2"></i>設定</h2>
-  <p>設定は <code>[[keymap]]</code> ブロックの並びです。各ブロックに「適用するアプリ」と
-  「キーのルール」を書きます。</p>
-
-<pre class="bg-body-tertiary border rounded p-3"><code># 列挙したアプリ以外のすべてに適用
-[[keymap]]
-name = "global-emacs"
-application = ["*"]
-exclude = ["windowsterminal.exe", "mintty.exe"]
-
-[keymap.remap]
-"C-p" = "Up"
-
-# この 2 つのアプリだけに適用（アプリ別は常に "*" より優先）
-[[keymap]]
-application = ["phpstorm64.exe", "idea64.exe"]
-
-[keymap.remap]
-"C-h" = "Back"
-</code></pre>
-
-  <p>ルールの左辺が「押すキー」、右辺が「アプリが受け取るキー」です。
-  <code>"C-h" = "Back"</code> はそのコマンドに完全一致し、修飾状態ごと置き換えます。
-  <code>"CapsLock" = "LCtrl"</code> は何を押していてもキーだけを差し替えます。
-  2 ストロークのプレフィックス（<code>"A-x u"</code>）やマクロ
-  （<code>["C-Right", "C-Left", "C-S-Right"]</code>）も同じ場所に書きます。</p>
-
-  <p>設定エラーは行番号付きで全件まとめて報告されます。リロードに失敗した場合は直前の
-  有効な設定が維持されるので、編集ミスでキーボード環境が止まることはありません。</p>
-
-  <p class="mt-4">
-    <a class="btn btn-primary" href="config.html"><i class="bi bi-book me-1"></i>設定ガイド</a>
-  </p>
-  <p class="text-body-secondary">全項目の説明、キー記法の一覧表、CapsLock・Emacs 風キーバインド・
-  アプリ別の例外・マクロの記述例、そして各エラーメッセージの意味を掲載しています。</p>
-</section>
-
-<section id="record" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-record-circle text-primary me-2"></i>マクロ記憶 <span class="badge text-bg-secondary align-middle">任意</span></h2>
-  <p>キーを設定すると、操作を記憶して再生できるようになります。書かない限り機能は
-  動きません。</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>[macro]
-record_start = "S-F10"  # 記憶開始
-# record_stop = "S-F11" # 省略すると開始キーが終了キーも兼ねます
-record_play  = "F10"    # 再生
-</code></pre>
-  <p><kbd>Shift</kbd>+<kbd>F10</kbd> を押して操作し、もう一度押して終了。あとは
-  <kbd>F10</kbd> で何度でも再生できます。記憶中は、<strong>今入力しているアプリがある
-  ディスプレイ</strong>の下部にバナーが出続けます。</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>マクロ記憶中  3/20   notepad.exe で記憶中   —   S-F10 で終了 / F10 で再生
-</code></pre>
-  <p>アプリやディスプレイを切り替えるとバナーも追従し、打鍵が入っているアプリ名と、
-  記憶を終了するキー・再生するキーを常に表示します。気づかないうちに記録が走ることはなく、
-  終了キーを設定ファイルに確認しに行く必要もありません。再生中も同じバナーに、送出している
-  コマンドが表示されます。</p>
-  <p>使う前に知っておくとよいこと:</p>
-  <ul>
-    <li><strong>記憶できるのは 20 コマンド。</strong> 1 コマンドは 1 つのキーコンビネーションで、
-    <code>C-a</code> は 1 コマンド、<code>A-x h</code> の 2 ストロークは 2 コマンドです。
-    21 コマンド目で記憶を打ち切り、その旨を表示します(黙って切り捨てることはありません)。</li>
-    <li><strong>ディスクには書きません。</strong> 記憶内容はメモリ上だけにあり、WinRemap を
-    終了すると消えます。設定ファイルにも保存されません。繰り返し使いたい操作は、
-    マクロのルールとして書いてください。</li>
-    <li><strong>記憶されるのは「押したキー」ではなく「WinRemap が出力した内容」</strong>です。
-    <code>"C-h" = "Back"</code> が効いていれば、記憶されるのは <code>Back</code> です。</li>
-    <li><strong>記録するのは順序であって、タイミングではありません。</strong> 各コマンドを
-    順に 1 回ずつ叩きます。キーを押していた長さや、押しっぱなしにしながら別のキーを
-    押したことは再現しません(Emacs のキーボードマクロと同じ性質です)。</li>
-    <li>記憶は 1 本だけ保持します(記憶し直すと上書き)。再生中に再生キーを押しても
-    二重には走りません。WinRemap を無効にしたり設定をリロードしたりすると、記憶中の
-    内容は破棄されます(記憶終了キー自体が設定ファイルから来るためです)。</li>
-  </ul>
-  <p>再生の間隔には <code>delay_ms</code> がそのまま使われます。</p>
-</section>
-
-<section id="ime" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-translate text-primary me-2"></i>IME 状態インジケーター <span class="badge text-bg-secondary align-middle">任意</span></h2>
-  <p>リマップとは独立した機能として、IME がオンになった瞬間 — または IME オンの
-  ウィンドウにフォーカスが移った瞬間 — に、アクティブウィンドウの中央へ半透明の
-  <strong>「あ」</strong>パネルを一瞬表示できます。入力を始める前にモードが分かります。
-  表示のみで、WinRemap が IME を切り替えることはありません。</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>[ime_indicator]
-enabled = true                # 既定: false
-# trigger_keys = ["C-Space"]  # Ctrl+Space で IME を切り替えている場合
-# duration_ms = 800           # 100〜5000
-# size = 96                   # 32〜256
-# opacity = 200               # 0〜255
-# show_app_name = true        # 「あ」の下に exe 名を表示
-</code></pre>
-  <p>変換/無変換・半角/全角・かな・IME On/Off などの標準キーは設定なしで検知されます。
-  Windows 11 IME の「Ctrl + Space で IME をオン/オフ」のような割り当てを使っている場合は
-  <code>trigger_keys</code> を追加してください。パネルはフォーカスや入力を一切奪わず、
-  インジケーター側の問題がリマップ動作に影響することはありません。</p>
-</section>
-
-<section id="faq" class="container py-4 border-bottom">
+<section id="faq" class="container py-4">
   <h2 class="mb-3"><i class="bi bi-question-circle text-primary me-2"></i>FAQ・トラブルシューティング</h2>
 
   <div class="accordion" id="faqAccordion">
@@ -359,20 +247,6 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
       </div>
     </div>
   </div>
-</section>
-
-<section id="about" class="container py-4">
-  <h2 class="mb-3"><i class="bi bi-shield-check text-primary me-2"></i>セキュリティと設計方針</h2>
-  <ul>
-    <li>WinRemap は<strong>キー入力を記録・保存しません</strong> — 単なる方針ではなく
-      リポジトリ規約として強制されています。</li>
-    <li><strong>ネットワーク通信コードは一切ありません</strong>: テレメトリも自動アップデートもなし。</li>
-    <li>フック処理はヒープ確保・ロック・I/O のない純 Rust。最悪レイテンシを低く保ち、
-      スクリプト型リマッパーで起きがちなフックのタイムアウト(切り離し)を回避します。</li>
-    <li>設計上の対象外: IME の<em>制御</em>(インジケーターは表示のみ)、クリップボード
-      ツール、ランチャー、macOS/Linux 対応(Linux には
-      <a href="https://github.com/xremap/xremap">xremap</a> があります)。</li>
-  </ul>
 </section>
 
 </main>
