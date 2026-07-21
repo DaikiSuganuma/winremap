@@ -83,7 +83,7 @@
   <p>WinRemap lives in the task tray. The tray menu has everything:</p>
   <ul>
     <li><strong>Enabled</strong> — toggle all remapping on/off without quitting</li>
-    <li><strong>Settings</strong> — open the settings window, which can also hand <code>config.toml</code> to your text editor</li>
+    <li><strong>Settings</strong> — see the config in effect right now (below), and hand <code>config.toml</code> to your text editor</li>
     <li><strong>Reload config</strong> — apply config changes instantly (no restart, no lost keystrokes)</li>
     <li><strong>Show log</strong> — watch what WinRemap does with each keystroke, live</li>
     <li><strong>Quit</strong></li>
@@ -242,6 +242,18 @@ enabled = true                # default: false
     <p>If that window runs <strong>as administrator</strong>, Windows blocks input from
     non-elevated programs (UIPI). Run WinRemap elevated too if you really need remapping
     there. Games with anti-cheat and some virtualization software also ignore injected input.</p>
+  </details>
+
+  <details>
+    <summary>How do I check what is actually in effect?</summary>
+    <p>Right-click the tray icon and pick <em>Settings</em>. It shows the config WinRemap
+    is resolving against right now — every keymap, its target apps and exclusions, and its
+    rules, each with the comment you wrote beside it in the file. Where the same input is
+    bound in more than one keymap, a column names the others, since only one of them can
+    win.</p>
+    <p>The window is <strong>read-only in this release</strong>. Edit the file and press
+    <em>Reload config</em>; the display follows. The file's modification time and the load
+    time sit side by side, so a config you saved but did not reload is obvious.</p>
   </details>
 
   <details>

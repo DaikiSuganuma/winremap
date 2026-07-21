@@ -34,7 +34,7 @@ flowchart TD
     P --> A["Application interprets the keys natively<br/>(Ctrl+A → Select All)"]
 ```
 
-## Features (v0.1)
+## Features (v0.2)
 
 - **Per-application remapping**: rules apply only to the processes you list
   (`notepad.exe`, `chrome.exe`, ...), or globally (`*`) with an optional
@@ -43,7 +43,14 @@ flowchart TD
   `Back`, ...) familiar to Keyhac/fakeymacs users
 - **Two-stroke sequences** (`"A-x h"`, Emacs-style prefix keys) and **macro
   outputs** (`"C-t" = ["C-Right", "C-Left", "C-S-Right"]`)
-- **Task tray resident**: enable/disable toggle, config hot-reload, quit
+- **Task tray resident**: enable/disable toggle, config hot-reload, quit.
+  Launching never flashes a console window
+- **Settings window**: see the config that is in effect right now — every
+  keymap, its target apps and its rules, with your own comments beside them
+  and a key-notation legend. Read-only in this release; edit the file and
+  reload
+- **Log window**: watch WinRemap decide, key by key, without starting it from
+  a terminal. Nothing is ever written to disk
 - **IME status indicator** (opt-in): the moment the IME turns on, a
   translucent "あ" panel flashes at the center of the active window so you
   always know the input mode — display only; WinRemap never switches the IME
@@ -141,6 +148,20 @@ the indicator never affects remapping.
 
 The full specification lives in
 [docs/v0.1/02_config-spec.md](docs/v0.1/02_config-spec.md) (Japanese).
+
+### Seeing what is in effect
+
+Right-click the tray icon and pick **Settings** to see the config WinRemap is
+resolving against right now: every keymap, its target apps and exclusions, and
+its rules — each with the comment you wrote beside it in the file. Where the
+same input is bound in more than one keymap, a column names the others, since
+only one of them can win. A key-notation legend sits beside the rules.
+
+The window is **read-only in this release**. Edit the file (the **Open in text
+editor** link hands it to whatever you associated with `.toml`) and press
+**Reload config**; the display follows. The file's modification time and the
+load time are shown side by side, so a config you saved but did not reload is
+visible at a glance.
 
 Not sure what to put in `application`? Right-click the tray icon and pick
 **Show log**, then switch windows: the log shows each foreground app's full

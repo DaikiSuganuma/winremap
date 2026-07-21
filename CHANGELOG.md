@@ -7,22 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-21
+
+The theme of this release is **seeing what WinRemap is doing**. Launching no
+longer flashes a console window, and two new windows — a live log and a
+settings viewer — answer the questions that previously meant reading the
+config file and guessing.
+
+Editing the config from the GUI is not in this release; the settings window is
+read-only for now. Writing to a config file people hand-wrote deserves more
+care than the schedule allowed, and the viewer is useful on its own.
+
 ### Added
 
+- **Settings window** on the tray menu, showing the config that is in effect
+  right now — the very table the hook resolves against, not a re-read of the
+  file. Keymaps down the left; the selected one's target apps, exclusions and
+  remap rules on the right, each rule with the comment written beside it in
+  the file. A key-notation legend sits in its own pane alongside the rules.
+  Where the same input is bound in more than one keymap, a column names the
+  others: only one can win, and that is invisible when reading either alone.
+  The file's modification time and the load time are shown side by side, with
+  a reload button next to them, and **Open in text editor** hands the file to
+  whatever you have associated with `.toml` — which is where the old **Open
+  config file** menu item went.
 - Tray menu item **Show log** (ADR 0029): opens a window that streams the debug log live, so diagnosing a keymap no longer requires starting WinRemap from a terminal. Debug logging is on only while the window is open, the log is never written to disk, and the window runs on its own thread so remapping is unaffected. Built with egui (ADR 0030), which also covers the v0.2 config GUI. Closing the window hides it and keeps its event loop alive — winit allows only one per process — so it can be reopened any number of times (ADR 0032). It carries the WinRemap icon, and the tray's enable/disable toggle, config reloads, and error messages show up in it as well.
 - The tray menu now opens with a disabled caption line showing the app name and version (`WinRemap v0.2.0`).
 - Tray menu icons from [Bootstrap Icons](https://icons.getbootstrap.com/) (MIT), rasterized from SVG at build time so nothing of the rasterizer ships in the binary (ADR 0040). The caption row carries the app's own icon; the enable/disable toggle keeps its checkmark and no icon.
 - `THIRD-PARTY-NOTICES.md`, carrying the Bootstrap Icons copyright and MIT permission notice. The rasterized icons are embedded in `winremap.exe`, so the notice now ships with the binary: it is a release asset and the installer puts it beside the exe.
-- Tray menu item **Settings**, opening a settings window. It is the shell for the v0.2 config GUI; for now it shows the config file's path and hands it to your text editor — which is where the old **Open config file** menu item went. All WinRemap windows share one event loop, with the settings window as the root and the log window as a child (ADR 0035).
+- All WinRemap windows share one event loop, since winit allows only one per process (ADR 0035). An invisible off-screen host owns it and both real windows are its children (ADR 0037), which is what lets either be opened, closed and reopened independently.
+- Help site on GitHub Pages (ADR 0028): a single-page user guide (English and Japanese) covering install, quick start, configuration reference, IME indicator, and troubleshooting, deployed from `site/` via GitHub Actions.
+- The log records what you did, not just what the keyboard did: tray picks, window opens and closes, and reload requests are marked `[action]`. It opens with the launch time and version, and the console gets a matching line on exit.
 
 ### Changed
 
+- **WinRemap no longer opens a console window.** It is now a windows-subsystem binary (ADR 0029), so launching from Explorer, the Start menu or the sign-in autostart entry is silent. Started from a terminal it attaches to that terminal, so `--debug`, `--help` and `--version` still print where you ran them; without one, anything you must not miss (a config error, an unknown argument) becomes a dialog rather than vanishing.
 - Macro pacing moves from the top-level `macro_delay_ms` to `[macro]` `delay_ms` (ADR 0039), so it sits in a section like `[ime_indicator]` does. **The v0.1 spelling still works** — setting both is a validation error rather than a silent precedence.
 
 ### Fixed
 
 - IME indicator: the panel never appeared in the Windows 11 Notepad (ADR 0033). Notepad is a WinUI 3 app whose editor runs on a second UI thread, and the IME open status is per thread, so querying the foreground window always read OFF. The status is now asked of every input thread of the foreground app, which also subsumes the UWP CoreWindow special case from ADR 0023.
-- Help site on GitHub Pages (ADR 0028): a single-page user guide (English and Japanese) covering install, quick start, configuration reference, IME indicator, and troubleshooting, deployed from `site/` via GitHub Actions.
 
 ## [0.1.0] - 2026-07-20
 
