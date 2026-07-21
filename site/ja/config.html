@@ -28,11 +28,15 @@
   (function () {
     var mq = window.matchMedia('(prefers-color-scheme: dark)');
     function apply() {
-      document.documentElement.setAttribute(
-        'data-bs-theme', mq.matches ? 'dark' : 'light');
+      var dark = mq.matches;
+      document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+      // The footer runs the opposite theme, so it reads as a distinct band.
+      var footer = document.getElementById('site-footer');
+      if (footer) footer.setAttribute('data-bs-theme', dark ? 'light' : 'dark');
     }
     apply();
     mq.addEventListener('change', apply);
+    document.addEventListener('DOMContentLoaded', apply);
   })();
 </script>
 </head>
@@ -505,7 +509,7 @@ record_play  = "F10"     # F10 で再生
 
 </main>
 
-<footer class="border-top py-4 text-body-secondary">
+<footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
   <div class="container small d-grid gap-2">
     <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
     <span><a href="https://getbootstrap.com/">Bootstrap</a> と
