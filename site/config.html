@@ -8,12 +8,25 @@
 <title>WinRemap — Configuration guide</title>
 <meta name="description" content="WinRemap configuration guide: every option in config.toml explained, with worked examples for CapsLock, Emacs bindings, per-app rules and macros.">
 <meta name="color-scheme" content="light dark">
-<!-- Pico CSS v2.1.1, pinned and integrity-checked (ADR 0046). -->
+<!-- Bootstrap 5.3.3, pinned and integrity-checked (ADR 0047). -->
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css"
-      integrity="sha384-L1dWfspMTHU/ApYnFiMz2QID/PlP1xCW9visvBdbEkOLkSSWsP6ZJWhPw6apiXxU"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
       crossorigin="anonymous">
 <link rel="stylesheet" href="style.css">
+<!-- Follow the OS light/dark setting (Bootstrap 5.3 switches on data-bs-theme).
+     Inline and self-contained — the site loads no third-party scripts. -->
+<script>
+  (function () {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function apply() {
+      document.documentElement.setAttribute(
+        'data-bs-theme', mq.matches ? 'dark' : 'light');
+    }
+    apply();
+    mq.addEventListener('change', apply);
+  })();
+</script>
 <link rel="icon" type="image/png" sizes="32x32" href="assets/kbd-enabled-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/kbd-enabled-16.png">
 <link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/config.html">
@@ -106,7 +119,7 @@ application = ["phpstorm64.exe", "idea64.exe"]
   <h2>Targeting applications</h2>
   <p>Every <code>[[keymap]]</code> starts by saying which applications it applies to.</p>
 
-  <div class="table-wrap"><table>
+  <div class="table-wrap"><table class="table table-sm">
     <tr><th>Key</th><th>Meaning</th></tr>
     <tr>
       <td><code>application</code></td>
@@ -162,7 +175,7 @@ application = ["code.exe"]
   <p>Which one you get depends on whether the left side has a modifier. The difference
   matters more than it looks.</p>
 
-  <div class="table-wrap"><table>
+  <div class="table-wrap"><table class="table table-sm">
     <tr><th></th><th>Chord rule</th><th>Bare-key rule</th></tr>
     <tr>
       <td>Looks like</td>
@@ -231,7 +244,7 @@ record_start = "S-F10"  # macro recording — see the help page
 # record_stop = "S-F11" # omit it and the start key stops it too
 record_play  = "F10"
 </code></pre>
-  <div class="table-wrap"><table>
+  <div class="table-wrap"><table class="table table-sm">
     <tr><th>Key</th><th>Meaning</th></tr>
     <tr>
       <td><code>delay_ms</code></td>
@@ -275,7 +288,7 @@ enabled = true                # default: false
   Everything is case-insensitive, and prefix order does not matter — <code>C-S-h</code>
   and <code>S-C-h</code> are the same chord.</p>
 
-  <div class="table-wrap"><table>
+  <div class="table-wrap"><table class="table table-sm">
     <tr><th>Prefix</th><th>Modifier</th></tr>
     <tr><td><code>C-</code></td><td>Ctrl (either side)</td></tr>
     <tr><td><code>A-</code></td><td>Alt (either side)</td></tr>
@@ -283,7 +296,7 @@ enabled = true                # default: false
     <tr><td><code>W-</code></td><td>Win (either side)</td></tr>
   </table></div>
 
-  <div class="table-wrap"><table>
+  <div class="table-wrap"><table class="table table-sm">
     <tr><th>Group</th><th>Key names</th></tr>
     <tr><td>Letters / digits</td><td><code>a</code>–<code>z</code>, <code>0</code>–<code>9</code></td></tr>
     <tr><td>Function</td><td><code>F1</code>–<code>F24</code></td></tr>
@@ -407,7 +420,7 @@ record_play  = "F10"     # F10 replays
   <p>Every problem is reported at once, each with a line number, so one pass through the
   file fixes them all. A failed reload keeps the previous working config.</p>
 
-  <div class="table-wrap"><table>
+  <div class="table-wrap"><table class="table table-sm">
     <tr><th>What it says</th><th>What it means</th></tr>
     <tr>
       <td><code>unknown key `Bogus`</code></td>
@@ -454,7 +467,7 @@ record_play  = "F10"     # F10 replays
 <footer>
   <div class="container">
     <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
-    <span>Styled with <a href="https://picocss.com/">Pico CSS</a> (MIT).</span>
+    <span>Styled with <a href="https://getbootstrap.com/">Bootstrap</a> (MIT).</span>
     <span><a href="index.html">Help</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap">Source</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/issues">Report an issue</a> ·

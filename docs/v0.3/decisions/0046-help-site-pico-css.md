@@ -1,8 +1,10 @@
 # ADR 0046: ヘルプサイトに Pico CSS を採用する（CDN 経由）
 
-- ステータス: 承認（オーナー指示）
+- ステータス: superseded by [0047](0047-help-site-bootstrap.md)（2026-07-22、オーナー指示で Bootstrap へ変更）
 - 日付: 2026-07-21
 - 作成: Claude Code（AI モデル: claude-opus-4-8）
+
+> **注記（2026-07-22）**: 本 ADR で採用した Pico CSS は、オーナーの好み（前デザインの余白・配色に近づけたい）により Bootstrap へ差し替えた。判断の経緯は [ADR 0047](0047-help-site-bootstrap.md) を参照。以下は当時の記録として残す。
 
 ## 文脈
 

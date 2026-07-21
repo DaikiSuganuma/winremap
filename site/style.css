@@ -1,12 +1,49 @@
-/* WinRemap help site — a thin layer over Pico CSS (ADR 0028, ADR 0046).
+/* WinRemap help site — a thin layer over Bootstrap 5.3 (ADR 0028, ADR 0047).
  *
- * Pico supplies the type scale, colours, dark mode, tables, code blocks and
- * the container. Everything here is what Pico has no opinion about: the
- * hero band, the two callout styles, the sticky nav, and a few places where
- * a page of key names wants tighter spacing than prose does.
+ * Bootstrap supplies the reset, type scale, tables, buttons, code/kbd and the
+ * light/dark colour modes (switched by data-bs-theme, set from the OS by a
+ * small inline script in each page's <head>). Everything here is what
+ * Bootstrap has no opinion about — the narrow reading column, the accent
+ * colour, the sticky nav, the hero band and the two callout styles — plus a
+ * few places where a page of key names wants tighter spacing than prose does.
  *
- * Colours are Pico's own custom properties throughout, so both themes come
- * from Pico rather than being re-declared here. */
+ * Colours are Bootstrap's own --bs-* custom properties throughout, so both
+ * themes come from Bootstrap rather than being re-declared here. */
+
+/* --- reading column & accent ---------------------------------------- */
+
+/* Bootstrap's .container grows to 1140px on large screens; the old design
+   read better at 860px, so keep it there. */
+.container {
+  max-width: 860px;
+}
+
+/* Restore the previous design's GitHub-blue links and primary button over
+   Bootstrap's default indigo. */
+:root {
+  --bs-link-color-rgb: 9, 105, 218;
+  --bs-link-hover-color-rgb: 8, 87, 182;
+}
+
+[data-bs-theme="dark"] {
+  --bs-link-color-rgb: 68, 147, 248;
+  --bs-link-hover-color-rgb: 106, 168, 250;
+}
+
+.btn-primary {
+  --bs-btn-bg: #0969da;
+  --bs-btn-border-color: #0969da;
+  --bs-btn-hover-bg: #0857b6;
+  --bs-btn-hover-border-color: #0857b6;
+  --bs-btn-active-bg: #0857b6;
+  --bs-btn-active-border-color: #0857b6;
+}
+
+/* Links in a row of buttons should size to their labels. */
+.hero .buttons > a,
+p > a.btn {
+  margin: 0;
+}
 
 /* --- sticky top nav -------------------------------------------------- */
 
@@ -14,14 +51,31 @@ body > header.topnav {
   position: sticky;
   top: 0;
   z-index: 10;
-  padding-block: 0;
-  background: var(--pico-background-color);
-  border-bottom: 1px solid var(--pico-muted-border-color);
+  background: var(--bs-body-bg);
+  border-bottom: 1px solid var(--bs-border-color);
 }
 
 .topnav nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   flex-wrap: wrap;
+  padding-block: 0.5rem;
   font-size: 0.9rem;
+}
+
+.topnav ul {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.topnav a {
+  text-decoration: none;
 }
 
 .topnav .brand {
@@ -29,7 +83,6 @@ body > header.topnav {
   align-items: center;
   gap: 0.45rem;
   font-weight: 700;
-  text-decoration: none;
 }
 
 .topnav .brand img {
@@ -47,8 +100,8 @@ body > header.topnav {
 .hero {
   text-align: center;
   padding-block: 2.5rem 2rem;
-  background: var(--pico-card-background-color);
-  border-bottom: 1px solid var(--pico-muted-border-color);
+  background: var(--bs-tertiary-bg);
+  border-bottom: 1px solid var(--bs-border-color);
 }
 
 .hero img.logo {
@@ -63,7 +116,7 @@ body > header.topnav {
 .hero .tagline {
   margin-inline: auto;
   max-width: 42em;
-  color: var(--pico-muted-color);
+  color: var(--bs-secondary-color);
 }
 
 .hero .buttons {
@@ -74,24 +127,16 @@ body > header.topnav {
   margin-block: 1.25rem;
 }
 
-/* Pico stretches a role="button" to fill its container; in a row they
-   should size to their labels instead. */
-.hero .buttons > a,
-p > a[role="button"] {
-  width: auto;
-  margin: 0;
-}
-
 .hero .sub {
   font-size: 0.9rem;
-  color: var(--pico-muted-color);
+  color: var(--bs-secondary-color);
   margin-bottom: 0;
 }
 
 /* --- sections -------------------------------------------------------- */
 
 main > section {
-  border-bottom: 1px solid var(--pico-muted-border-color);
+  border-bottom: 1px solid var(--bs-border-color);
   padding-block: 1.5rem;
 }
 
@@ -99,7 +144,7 @@ main > section:last-of-type {
   border-bottom: 0;
 }
 
-/* Pico's heading margins assume prose; these pages stack a heading
+/* Bootstrap's heading margins assume prose; these pages stack a heading
    straight onto a table or a code block. */
 main > section > h2 {
   margin-bottom: 0.75rem;
@@ -114,27 +159,44 @@ main > section h3 {
 
 .note,
 .warn {
-  border: 1px solid var(--pico-muted-border-color);
-  border-inline-start: 4px solid var(--pico-primary);
-  border-radius: var(--pico-border-radius);
-  background: var(--pico-card-sectioning-background-color);
+  border: 1px solid var(--bs-border-color);
+  border-inline-start: 4px solid var(--bs-primary);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-tertiary-bg);
   padding: 0.75rem 1rem;
   margin-block: 1rem;
 }
 
 .warn {
-  border-inline-start-color: var(--pico-del-color);
+  border-inline-start-color: var(--bs-danger);
 }
 
 /* --- code, keys, tables ---------------------------------------------- */
 
-/* Config snippets are the substance of these pages, so they get more room
-   than Pico's default block spacing gives them. */
+/* Config snippets are the substance of these pages. Bootstrap leaves <pre>
+   unstyled, so give it the soft block the old design had. */
 pre {
   margin-block: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--bs-tertiary-bg);
+  border-radius: var(--bs-border-radius);
+  overflow-x: auto;
 }
 
-pre,
+pre code {
+  padding: 0;
+  background: none;
+  color: inherit;
+}
+
+/* Inline code reads as part of the prose, not Bootstrap's pink. */
+:not(pre) > code {
+  padding: 0.1em 0.35em;
+  background: var(--bs-tertiary-bg);
+  border-radius: 0.25rem;
+  color: inherit;
+}
+
 code,
 kbd {
   font-size: 0.9em;
@@ -156,7 +218,6 @@ kbd {
 }
 
 .table-wrap :is(th, td) {
-  padding: 0.5rem 0.7rem;
   vertical-align: top;
 }
 
@@ -164,14 +225,16 @@ kbd {
 
 details summary {
   font-weight: 600;
+  cursor: pointer;
 }
 
 /* --- footer ---------------------------------------------------------- */
 
 body > footer {
-  border-top: 1px solid var(--pico-muted-border-color);
-  color: var(--pico-muted-color);
+  border-top: 1px solid var(--bs-border-color);
+  color: var(--bs-secondary-color);
   font-size: 0.88rem;
+  padding-block: 1.5rem;
 }
 
 body > footer .container {
