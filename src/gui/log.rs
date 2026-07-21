@@ -170,6 +170,7 @@ fn window_ui(ui: &mut egui::Ui) {
     egui::Panel::top("log-controls").show(ui, |ui| {
         ui.add_space(theme::PANEL_PAD);
         ui.horizontal(|ui| {
+            ui.add_space(theme::PANEL_PAD_LEFT);
             // No icon: the checkmark is this control's own marker.
             if ui
                 .checkbox(&mut follow_tail, texts.log_window_follow)
@@ -188,6 +189,7 @@ fn window_ui(ui: &mut egui::Ui) {
         // (owner decision 2026-07-21).
         ui.add_space(theme::PANEL_PAD);
         ui.horizontal(|ui| {
+            ui.add_space(theme::PANEL_PAD_LEFT);
             if icons::button(ui, Icon::Clear, texts.log_window_clear).clicked()
                 && let Ok(mut lines) = buffer().lock()
             {

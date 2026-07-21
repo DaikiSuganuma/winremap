@@ -84,23 +84,29 @@ impl ConfigWindow {
                 });
             });
             ui.add_space(NOTE_GAP);
-            file_table(ui, &path, &file_time);
+            // The table keeps a fixed width and the controls that act on the
+            // file sit to its right, level with it: this window shows, the
+            // editor changes, the button applies (owner decision
+            // 2026-07-21).
+            ui.horizontal(|ui| {
+                ui.scope(|ui| {
+                    ui.set_max_width(theme::FILE_TABLE_WIDTH);
+                    file_table(ui, &path, &file_time);
+                });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // Right-to-left, so the first one added is the rightmost.
+                    if icons::button(ui, Icon::Reload, texts.menu_reload).clicked() {
+                        super::log::action(texts.menu_reload);
+                        super::request_reload();
+                    }
+                    ui.add_space(NOTE_GAP);
+                    if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
+                        open_in_default_editor(&path);
+                    }
+                });
+            });
             ui.add_space(NOTE_GAP);
             ui.label(egui::RichText::new(texts.config_window_readonly).weak());
-            // Under the note that explains why they are needed: this window
-            // shows, the editor changes, the button applies (owner decision
-            // 2026-07-21).
-            ui.add_space(NOTE_GAP);
-            ui.horizontal(|ui| {
-                if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
-                    open_in_default_editor(&path);
-                }
-                ui.add_space(NOTE_GAP);
-                if icons::button(ui, Icon::Reload, texts.menu_reload).clicked() {
-                    super::log::action(texts.menu_reload);
-                    super::request_reload();
-                }
-            });
             ui.add_space(6.0);
         });
 

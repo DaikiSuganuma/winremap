@@ -84,6 +84,16 @@ pub const SECTION_GAP: f32 = 20.0;
 /// window frame.
 pub const PANEL_PAD: f32 = 8.0;
 
+/// Room to the left of the first control in such a row, so a checkbox or a
+/// button does not sit against the window edge (owner decision 2026-07-21).
+pub const PANEL_PAD_LEFT: f32 = 10.0;
+
+/// The config-file table's width. Fixed rather than filling the header: its
+/// three rows are short, and stretching them to the window width pushed the
+/// values a long way from their labels (owner decision 2026-07-21). It also
+/// leaves the rest of the row for the controls that act on the file.
+pub const FILE_TABLE_WIDTH: f32 = 620.0;
+
 /// Padding inside a highlighted box, so its fill reads as a surface rather
 /// than as ink spilled behind the text.
 pub const HIGHLIGHT_PAD: i8 = 10;
