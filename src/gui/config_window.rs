@@ -292,21 +292,6 @@ fn keymap_ui(
     macro_note_ui(ui, keymap);
 }
 
-/// A section divider, lighter than `ui.separator()` — that one draws with the
-/// stroke widgets use for their own borders, which is more line than a break
-/// between two blocks of text needs. Painted by hand because `Separator` has
-/// no colour of its own.
-fn hairline(ui: &mut egui::Ui) {
-    let color = theme::hairline(ui.visuals());
-    let (rect, _) =
-        ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::empty());
-    ui.painter().hline(
-        rect.x_range(),
-        rect.center().y,
-        egui::Stroke::new(1.0, color),
-    );
-}
-
 /// Grid spacing is the gap *between* cells, so it is twice the padding each
 /// cell gets. Columns get the wider gap: adjacent values need more to read
 /// apart than stacked rows do.
@@ -315,7 +300,7 @@ fn cell_spacing() -> egui::Vec2 {
     egui::vec2(pad * 4.0, pad * 2.0)
 }
 
-/// The shared look for every table in this window: a hairline border, a
+/// The shared look for every table in this window: a thin border, a
 /// reverse-coloured header row, and room around the text.
 ///
 /// egui's `Grid` has no notion of a header, so row 0 is coloured through
@@ -379,10 +364,12 @@ fn comment_cell(ui: &mut egui::Ui, text: &str) {
     ui.add(egui::Label::new(text).wrap());
 }
 
+/// Sections are separated by whitespace alone: the pane had collected enough
+/// horizontal rules — table borders, dividers — that they stopped reading as
+/// structure and started reading as clutter (owner decision 2026-07-21). The
+/// gap is doubled to carry the break the line used to.
 fn section(ui: &mut egui::Ui, icon: Icon, title: &str, key: &str) {
-    ui.add_space(SECTION_GAP);
-    hairline(ui);
-    ui.add_space(SECTION_GAP);
+    ui.add_space(SECTION_GAP * 2.0);
     ui.horizontal(|ui| {
         icons::show(ui, icon, SECTION_TEXT);
         ui.label(egui::RichText::new(title).size(SECTION_TEXT).strong());

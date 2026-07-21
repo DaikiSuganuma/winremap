@@ -28,7 +28,7 @@ use windows::Win32::Foundation::COLORREF;
 /// and the notes under them fit without scrolling on a 1080p screen (owner
 /// decision 2026-07-21). Not remembered between openings, so this is what
 /// people see every time.
-pub const CONFIG_WINDOW: [f32; 2] = [960.0, 860.0];
+pub const CONFIG_WINDOW: [f32; 2] = [1120.0, 860.0];
 
 /// The log window, in points. Wide enough for a debug line without wrapping.
 pub const LOG_WINDOW: [f32; 2] = [760.0, 480.0];
@@ -71,16 +71,18 @@ pub const EDGE_PAD: i8 = 8;
 /// clear break between them.
 pub const NOTE_GAP: f32 = 8.0;
 
-/// Whitespace above and below a section rule. The rule only reads as a
-/// divider when the content on either side is clear of it, and the detail
-/// pane is one long scroll of tables that otherwise run together.
+/// Whitespace between sections of the detail pane. There is no rule between
+/// them (owner decision 2026-07-21: the window had accumulated too many
+/// lines to read comfortably), so this gap is the only thing separating one
+/// section from the last — which is why it is generous.
 pub const SECTION_GAP: f32 = 20.0;
 
-/// Room above and below a row of buttons pinned to a window's edge (owner
-/// decision 2026-07-21). A footer panel gives its contents no margin of its
-/// own, so without this the buttons sit against the scroll area and the
+/// Room above and below a row of controls pinned to a window's edge — the
+/// log window's header and footer both (owner decision 2026-07-21, one
+/// value so the two ends match). A panel gives its contents no margin of its
+/// own, so without this the controls sit against the scroll area and the
 /// window frame.
-pub const FOOTER_PAD: f32 = 12.0;
+pub const PANEL_PAD: f32 = 8.0;
 
 /// Padding inside a highlighted box, so its fill reads as a surface rather
 /// than as ink spilled behind the text.
@@ -110,10 +112,6 @@ pub fn body_icon_size(ui: &egui::Ui) -> f32 {
 
 // ---- Colours -------------------------------------------------------------
 
-/// How much of the default rule colour a section divider keeps. It separates
-/// text rather than enclosing a widget, so the stock stroke reads as heavy.
-const HAIRLINE_ALPHA: f32 = 0.5;
-
 /// How far a highlighted box's fill is pushed from the panel background
 /// toward the text colour. Enough to read as a distinct surface, not so far
 /// that it competes with the tables around it.
@@ -139,17 +137,6 @@ pub fn table_header_text(visuals: &egui::Visuals) -> egui::Color32 {
 /// Zebra striping for odd body rows.
 pub fn table_stripe(visuals: &egui::Visuals) -> egui::Color32 {
     visuals.faint_bg_color
-}
-
-/// A section divider, lighter than the stroke widgets use for their own
-/// borders.
-pub fn hairline(visuals: &egui::Visuals) -> egui::Color32 {
-    visuals
-        .widgets
-        .noninteractive
-        .bg_stroke
-        .color
-        .gamma_multiply(HAIRLINE_ALPHA)
 }
 
 /// Fill for a box that has to stand out from the tables around it.

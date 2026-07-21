@@ -168,6 +168,7 @@ fn window_ui(ui: &mut egui::Ui) {
     // changes how it reads. The two commands live at the bottom, out of the
     // way of the newest line (owner decision 2026-07-21).
     egui::Panel::top("log-controls").show(ui, |ui| {
+        ui.add_space(theme::PANEL_PAD);
         ui.horizontal(|ui| {
             // No icon: the checkmark is this control's own marker.
             if ui
@@ -177,13 +178,15 @@ fn window_ui(ui: &mut egui::Ui) {
                 FOLLOW_TAIL.store(follow_tail, Ordering::Relaxed);
             }
         });
+        ui.add_space(theme::PANEL_PAD);
     });
 
     egui::Panel::bottom("log-actions").show(ui, |ui| {
-        // A footer panel gives its contents no margin, so the buttons would
+        // A panel gives its contents no margin, so the buttons would
         // otherwise sit against the scroll area above and the window frame
-        // below (owner decision 2026-07-21).
-        ui.add_space(theme::FOOTER_PAD);
+        // below. Same value as the header, so both ends of the window match
+        // (owner decision 2026-07-21).
+        ui.add_space(theme::PANEL_PAD);
         ui.horizontal(|ui| {
             if icons::button(ui, Icon::Clear, texts.log_window_clear).clicked()
                 && let Ok(mut lines) = buffer().lock()
@@ -197,7 +200,7 @@ fn window_ui(ui: &mut egui::Ui) {
                 ui.ctx().copy_text(joined);
             }
         });
-        ui.add_space(theme::FOOTER_PAD);
+        ui.add_space(theme::PANEL_PAD);
     });
 
     egui::CentralPanel::default().show(ui, |ui| {
