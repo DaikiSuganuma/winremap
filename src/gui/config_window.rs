@@ -149,41 +149,67 @@ fn keymap_label(keymap: &Keymap) -> String {
 fn keymap_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComments>) {
     let texts = i18n::t();
     ui.add_space(8.0);
-    ui.heading(keymap_label(keymap));
+    ui.label(
+        egui::RichText::new(keymap_label(keymap))
+            .size(TITLE_TEXT)
+            .strong(),
+    );
     if !keymap.name.is_empty() {
         field(ui, texts.config_field_name, "name", &keymap.name);
         note(ui, comments.and_then(|c| c.field("name")));
     }
-    ui.add_space(8.0);
 
+    section(ui, texts.config_field_apps, "application");
+    note(ui, comments.and_then(|c| c.field("application")));
     match &keymap.apps {
-        AppFilter::All { exclude } => {
-            field(
-                ui,
-                texts.config_field_apps,
-                "application",
-                texts.config_apps_all,
-            );
-            note(ui, comments.and_then(|c| c.field("application")));
-            ui.add_space(4.0);
-            key_heading(ui, texts.config_field_exclude, "exclude");
-            note(ui, comments.and_then(|c| c.field("exclude")));
-            name_list(ui, exclude);
-        }
-        AppFilter::Names(names) => {
-            key_heading(ui, texts.config_field_apps, "application");
-            note(ui, comments.and_then(|c| c.field("application")));
-            name_list(ui, names);
-        }
+        // A one-item list, so the targets are always in the same place
+        // whichever form the keymap uses.
+        AppFilter::All { .. } => name_list(ui, &[texts.config_apps_all.to_owned()]),
+        AppFilter::Names(names) => name_list(ui, names),
+    }
+    hint(ui, texts.config_apps_case_note);
+
+    if let AppFilter::All { exclude } = &keymap.apps {
+        section(ui, texts.config_field_exclude, "exclude");
+        note(ui, comments.and_then(|c| c.field("exclude")));
+        name_list(ui, exclude);
+        hint(ui, texts.config_apps_case_note);
     }
 
-    ui.add_space(12.0);
-    ui.label(egui::RichText::new(texts.config_rules).strong());
-    ui.label(egui::RichText::new("[keymap.remap]").monospace().weak());
+    section(ui, texts.config_rules, "[keymap.remap]");
     rules_ui(ui, keymap, comments);
     macro_note_ui(ui, keymap);
-    ui.add_space(12.0);
+
+    section(ui, texts.config_notation_title, "");
     notation_help_ui(ui);
+}
+
+/// Section titles are bigger than body text and sit under a rule, so a long
+/// detail pane reads as parts rather than one wall.
+const SECTION_TEXT: f32 = 17.0;
+/// The keymap's own name, one step above its sections.
+const TITLE_TEXT: f32 = 21.0;
+
+fn section(ui: &mut egui::Ui, title: &str, key: &str) {
+    ui.add_space(14.0);
+    ui.separator();
+    ui.add_space(2.0);
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(title).size(SECTION_TEXT).strong());
+        if !key.is_empty() {
+            ui.label(egui::RichText::new(key).monospace().weak());
+        }
+    });
+    ui.add_space(4.0);
+}
+
+/// A small explanatory line under a value, in WinRemap's own words — as
+/// opposed to `note`, which shows the user's own comment.
+fn hint(ui: &mut egui::Ui, text: &str) {
+    ui.add_space(2.0);
+    ui.indent("hint", |ui| {
+        ui.label(egui::RichText::new(text).weak().small());
+    });
 }
 
 /// One exe name per line: a comma-joined run of eight is unreadable, which is
@@ -262,13 +288,13 @@ fn macro_note_ui(ui: &mut egui::Ui, keymap: &Keymap) {
     ui.label(egui::RichText::new(i18n::macro_note(delay)).weak());
 }
 
-/// What `C-` and friends mean. Collapsed by default: it is a reminder for
-/// someone reading rules they did not write, not something to scroll past
-/// every day.
+/// What `C-` and friends mean. Always open: the rules right above it are
+/// unreadable without it for anyone who did not write them.
 fn notation_help_ui(ui: &mut egui::Ui) {
     let texts = i18n::t();
-    egui::CollapsingHeader::new(texts.config_notation_title)
-        .default_open(false)
+    egui::Grid::new("notation")
+        .num_columns(2)
+        .min_col_width(60.0)
         .show(ui, |ui| {
             for (prefix, meaning) in [
                 ("C-", texts.config_notation_ctrl),
@@ -276,20 +302,19 @@ fn notation_help_ui(ui: &mut egui::Ui) {
                 ("S-", texts.config_notation_shift),
                 ("W-", texts.config_notation_win),
             ] {
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(prefix).monospace());
-                    ui.label(meaning);
-                });
-            }
-            ui.add_space(4.0);
-            ui.label(texts.config_notation_sequence);
-            ui.label(texts.config_notation_macro);
-            ui.add_space(4.0);
-            if ui.link(texts.config_help_link).clicked() {
-                super::log::action(texts.config_help_link);
-                super::win32::open_url(i18n::help_url());
+                ui.label(egui::RichText::new(prefix).monospace());
+                ui.label(meaning);
+                ui.end_row();
             }
         });
+    ui.add_space(4.0);
+    ui.label(texts.config_notation_sequence);
+    ui.label(texts.config_notation_macro);
+    ui.add_space(6.0);
+    if ui.link(texts.config_help_link).clicked() {
+        super::log::action(texts.config_help_link);
+        super::win32::open_url(i18n::help_url());
+    }
 }
 
 /// A macro is a sequence, so it reads as one: arrows say "then", where the
@@ -308,8 +333,13 @@ fn render_output(output: &Output) -> String {
 fn general_ui(ui: &mut egui::Ui, table: &RemapTable, comments: &ConfigComments) {
     let texts = i18n::t();
     ui.add_space(8.0);
-    ui.heading(texts.config_general);
-    ui.add_space(8.0);
+    ui.label(
+        egui::RichText::new(texts.config_general)
+            .size(TITLE_TEXT)
+            .strong(),
+    );
+
+    section(ui, texts.config_macro_section, "");
     field(
         ui,
         texts.config_macro_delay,
@@ -317,44 +347,14 @@ fn general_ui(ui: &mut egui::Ui, table: &RemapTable, comments: &ConfigComments) 
         &table.macro_delay_ms.to_string(),
     );
     note(ui, comments.general("macro_delay_ms"));
+    hint(ui, texts.config_macro_delay_hint);
 
-    ui.add_space(12.0);
-    ui.label(egui::RichText::new(texts.config_ime_indicator).strong());
-    ui.label(egui::RichText::new("[ime_indicator]").monospace().weak());
+    section(ui, texts.config_ime_indicator, "[ime_indicator]");
     ime_ui(ui, &table.ime_indicator, comments);
 }
 
 fn ime_ui(ui: &mut egui::Ui, settings: &IndicatorSettings, comments: &ConfigComments) {
     let texts = i18n::t();
-    let mut row = |label: &str, key: &str, value: &str| {
-        field(ui, label, key, value);
-        note(ui, comments.general(&format!("ime_indicator.{key}")));
-    };
-
-    row(
-        texts.config_ime_enabled,
-        "enabled",
-        &on_off(settings.enabled),
-    );
-    if !settings.enabled {
-        return;
-    }
-    row(
-        texts.config_ime_duration,
-        "duration_ms",
-        &settings.duration_ms.to_string(),
-    );
-    row(texts.config_ime_size, "size", &settings.size.to_string());
-    row(
-        texts.config_ime_opacity,
-        "opacity",
-        &settings.opacity.to_string(),
-    );
-    row(
-        texts.config_ime_show_app_name,
-        "show_app_name",
-        &on_off(settings.show_app_name),
-    );
     let triggers = if settings.trigger_keys.is_empty() {
         texts.config_none.to_owned()
     } else {
@@ -365,7 +365,57 @@ fn ime_ui(ui: &mut egui::Ui, settings: &IndicatorSettings, comments: &ConfigComm
             .collect::<Vec<_>>()
             .join(", ")
     };
-    row(texts.config_ime_triggers, "trigger_keys", &triggers);
+
+    let mut rows: Vec<(&str, &str, String)> = vec![(
+        texts.config_ime_enabled,
+        "enabled",
+        on_off(settings.enabled),
+    )];
+    // The rest only describe how the panel looks, which is noise while the
+    // feature is off.
+    if settings.enabled {
+        rows.extend([
+            (
+                texts.config_ime_duration,
+                "duration_ms",
+                settings.duration_ms.to_string(),
+            ),
+            (texts.config_ime_size, "size", settings.size.to_string()),
+            (
+                texts.config_ime_opacity,
+                "opacity",
+                settings.opacity.to_string(),
+            ),
+            (
+                texts.config_ime_show_app_name,
+                "show_app_name",
+                on_off(settings.show_app_name),
+            ),
+            (texts.config_ime_triggers, "trigger_keys", triggers),
+        ]);
+    }
+
+    egui::Grid::new("ime-settings")
+        .striped(true)
+        .num_columns(4)
+        .min_col_width(110.0)
+        .show(ui, |ui| {
+            ui.label(egui::RichText::new(texts.config_column_item).strong());
+            ui.label(egui::RichText::new(texts.config_column_key).strong());
+            ui.label(egui::RichText::new(texts.config_column_value).strong());
+            ui.label(egui::RichText::new(texts.config_rule_comment).strong());
+            ui.end_row();
+            for (label, key, value) in &rows {
+                ui.label(*label);
+                ui.label(egui::RichText::new(*key).monospace().weak());
+                ui.label(egui::RichText::new(value).monospace());
+                let comment = comments
+                    .general(&format!("ime_indicator.{key}"))
+                    .unwrap_or_default();
+                ui.label(egui::RichText::new(comment).weak());
+                ui.end_row();
+            }
+        });
 }
 
 fn on_off(value: bool) -> String {
@@ -386,14 +436,6 @@ fn field(ui: &mut egui::Ui, label: &str, key: &str, value: &str) {
         ui.label(egui::RichText::new(key).monospace().weak());
         ui.label(egui::RichText::new("=").weak());
         ui.label(egui::RichText::new(value).monospace());
-    });
-}
-
-/// Heading for a field whose value is rendered as a list below it.
-fn key_heading(ui: &mut egui::Ui, label: &str, key: &str) {
-    ui.horizontal(|ui| {
-        ui.label(label);
-        ui.label(egui::RichText::new(key).monospace().weak());
     });
 }
 
