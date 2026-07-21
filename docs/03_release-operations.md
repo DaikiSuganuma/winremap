@@ -36,14 +36,26 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 
 ## 2. リリース手順（毎回）
 
+> ブランチ運用は [04_git-branching.md](04_git-branching.md) に従う。リリース作業は
+> `develop` から `release/<version>` を切って行い、`main` と `develop` の両方へ
+> **`--no-ff` で**マージする。`main` へ直接トピックブランチを入れない。
+
+0. **リリースブランチ**: `git checkout -b release/0.3.0 develop`
 1. **受け入れテスト**: [05_acceptance-checklist.md](./v0.1/03_acceptance-checklist.md) の「リリース前フルチェック」全項目を実施し、結果を記録・コミット
 2. **CHANGELOG**: `Unreleased` の内容を新バージョン見出し（例 `## [0.1.0] - 2026-07-XX`）に切り出す
 3. **バージョン**: `Cargo.toml` の `version` を更新（`Cargo.lock` も追随）
-4. **タグ push**:
+4. **マージとタグ push**:
 
    ```powershell
-   git tag v0.1.0
-   git push origin v0.1.0
+   git checkout main
+   git merge --no-ff release/0.3.0
+   git tag -a v0.3.0 -m "WinRemap v0.3.0"
+   git push origin main v0.3.0
+   # リリース中の修正を開発側へ戻す
+   git checkout develop
+   git merge --no-ff release/0.3.0
+   git push origin develop
+   git branch -d release/0.3.0
    ```
 
 5. release.yml が起動し、テスト → ビルド → インストーラー生成（Inno Setup、ADR 0027） → `SHA256SUMS` 生成 → **ビルド来歴の attestation** → **ドラフトリリース**作成まで自動で行う

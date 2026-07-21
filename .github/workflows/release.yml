@@ -47,7 +47,7 @@ jobs:
             dist/winremap.exe
             dist/winremap-setup.exe
       # Draft on purpose: the owner reviews the notes and artifacts before
-      # anything becomes publicly downloadable (docs/06_release-operations.md).
+      # anything becomes publicly downloadable (docs/03_release-operations.md).
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:

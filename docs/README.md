@@ -16,8 +16,9 @@
 | 文書 | 内容 |
 |---|---|
 | [01_project-brief.md](01_project-brief.md) | 開発経緯・要件・アーキテクチャ・不変条件（一次資料） |
-| [03_rust-guidelines.md](03_rust-guidelines.md) | Rust 開発の作法（バージョン非依存） |
-| [06_release-operations.md](06_release-operations.md) | リリース運用手順（オーナー向けランブック） |
+| [02_rust-guidelines.md](02_rust-guidelines.md) | Rust 開発の作法（バージョン非依存） |
+| [03_release-operations.md](03_release-operations.md) | リリース運用手順（オーナー向けランブック） |
+| [04_git-branching.md](04_git-branching.md) | Git ブランチ運用（git-flow の適用。マージは常に `--no-ff`） |
 
 ## バージョン別
 

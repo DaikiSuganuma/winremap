@@ -1,7 +1,7 @@
 # WinRemap 開発計画（v0.1.0 まで）
 
 > 元資料: [01_project-brief.md](../01_project-brief.md)（以下「ブリーフ」）。本計画はブリーフ §11 のマイルストーンを実タスクに分解したもの。
-> Rust 実装の作法は [03_rust-guidelines.md](../03_rust-guidelines.md) を参照。
+> Rust 実装の作法は [02_rust-guidelines.md](../02_rust-guidelines.md) を参照。
 
 - 作成日: 2026-07-18
 - 作成: Claude Code（AI モデル: claude-fable-5）／レビュー・承認: オーナー
@@ -29,7 +29,7 @@
 5. `.github/workflows/ci.yml` — `fmt` / `clippy -- -D warnings` / `test` / `build`（windows-latest）
 6. `docs/decisions/0001-use-windows-rs.md`（winapi 不採用の理由を含む）、`docs/decisions/0002-rust-edition-2024.md`（edition・ツールチェーン方針）
 7. `CHANGELOG.md`（Keep a Changelog 形式、Unreleased のみ）
-8. `docs/03_rust-guidelines.md` — Rust 開発の作法（エラー処理・unsafe 規約・テスト・依存管理等）
+8. `docs/02_rust-guidelines.md` — Rust 開発の作法（エラー処理・unsafe 規約・テスト・依存管理等）
 
 ### 完了条件
 
