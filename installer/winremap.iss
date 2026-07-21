@@ -52,6 +52,9 @@ Name: "startup"; Description: "{cm:StartupTask}"
 [Files]
 Source: "..\target\release\winremap.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+; Bootstrap Icons is MIT and its pixels are embedded in the exe, so its notice
+; has to travel with the installed copy (THIRD-PARTY-NOTICES.md).
+Source: "..\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.ja.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\examples\*.toml"; DestDir: "{app}\examples"; Flags: ignoreversion

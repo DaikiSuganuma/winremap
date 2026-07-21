@@ -48,7 +48,7 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 
 5. release.yml が起動し、テスト → ビルド → インストーラー生成（Inno Setup、ADR 0027） → `SHA256SUMS` 生成 → **ビルド来歴の attestation** → **ドラフトリリース**作成まで自動で行う
 6. GitHub → Releases のドラフトを開き、以下を確認して **Publish release**:
-   - 添付物が `winremap.exe`・`winremap-setup.exe`・`SHA256SUMS` の 3 点であること
+   - 添付物が `winremap.exe`・`winremap-setup.exe`・`SHA256SUMS`・`THIRD-PARTY-NOTICES.md` の 4 点であること（notices は exe 単体で落とす利用者向け。Bootstrap Icons の MIT 表示）
    - リリースノート（CHANGELOG から転記・調整）
 7. 公開後の検証（利用者と同じ手順で最終確認）:
 

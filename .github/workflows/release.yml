@@ -32,6 +32,9 @@ jobs:
           New-Item -ItemType Directory dist | Out-Null
           Copy-Item target/release/winremap.exe dist/
           Copy-Item installer/output/winremap-setup.exe dist/
+          # The bare exe is downloadable on its own, so the notice for the
+          # embedded Bootstrap Icons has to be a release asset too (MIT).
+          Copy-Item THIRD-PARTY-NOTICES.md dist/
           $sums = foreach ($name in "winremap.exe", "winremap-setup.exe") {
             $hash = (Get-FileHash dist/$name -Algorithm SHA256).Hash.ToLower()
             "$hash  $name"
@@ -53,3 +56,4 @@ jobs:
             dist/winremap.exe
             dist/winremap-setup.exe
             dist/SHA256SUMS
+            dist/THIRD-PARTY-NOTICES.md

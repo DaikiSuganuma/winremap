@@ -210,3 +210,7 @@ repository, point your AI agent at it, and describe the feature you want.
 ## License
 
 [MIT](LICENSE) — Copyright (c) 2026 Daiki Suganuma
+
+Bootstrap Icons is MIT too, and its pixels are embedded in `winremap.exe`, so
+its notice ships with the binary: see
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
