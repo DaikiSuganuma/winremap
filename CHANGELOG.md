@@ -17,7 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `record_stop` (omit it and the start key toggles) and `record_play`, and
   off entirely until you name those keys. A recording holds 20 commands and
   says so on screen while it runs; reaching the limit ends the recording and
-  tells you rather than dropping commands quietly. **Nothing is written to
+  tells you rather than dropping commands quietly. The banner sits on the
+  display holding the app you are typing into and follows you between apps
+  and monitors, naming that app and repeating the keys that stop and replay
+  the recording — so it cannot be missed, and stopping never means going
+  back to the config file. **Nothing is written to
   disk**: the recording lives in memory and is gone when WinRemap exits.
   Replay runs on its own thread, never in the keyboard hook, because 20
   commands at the maximum pacing would reach the timeout Windows applies to

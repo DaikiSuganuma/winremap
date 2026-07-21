@@ -143,9 +143,18 @@ record_play  = "F10"    # press to replay
 ```
 
 Press `Shift+F10`, do the work, press `Shift+F10` again, then press `F10` as
-often as you like. A banner at the bottom of the screen says
-`Recording macro 3/20` while a recording runs and shows the commands while
-they replay, so recording never happens without you seeing it.
+often as you like. While a recording runs, a banner sits at the bottom of
+whichever display holds the app you are typing into:
+
+```
+Recording macro  3/20   notepad.exe in progress   —   S-F10 to stop, F10 to replay
+```
+
+It follows you as you switch apps and displays, names the app receiving the
+keystrokes, and repeats the keys that end and replay the recording — so a
+recording never runs unnoticed, and you never have to open the config file
+to find out how to stop it. Replay shows the same banner with the commands
+it is sending.
 
 What is worth knowing before relying on it:
 

@@ -309,20 +309,12 @@ pub fn drain_record_events() {
         };
         match event {
             RecordEvent::Started => {
-                crate::macro_record::banner_show(i18n::macro_record_banner_recording(
-                    0,
-                    MAX_RECORDED_LEN,
-                ));
+                crate::macro_record::banner_recording(0);
                 crate::gui::log::action(&i18n::macro_record_started(MAX_RECORDED_LEN));
             }
             // The banner carries the progress; a log line per command would
             // only repeat what the key lines already say.
-            RecordEvent::Recorded { len } => {
-                crate::macro_record::banner_show(i18n::macro_record_banner_recording(
-                    len,
-                    MAX_RECORDED_LEN,
-                ));
-            }
+            RecordEvent::Recorded { len } => crate::macro_record::banner_recording(len),
             RecordEvent::Stopped { len } => {
                 publish_recording();
                 crate::macro_record::banner_hide();

@@ -115,6 +115,9 @@ pub struct Texts {
     /// Why an in-progress macro recording was dropped (design doc §5.6).
     pub macro_record_reason_reload: &'static str,
     pub macro_record_reason_disabled: &'static str,
+    /// Stands in for the app name when the foreground window cannot be
+    /// identified (an elevated window denies the query under UIPI).
+    pub macro_record_unknown_app: &'static str,
     pub log_window_title: &'static str,
     pub log_window_hint: &'static str,
     pub log_window_follow: &'static str,
@@ -198,6 +201,7 @@ static EN: Texts = Texts {
     log_action_prefix: "[action]",
     macro_record_reason_reload: "config reloaded",
     macro_record_reason_disabled: "remapping disabled",
+    macro_record_unknown_app: "an unknown app",
     log_window_title: "WinRemap — log",
     log_window_hint: "Debug logging is on while this window is open. Press keys to see how they are handled.",
     log_window_follow: "Follow newest",
@@ -281,6 +285,7 @@ static JA: Texts = Texts {
     log_action_prefix: "[操作]",
     macro_record_reason_reload: "設定をリロードしたため",
     macro_record_reason_disabled: "リマップを無効にしたため",
+    macro_record_unknown_app: "不明なアプリ",
     log_window_title: "WinRemap — ログ",
     log_window_hint: "このウィンドウを開いている間、デバッグログを記録します。キーを押すと処理内容が表示されます。",
     log_window_follow: "最新に追従",
@@ -738,12 +743,25 @@ pub fn macro_record_failed(error: &str) -> String {
     }
 }
 
-/// Banner line while recording. The count is what makes the limit visible,
-/// so hitting it is never a surprise (design doc §6.3).
-pub fn macro_record_banner_recording(len: usize, limit: usize) -> String {
+/// Banner line while recording (design doc §6.3). Carries everything the
+/// user needs without looking anything up: how much room is left, which app
+/// the keystrokes are going to, and the keys that end and replay it — the
+/// last of those because a recording that cannot be ended is the worst way
+/// for this feature to fail.
+pub fn macro_record_banner_recording(
+    len: usize,
+    limit: usize,
+    app: &str,
+    stop_key: &str,
+    play_key: &str,
+) -> String {
     match lang() {
-        Lang::En => format!("Recording macro  {len}/{limit}"),
-        Lang::Ja => format!("マクロ記憶中  {len}/{limit}"),
+        Lang::En => format!(
+            "Recording macro  {len}/{limit}   in {app}   —   {stop_key} to stop, {play_key} to replay"
+        ),
+        Lang::Ja => format!(
+            "マクロ記憶中  {len}/{limit}   {app} で記憶中   —   {stop_key} で終了 / {play_key} で再生"
+        ),
     }
 }
 
@@ -757,14 +775,14 @@ pub fn macro_record_banner_limit(limit: usize) -> String {
 
 /// Banner line during replay: the commands themselves, joined the way the
 /// settings window joins a macro's chords.
-pub fn macro_record_banner_replaying(commands: &[KeyCombo]) -> String {
+pub fn macro_record_banner_replaying(app: &str, commands: &[KeyCombo]) -> String {
     let steps = commands
         .iter()
         .map(|combo| combo.to_string())
         .collect::<Vec<_>>()
         .join(" → ");
     match lang() {
-        Lang::En => format!("Replaying:  {steps}"),
-        Lang::Ja => format!("再生中:  {steps}"),
+        Lang::En => format!("Replaying in {app}:  {steps}"),
+        Lang::Ja => format!("{app} で再生中:  {steps}"),
     }
 }

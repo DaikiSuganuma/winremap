@@ -225,9 +225,14 @@ record_start = "S-F10"  # press to start recording
 record_play  = "F10"    # press to replay
 </code></pre>
   <p>Press <kbd>Shift</kbd>+<kbd>F10</kbd>, do the work, press it again, then press
-  <kbd>F10</kbd> as often as you like. A banner at the bottom of the screen reads
-  <em>Recording macro 3/20</em> while a recording runs, and shows the commands while they
-  replay — recording never happens without you seeing it.</p>
+  <kbd>F10</kbd> as often as you like. While a recording runs, a banner sits at the bottom
+  of whichever display holds the app you are typing into:</p>
+<pre><code>Recording macro  3/20   notepad.exe in progress   —   S-F10 to stop, F10 to replay
+</code></pre>
+  <p>It follows you as you switch apps and displays, names the app receiving the
+  keystrokes, and repeats the keys that end and replay the recording — so a recording
+  never runs unnoticed, and you never have to open the config file to find out how to stop
+  it. Replay shows the same banner with the commands it is sending.</p>
   <p>Worth knowing before you rely on it:</p>
   <ul>
     <li><strong>20 commands per recording.</strong> A command is one chord: <code>C-a</code>

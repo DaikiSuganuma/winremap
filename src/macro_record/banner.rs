@@ -8,6 +8,11 @@
 //! steal), WS_EX_TOPMOST, WS_EX_TOOLWINDOW (no taskbar/Alt-Tab entry), and
 //! WS_EX_LAYERED for translucency.
 //!
+//! It follows the foreground window's monitor: on a multi-monitor desk a
+//! banner pinned to the primary display is easy to miss, and missing it is
+//! exactly the failure mode the banner exists to prevent (owner decision
+//! 2026-07-21, design doc §6.2).
+//!
 //! Deliberately not the IME indicator's overlay (design doc §6.1): that
 //! panel is built to hold and then fade out, while this one must stay up
 //! for as long as a recording runs (ADR 0043 decision 3). It also carries a
@@ -20,18 +25,19 @@ use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, SIZE, WP
 use windows::Win32::Graphics::Gdi::{
     BeginPaint, CreateFontIndirectW, CreateRoundRectRgn, CreateSolidBrush, DT_CENTER,
     DT_END_ELLIPSIS, DT_SINGLELINE, DT_VCENTER, DeleteObject, DrawTextW, EndPaint, FillRect, GetDC,
-    GetTextExtentPoint32W, HFONT, InvalidateRect, LOGFONTW, PAINTSTRUCT, ReleaseDC, SelectObject,
+    GetMonitorInfoW, GetTextExtentPoint32W, HFONT, InvalidateRect, LOGFONTW,
+    MONITOR_DEFAULTTOPRIMARY, MONITORINFO, MonitorFromWindow, PAINTSTRUCT, ReleaseDC, SelectObject,
     SetBkMode, SetTextColor, SetWindowRgn, TRANSPARENT, UpdateWindow,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetClientRect, GetMessageW,
-    HWND_TOPMOST, KillTimer, LWA_ALPHA, MSG, PostThreadMessageW, RegisterClassW, SPI_GETWORKAREA,
-    SW_HIDE, SWP_NOACTIVATE, SWP_SHOWWINDOW, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
-    SetLayeredWindowAttributes, SetTimer, SetWindowPos, ShowWindow, SystemParametersInfoW,
-    TranslateMessage, WM_PAINT, WM_QUIT, WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE,
-    WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetClientRect,
+    GetForegroundWindow, GetMessageW, HWND_TOPMOST, KillTimer, LWA_ALPHA, MSG, PostThreadMessageW,
+    RegisterClassW, SPI_GETWORKAREA, SW_HIDE, SWP_NOACTIVATE, SWP_SHOWWINDOW,
+    SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, SetLayeredWindowAttributes, SetTimer, SetWindowPos,
+    ShowWindow, SystemParametersInfoW, TranslateMessage, WM_PAINT, WM_QUIT, WM_TIMER, WNDCLASSW,
+    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 use windows::core::{PCWSTR, w};
 
@@ -117,6 +123,7 @@ impl Banner {
     pub fn show(&self, text: &str, auto_hide_ms: Option<u32>) {
         let text: Vec<u16> = text.encode_utf16().collect();
         let work = work_area();
+
         let max_width = (work.right - work.left) * MAX_WIDTH_PERCENT / 100;
         let width = (self.measure(&text) + PADDING_X * 2).clamp(0, max_width.max(1));
         TEXT.with(|slot| *slot.borrow_mut() = text);
@@ -184,10 +191,33 @@ impl Drop for Banner {
     }
 }
 
-/// The primary monitor's work area — the screen minus the taskbar. Falls
-/// back to a plausible rectangle if the query fails, which only misplaces
+/// Work area (screen minus taskbar) of the monitor showing the foreground
+/// window — the app whose keystrokes are being recorded or replayed.
+///
+/// Falls back to the primary monitor when there is no foreground window, and
+/// to a plausible rectangle if even that query fails; either only misplaces
 /// the banner rather than losing it.
 fn work_area() -> RECT {
+    // SAFETY: GetForegroundWindow has no preconditions; a null HWND makes
+    // MonitorFromWindow fall back to the primary monitor, which is what the
+    // flag below asks for.
+    let hwnd = unsafe { GetForegroundWindow() };
+    // SAFETY: monitor comes from MonitorFromWindow, and cbSize is set as
+    // GetMonitorInfoW requires.
+    unsafe {
+        let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
+        let mut info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        if GetMonitorInfoW(monitor, &mut info).as_bool() {
+            return info.rcWork;
+        }
+    }
+    primary_work_area()
+}
+
+fn primary_work_area() -> RECT {
     let mut rect = RECT {
         left: 0,
         top: 0,
@@ -205,6 +235,13 @@ fn work_area() -> RECT {
         )
     };
     rect
+}
+
+/// The foreground window, for naming the app the banner is talking about.
+/// Safe from this thread: it only reads global window state.
+pub fn foreground_window() -> isize {
+    // SAFETY: no preconditions; a null HWND means "no foreground window".
+    unsafe { GetForegroundWindow() }.0 as isize
 }
 
 /// Yu Gothic UI at the banner size; falls back via GDI font substitution if

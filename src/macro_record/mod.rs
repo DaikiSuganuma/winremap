@@ -31,13 +31,16 @@ use windows::Win32::UI::WindowsAndMessaging::WM_APP;
 use crate::i18n;
 use crate::sender::SideMods;
 use winremap::keymap::KeyCombo;
-use winremap::recorder::RecordKeys;
+use winremap::recorder::{MAX_RECORDED_LEN, RecordKeys};
 
 /// Replay the stored macro. wParam carries the side-modifier state observed
 /// at the moment the key was pressed.
 const MSG_PLAY: u32 = WM_APP + 0x31;
 /// Banner commands are waiting in [`BANNER_COMMANDS`].
 const MSG_BANNER: u32 = WM_APP + 0x32;
+/// The foreground window changed: the banner names the app it is recording
+/// and sits on that app's monitor, so both have to follow.
+const MSG_FOREGROUND: u32 = WM_APP + 0x33;
 
 /// How long a one-off notice (limit reached, recording cancelled) stays up.
 /// Recording progress has no timer: it must not disappear while recording
@@ -46,11 +49,13 @@ const NOTICE_MS: u32 = 2500;
 
 /// What the banner should display next. Queued rather than latest-wins so a
 /// "limit reached" notice cannot be swallowed by the hide that follows it.
+///
+/// `Recording` carries only the count: the app name and the keys are read on
+/// the macro-record thread at display time, so they stay right when focus
+/// moves mid-recording.
 enum BannerCommand {
-    Show {
-        text: String,
-        auto_hide_ms: Option<u32>,
-    },
+    Recording { len: usize },
+    Notice { text: String },
     Hide,
 }
 
@@ -98,22 +103,16 @@ pub fn recorded() -> Option<Vec<KeyCombo>> {
         .map(|commands| (**commands).clone())
 }
 
-/// Puts a line on the banner and leaves it there. Called from the message
-/// loop with the text already formatted.
-pub fn banner_show(text: String) {
-    queue_banner(BannerCommand::Show {
-        text,
-        auto_hide_ms: None,
-    });
+/// Shows the recording banner, which stays up until told otherwise
+/// (ADR 0043 decision 3).
+pub fn banner_recording(len: usize) {
+    queue_banner(BannerCommand::Recording { len });
 }
 
 /// Shows a line that is a notice rather than a state, so it takes itself
 /// down again.
 pub fn banner_notice(text: String) {
-    queue_banner(BannerCommand::Show {
-        text,
-        auto_hide_ms: Some(NOTICE_MS),
-    });
+    queue_banner(BannerCommand::Notice { text });
 }
 
 pub fn banner_hide() {
@@ -135,6 +134,18 @@ fn queue_banner(command: BannerCommand) {
 /// callback, where allocation is fine.
 pub fn publish(commands: &[KeyCombo]) {
     RECORDED.store(Some(std::sync::Arc::new(commands.to_vec())));
+}
+
+/// Foreground-change touch point; runs on the main thread's WinEvent
+/// callback (not the keyboard hook). One atomic load and one post per app
+/// switch while the feature is enabled; the thread drops it unless a
+/// recording banner is actually up, which keeps the "is it showing" state
+/// in one place instead of mirroring it in an atomic here.
+pub fn notify_foreground_changed() {
+    let tid = THREAD_ID.load(Ordering::Relaxed);
+    if tid != 0 {
+        banner::post_to_thread(tid, MSG_FOREGROUND, 0);
+    }
 }
 
 /// Hook-callback touch point: asks the macro-record thread to replay.
@@ -229,22 +240,66 @@ fn thread_main(ready: &mpsc::Sender<u32>) {
 }
 
 fn run(banner: &banner::Banner) {
+    // The count while a recording banner is up, so a focus change can
+    // redraw it against the new app without the hook resending anything.
+    let mut recording: Option<usize> = None;
     while let Some((message, wparam)) = banner::next_thread_message() {
         match message {
             MSG_PLAY => replay(banner, wparam as SideMods),
             MSG_BANNER => {
                 while let Some(command) = next_banner_command() {
                     match command {
-                        BannerCommand::Show { text, auto_hide_ms } => {
-                            banner.show(&text, auto_hide_ms);
+                        BannerCommand::Recording { len } => {
+                            recording = Some(len);
+                            show_recording(banner, len);
                         }
-                        BannerCommand::Hide => banner.hide(),
+                        BannerCommand::Notice { text } => {
+                            // A notice replaces the recording state: every
+                            // one of them is issued as the recording ends.
+                            recording = None;
+                            banner.show(&text, Some(NOTICE_MS));
+                        }
+                        BannerCommand::Hide => {
+                            recording = None;
+                            banner.hide();
+                        }
                     }
+                }
+            }
+            MSG_FOREGROUND => {
+                if let Some(len) = recording {
+                    show_recording(banner, len);
                 }
             }
             _ => {}
         }
     }
+}
+
+/// Draws the recording banner against whatever app is in front right now:
+/// its name, the keys that end and replay the recording, and the count.
+fn show_recording(banner: &banner::Banner, len: usize) {
+    let Some(keys) = keys() else {
+        return;
+    };
+    banner.show(
+        &i18n::macro_record_banner_recording(
+            len,
+            MAX_RECORDED_LEN,
+            &foreground_app_name(),
+            &keys.stop.to_string(),
+            &keys.play.to_string(),
+        ),
+        None,
+    );
+}
+
+/// The foreground app's exe name, or a placeholder when it cannot be read
+/// (an elevated window denies the query under UIPI — and does not receive
+/// our input either, brief §5-5).
+fn foreground_app_name() -> String {
+    crate::window::app_display_name(banner::foreground_window())
+        .unwrap_or_else(|| i18n::t().macro_record_unknown_app.to_owned())
 }
 
 fn next_banner_command() -> Option<BannerCommand> {
@@ -260,7 +315,10 @@ fn replay(banner: &banner::Banner, held: SideMods) {
     REPLAYING.store(true, Ordering::Relaxed);
     // Painted synchronously by show(), because a paced replay stops this
     // thread from pumping messages for as long as it runs (design doc §6.4).
-    banner.show(&i18n::macro_record_banner_replaying(&commands), None);
+    banner.show(
+        &i18n::macro_record_banner_replaying(&foreground_app_name(), &commands),
+        None,
+    );
     if crate::hook::debug_enabled() {
         // This thread is not the hook: logging here is fine.
         crate::gui::log::emit(&i18n::macro_record_replaying(&commands));
