@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
-use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
+use tray_icon::menu::{CheckMenuItem, IconMenuItem, Menu, MenuEvent, PredefinedMenuItem};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
 use crate::hook;
@@ -20,10 +20,10 @@ use winremap::config;
 pub struct Tray {
     icon: TrayIcon,
     enabled_item: CheckMenuItem,
-    reload_item: MenuItem,
-    settings_item: MenuItem,
-    log_item: MenuItem,
-    quit_item: MenuItem,
+    reload_item: IconMenuItem,
+    settings_item: IconMenuItem,
+    log_item: IconMenuItem,
+    quit_item: IconMenuItem,
     config_path: PathBuf,
     /// Remembered so re-enabling can restore the "N keymap(s)" tooltip.
     keymap_count: Cell<usize>,
@@ -40,16 +40,19 @@ pub fn init(
     let texts = i18n::t();
     // Disabled on purpose: a caption, not a command. It also makes the menu
     // self-identifying when several tray icons look alike.
-    let title_item = MenuItem::new(
+    let title_item = IconMenuItem::new(
         format!("{} v{}", texts.app_name, env!("CARGO_PKG_VERSION")),
         false,
+        menu_icon(),
         None,
     );
+    // No icon: the checkmark is this item's own marker, and a second glyph
+    // beside it would only compete with it.
     let enabled_item = CheckMenuItem::new(texts.menu_enabled, true, true, None);
-    let reload_item = MenuItem::new(texts.menu_reload, true, None);
-    let settings_item = MenuItem::new(texts.menu_settings, true, None);
-    let log_item = MenuItem::new(texts.menu_log, true, None);
-    let quit_item = MenuItem::new(texts.menu_quit, true, None);
+    let reload_item = IconMenuItem::new(texts.menu_reload, true, None, None);
+    let settings_item = IconMenuItem::new(texts.menu_settings, true, None, None);
+    let log_item = IconMenuItem::new(texts.menu_log, true, None, None);
+    let quit_item = IconMenuItem::new(texts.menu_quit, true, None, None);
 
     let menu = Menu::new();
     menu.append_items(&[
@@ -153,6 +156,15 @@ impl Tray {
             }
         }
     }
+}
+
+/// The app icon at menu size, for the caption row. Decoded from the 16 px PNG
+/// because menu items take raw pixels, not an .ico; `None` just leaves the
+/// row without an icon.
+fn menu_icon() -> Option<tray_icon::menu::Icon> {
+    let png = include_bytes!("../assets/png/kbd-enabled-16.png");
+    let data = eframe::icon_data::from_png_bytes(png).ok()?;
+    tray_icon::menu::Icon::from_rgba(data.rgba, data.width, data.height).ok()
 }
 
 /// Loads the owner-designed icon (assets/kbd*.ico, gray when disabled) from

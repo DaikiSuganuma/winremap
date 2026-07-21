@@ -71,6 +71,9 @@ pub struct Texts {
     pub config_apps_case_note: &'static str,
     pub config_apps_all_note: &'static str,
     pub config_column_app: &'static str,
+    /// Leads a line WinRemap wrote itself, so it reads apart from the user's
+    /// own comments. Japanese has a mark for exactly this; English does not.
+    pub note_marker: &'static str,
     pub config_macro_section: &'static str,
     pub config_notation_title: &'static str,
     pub config_notation_ctrl: &'static str,
@@ -140,6 +143,7 @@ static EN: Texts = Texts {
     config_apps_case_note: "Matched against the exe name, ignoring upper/lower case.",
     config_apps_all_note: "Every application, minus the exclusions below.",
     config_column_app: "Application",
+    note_marker: "\u{2139}",
     config_macro_section: "Macros",
     config_notation_title: "Key notation",
     config_notation_ctrl: "Ctrl",
@@ -208,6 +212,7 @@ static JA: Texts = Texts {
     config_apps_case_note: "exe 名で照合します。大文字・小文字は区別しません。",
     config_apps_all_note: "下の除外アプリを除く、すべてのアプリが対象です。",
     config_column_app: "アプリ",
+    note_marker: "\u{203b}",
     config_macro_section: "マクロ",
     config_notation_title: "キー記法について",
     config_notation_ctrl: "Ctrl キー",

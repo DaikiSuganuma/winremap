@@ -164,9 +164,13 @@ fn keymap_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComment
     match &keymap.apps {
         // One row, so the targets are always in the same place whichever
         // form the keymap uses.
+        // The file may well have a comment on the `"*"` line; ours is only
+        // the fallback for a config that says nothing.
         AppFilter::All { .. } => {
             app_table(ui, "apps", &[texts.config_apps_all.to_owned()], &|_| {
-                Some(texts.config_apps_all_note)
+                comments
+                    .and_then(|c| c.app("*"))
+                    .or(Some(texts.config_apps_all_note))
             })
         }
         AppFilter::Names(names) => app_table(ui, "apps", names, &|name| {
@@ -240,7 +244,13 @@ fn app_table<'a>(
             });
     }
     ui.add_space(4.0);
-    ui.label(texts.config_apps_case_note);
+    own_note(ui, texts.config_apps_case_note);
+}
+
+/// A line in WinRemap's own words, marked so it is never mistaken for the
+/// user's comment. `note` shows the latter.
+fn own_note(ui: &mut egui::Ui, text: &str) {
+    ui.label(format!("{} {text}", i18n::t().note_marker));
 }
 
 fn rules_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComments>) {
@@ -300,7 +310,7 @@ fn macro_note_ui(ui: &mut egui::Ui, keymap: &Keymap) {
         .as_ref()
         .map_or(0, |table| table.macro_delay_ms);
     ui.add_space(6.0);
-    ui.label(egui::RichText::new(i18n::macro_note(delay)).weak());
+    own_note(ui, &i18n::macro_note(delay));
 }
 
 /// What `C-` and friends mean. Always open: the rules right above it are

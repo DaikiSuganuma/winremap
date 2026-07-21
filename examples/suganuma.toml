@@ -8,12 +8,27 @@
 #   （ネイティブの保存のまま）。
 # - C-k（kill-line）は単一コマンドで表現できないため未移植。
 
+# --- マクロ機能設定 ---
 [macro]
 delay_ms = 8 # マクロの各打鍵の間隔（ms、0-15）。WinUI 系アプリの取りこぼし対策
 
+# --- IME 状態インジケーター（リマップとは独立した表示機能） ---
+# IME がオン（日本語入力）になった瞬間、アクティブウィンドウの中央に
+# 半透明の「あ」パネルを約 0.8 秒表示して現在の入力モードを知らせる。
+# 表示のみで IME の制御・切り替えは行わない。既定は無効（opt-in）。
+# 仕様: docs/v0.1/02_config-spec.md §6 ／ 設計: docs/v0.1/05_ime-indicator-design.md
+[ime_indicator]
+enabled = true
+# 切替の検知キー。変換/無変換・半角/全角などの標準 IME キーは既定で検知される。
+# ここでは Windows 11 IME の「Ctrl + Space を使用して IME のオン/オフを
+# 切り替える」オプションに合わせて C-Space を追加している（ADR 0021）。
+trigger_keys = ["C-Space"] # 切替の検知キー
+show_app_name = true # パネルの下に対象アプリの exe 名を表示（ADR 0024）
+
+
 # --- 全アプリに Emacs バインドを適用（独自のキー処理を持つアプリは除外） ---
 [[keymap]]
-name = "emacs"
+name = "Windows Emacs"
 application = [
     "*" # 全アプリ。ここから除外するアプリはexclude で指定
 ]
@@ -78,18 +93,3 @@ application = ["WindowsTerminal.exe", "zed.exe", "phpstorm64.exe"]
 [keymap.remap]
 "C-d" = "C-d" # 空行での EOF/exit を維持（bash・PSReadLine の DeleteCharOrExit 用）
 #"C-k" = "C-k"
-
-
-# --- IME 状態インジケーター（リマップとは独立した表示機能） ---
-# IME がオン（日本語入力）になった瞬間、アクティブウィンドウの中央に
-# 半透明の「あ」パネルを約 0.8 秒表示して現在の入力モードを知らせる。
-# 表示のみで IME の制御・切り替えは行わない。既定は無効（opt-in）。
-# 仕様: docs/v0.1/02_config-spec.md §6 ／ 設計: docs/v0.1/05_ime-indicator-design.md
-[ime_indicator]
-enabled = true
-# 切替の検知キー。変換/無変換・半角/全角などの標準 IME キーは既定で検知される。
-# ここでは Windows 11 IME の「Ctrl + Space を使用して IME のオン/オフを
-# 切り替える」オプションに合わせて C-Space を追加している（ADR 0021）。
-trigger_keys = ["C-Space"]
-# パネルの下に対象アプリの exe 名を表示（ADR 0024）
-show_app_name = true
