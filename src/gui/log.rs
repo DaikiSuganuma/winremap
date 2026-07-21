@@ -15,6 +15,7 @@ use eframe::egui;
 use super::icons::{self, Icon};
 use crate::hook;
 use crate::i18n;
+use crate::theme;
 
 /// Bounded so a long debug session cannot grow the buffer without limit.
 const MAX_LINES: usize = 5000;
@@ -136,7 +137,7 @@ pub fn show_viewport(ctx: &egui::Context) {
     // `win32::set_window_icons` sets both slots properly (ADR 0038).
     let builder = egui::ViewportBuilder::default()
         .with_title(i18n::t().log_window_title)
-        .with_inner_size([760.0, 480.0]);
+        .with_inner_size(theme::LOG_WINDOW);
     ctx.show_viewport_deferred(egui::ViewportId::from_hash_of("winremap-log"), builder, {
         move |ui, _class| {
             let ctx = ui.ctx().clone();
@@ -179,6 +180,10 @@ fn window_ui(ui: &mut egui::Ui) {
     });
 
     egui::Panel::bottom("log-actions").show(ui, |ui| {
+        // A footer panel gives its contents no margin, so the buttons would
+        // otherwise sit against the scroll area above and the window frame
+        // below (owner decision 2026-07-21).
+        ui.add_space(theme::FOOTER_PAD);
         ui.horizontal(|ui| {
             if icons::button(ui, Icon::Clear, texts.log_window_clear).clicked()
                 && let Ok(mut lines) = buffer().lock()
@@ -192,6 +197,7 @@ fn window_ui(ui: &mut egui::Ui) {
                 ui.ctx().copy_text(joined);
             }
         });
+        ui.add_space(theme::FOOTER_PAD);
     });
 
     egui::CentralPanel::default().show(ui, |ui| {

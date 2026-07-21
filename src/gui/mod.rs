@@ -34,6 +34,7 @@ use std::time::Duration;
 use eframe::egui;
 
 use crate::i18n;
+use crate::theme;
 
 /// Repaint cadence for the invisible host while a window is up. It only has to
 /// keep the children declared, so it can be slower than they are.
@@ -158,8 +159,8 @@ fn run_loop() {
     // no decorations, no taskbar button, parked far off-screen (ADR 0037).
     let host = egui::ViewportBuilder::default()
         .with_title("winremap")
-        .with_inner_size([1.0, 1.0])
-        .with_position([-32000.0, -32000.0])
+        .with_inner_size(theme::HOST_WINDOW)
+        .with_position(theme::HOST_POSITION)
         .with_decorations(false)
         .with_taskbar(false)
         .with_visible(false);
@@ -190,8 +191,10 @@ fn run_loop() {
                 // egui's default is 6x2, which gives a button barely taller
                 // than its text. These are clicked with a mouse, not aimed at
                 // with a controller, but a comfortable target still helps.
-                style.spacing.button_padding =
-                    egui::vec2(BUTTON_PADDING + BUTTON_SIDE_PADDING, BUTTON_PADDING);
+                style.spacing.button_padding = egui::vec2(
+                    theme::BUTTON_PADDING + theme::BUTTON_SIDE_PADDING,
+                    theme::BUTTON_PADDING,
+                );
             });
             if let Ok(mut ctx) = wake_context().lock() {
                 *ctx = Some(cc.egui_ctx.clone());
@@ -278,12 +281,6 @@ impl Default for HostApp {
 /// How many frames a window change keeps `set_window_icons` running.
 const SETTLE_FRAMES: u8 = 3;
 
-/// Room around the text inside every button and checkbox (owner decision
-/// 2026-07-21). Buttons are wider than they are tall: a label reads as
-/// cramped long before it looks short.
-const BUTTON_PADDING: f32 = 8.0;
-const BUTTON_SIDE_PADDING: f32 = 8.0;
-
 impl eframe::App for HostApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
@@ -324,13 +321,9 @@ fn show_config_viewport(ctx: &egui::Context, state: &Arc<Mutex<config_window::Co
     if !CONFIG_OPEN.load(Ordering::Relaxed) {
         return;
     }
-    // Tall enough that a keymap's apps, rules and the notes under them fit
-    // without scrolling on a 1080p screen (owner decision 2026-07-21). The
-    // size is not remembered between openings, so this is what people see
-    // every time.
     let builder = egui::ViewportBuilder::default()
         .with_title(i18n::t().config_window_title)
-        .with_inner_size([960.0, 860.0]);
+        .with_inner_size(theme::CONFIG_WINDOW);
     let state = state.clone();
     ctx.show_viewport_deferred(
         egui::ViewportId::from_hash_of("winremap-settings"),

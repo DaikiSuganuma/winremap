@@ -47,24 +47,14 @@ const CLASS_NAME: PCWSTR = w!("winremap.macro_record_banner");
 /// and the cancellation notice (design doc §6.3).
 const TIMER_HIDE: usize = 1;
 
-/// Panel colors, matching the IME indicator's palette so the two read as
-/// parts of the same application.
-const BG_COLOR: COLORREF = COLORREF(0x00201C1C);
-const TEXT_COLOR: COLORREF = COLORREF(0x00FFFFFF);
-/// Fixed: unlike the indicator's panel this is a status line, not a
-/// decoration, so there is nothing to tune per config.
-const OPACITY: u8 = 230;
-
-/// LOGFONT height (negative = character height) and the space around it.
-const FONT_HEIGHT: i32 = -18;
-const PADDING_X: i32 = 20;
-const HEIGHT: i32 = 44;
-/// Gap between the banner and the bottom of the work area, so it clears the
-/// taskbar without sitting flush against it.
-const MARGIN_BOTTOM: i32 = 24;
-/// Never take more than this share of the work area's width; longer lines
-/// get an ellipsis instead.
-const MAX_WIDTH_PERCENT: i32 = 80;
+// Colours and metrics live in `crate::theme`, alongside the rest of the
+// application's, so they can be read and adjusted in one place.
+use crate::theme::{
+    BANNER_FONT_HEIGHT as FONT_HEIGHT, BANNER_HEIGHT as HEIGHT,
+    BANNER_MARGIN_BOTTOM as MARGIN_BOTTOM, BANNER_MAX_WIDTH_PERCENT as MAX_WIDTH_PERCENT,
+    BANNER_OPACITY as OPACITY, BANNER_PADDING_X as PADDING_X, OVERLAY_BG as BG_COLOR,
+    OVERLAY_TEXT as TEXT_COLOR,
+};
 
 thread_local! {
     /// The line being displayed. Thread-local is enough: the window and its
@@ -251,13 +241,13 @@ pub fn foreground_window() -> isize {
 unsafe fn create_banner_font() -> HFONT {
     let mut font_spec = LOGFONTW {
         lfHeight: FONT_HEIGHT,
-        lfWeight: 600, // semibold reads better at high translucency
+        lfWeight: crate::theme::OVERLAY_FONT_WEIGHT,
         ..Default::default()
     };
     for (slot, unit) in font_spec
         .lfFaceName
         .iter_mut()
-        .zip("Yu Gothic UI".encode_utf16())
+        .zip(crate::theme::OVERLAY_FONT_FACE.encode_utf16())
     {
         *slot = unit;
     }

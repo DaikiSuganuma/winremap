@@ -19,6 +19,7 @@ mod ime_indicator;
 mod macro_record;
 mod notify;
 mod sender;
+mod theme;
 mod tray;
 mod window;
 

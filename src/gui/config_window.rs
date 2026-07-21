@@ -19,7 +19,11 @@ use std::time::{Duration, Instant};
 use eframe::egui;
 
 use super::icons::{self, Icon};
+// Every size and colour in this window comes from `theme`, so they can be
+// read and adjusted in one place.
 use crate::i18n;
+use crate::theme;
+use crate::theme::{CELL_PAD, EDGE_PAD, NOTE_GAP, SECTION_GAP, SECTION_TEXT, TITLE_TEXT};
 use winremap::config::comments::{ConfigComments, KeymapComments};
 use winremap::ime_indicator_settings::IndicatorSettings;
 use winremap::keymap::{AppFilter, Keymap, Output, RemapTable, vk_display_name};
@@ -288,41 +292,12 @@ fn keymap_ui(
     macro_note_ui(ui, keymap);
 }
 
-/// Section titles are bigger than body text and sit under a rule, so a long
-/// detail pane reads as parts rather than one wall.
-const SECTION_TEXT: f32 = 17.0;
-/// The keymap's own name, one step above its sections.
-const TITLE_TEXT: f32 = 21.0;
-/// Room around cell text. Applied as grid spacing, so half of it lands on
-/// each side of the gap between two cells.
-const CELL_PAD: i8 = 4;
-/// Room between the table's own border and the cells at its edges. Wider than
-/// the gap between cells, because text touching a rule is hard to read; kept
-/// equal on both sides so the header band stays centred in the frame.
-const EDGE_PAD: i8 = 8;
-/// A note reads as belonging to the table it sits under only if there is a
-/// clear break between them.
-const NOTE_GAP: f32 = 8.0;
-/// Whitespace above and below a section rule. The rule only reads as a
-/// divider when the content on either side is clear of it, and the detail
-/// pane is one long scroll of tables that otherwise run together.
-const SECTION_GAP: f32 = 20.0;
-/// How much of the default rule colour a section divider keeps. It separates
-/// text rather than enclosing a widget, so the stock stroke reads as heavy.
-const HAIRLINE_ALPHA: f32 = 0.5;
-
 /// A section divider, lighter than `ui.separator()` — that one draws with the
 /// stroke widgets use for their own borders, which is more line than a break
 /// between two blocks of text needs. Painted by hand because `Separator` has
 /// no colour of its own.
 fn hairline(ui: &mut egui::Ui) {
-    let color = ui
-        .visuals()
-        .widgets
-        .noninteractive
-        .bg_stroke
-        .color
-        .gamma_multiply(HAIRLINE_ALPHA);
+    let color = theme::hairline(ui.visuals());
     let (rect, _) =
         ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::empty());
     ui.painter().hline(
@@ -354,10 +329,10 @@ fn table(
     min_col_width: f32,
     rows: impl FnOnce(&mut egui::Ui),
 ) {
-    let border = ui.visuals().widgets.noninteractive.bg_stroke;
+    let border = theme::table_border(ui.visuals());
     // The header's text takes the window's background colour, which is what
     // "reversed" means here — and it follows the light/dark theme for free.
-    let header_text = ui.visuals().extreme_bg_color;
+    let header_text = theme::table_header_text(ui.visuals());
     egui::Frame::new()
         .stroke(border)
         .inner_margin(egui::Margin::symmetric(EDGE_PAD, CELL_PAD))
@@ -371,8 +346,8 @@ fn table(
                 .min_col_width(min_col_width)
                 .spacing(cell_spacing())
                 .with_row_color(|row, style| match row {
-                    0 => Some(style.visuals.text_color()),
-                    row if row % 2 == 1 => Some(style.visuals.faint_bg_color),
+                    0 => Some(theme::table_header_bg(&style.visuals)),
+                    row if row % 2 == 1 => Some(theme::table_stripe(&style.visuals)),
                     _ => None,
                 })
                 .show(ui, |ui| {
@@ -699,11 +674,29 @@ fn recorded_macro_ui(ui: &mut egui::Ui) {
             .join(" → "),
         _ => texts.config_none.to_owned(),
     };
-    ui.add_space(f32::from(CELL_PAD));
-    ui.horizontal(|ui| {
-        ui.label(texts.config_macro_recorded);
-        ui.label(egui::RichText::new(rendered).monospace());
-    });
+    ui.add_space(NOTE_GAP);
+    // Given its own filled box rather than another table row (owner decision
+    // 2026-07-21). It is the one value in this window that changes while you
+    // watch it, and the surrounding tables all report the file — so looking
+    // different is the point, not decoration.
+    egui::Frame::new()
+        .fill(theme::highlight_fill(ui.visuals()))
+        .stroke(theme::highlight_stroke(ui.visuals()))
+        .corner_radius(theme::HIGHLIGHT_ROUNDING)
+        .inner_margin(egui::Margin::same(theme::HIGHLIGHT_PAD))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.label(egui::RichText::new(texts.config_macro_recorded).strong());
+            ui.add_space(f32::from(CELL_PAD));
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new(rendered)
+                        .monospace()
+                        .size(theme::HIGHLIGHT_TEXT),
+                )
+                .wrap(),
+            );
+        });
     own_note(ui, texts.config_macro_recorded_note);
 }
 
