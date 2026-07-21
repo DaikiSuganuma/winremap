@@ -109,14 +109,16 @@ impl Tray {
                 i18n::t().tooltip_disabled.to_string()
             };
             let _ = self.icon.set_tooltip(Some(tooltip));
-            crate::gui::log::emit(&i18n::toggle_state(enabled));
+            crate::gui::log::action(&i18n::toggle_state(enabled));
         } else if id == self.reload_item.id() {
+            crate::gui::log::action(i18n::t().menu_reload);
             self.reload();
         } else if id == self.settings_item.id() {
             crate::gui::open_config();
         } else if id == self.log_item.id() {
             crate::gui::open_log();
         } else if id == self.quit_item.id() {
+            crate::gui::log::action(i18n::t().menu_quit);
             hook::post_quit();
         }
     }

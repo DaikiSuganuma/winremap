@@ -76,6 +76,13 @@ pub fn push(line: &str) {
     }
 }
 
+/// A line for something the user did: a tray menu pick, a button press. It is
+/// prefixed so these stand out among the `[debug]` key-decision lines, which
+/// is what makes a log readable when diagnosing "why did that happen".
+pub fn action(message: &str) {
+    emit(&format!("{} {message}", i18n::t().log_action_prefix));
+}
+
 /// Marks the window as wanted. The GUI thread creates it on its next frame;
 /// clicking again while it is up only raises it, keeping the transcript.
 pub fn request_open() {

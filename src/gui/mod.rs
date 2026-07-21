@@ -71,6 +71,7 @@ pub fn set_config_path(path: PathBuf) {
 
 /// Opens the settings window, or brings it to the front if it is already up.
 pub fn open_config() {
+    log::action(i18n::t().menu_settings);
     CONFIG_OPEN.store(true, Ordering::SeqCst);
     FOCUS_CONFIG.store(true, Ordering::SeqCst);
     ensure_loop();
@@ -78,7 +79,10 @@ pub fn open_config() {
 
 /// Opens the log window. Debug logging stays on for as long as it is up.
 pub fn open_log() {
+    // After request_open: opening a closed window clears the buffer, so the
+    // action line has to land on the fresh one.
     log::request_open();
+    log::action(i18n::t().menu_log);
     ensure_loop();
 }
 
