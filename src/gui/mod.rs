@@ -190,7 +190,8 @@ fn run_loop() {
                 // egui's default is 6x2, which gives a button barely taller
                 // than its text. These are clicked with a mouse, not aimed at
                 // with a controller, but a comfortable target still helps.
-                style.spacing.button_padding = egui::vec2(BUTTON_PADDING, BUTTON_PADDING);
+                style.spacing.button_padding =
+                    egui::vec2(BUTTON_PADDING + BUTTON_SIDE_PADDING, BUTTON_PADDING);
             });
             if let Ok(mut ctx) = wake_context().lock() {
                 *ctx = Some(cc.egui_ctx.clone());
@@ -278,8 +279,10 @@ impl Default for HostApp {
 const SETTLE_FRAMES: u8 = 3;
 
 /// Room around the text inside every button and checkbox (owner decision
-/// 2026-07-21).
+/// 2026-07-21). Buttons are wider than they are tall: a label reads as
+/// cramped long before it looks short.
 const BUTTON_PADDING: f32 = 8.0;
+const BUTTON_SIDE_PADDING: f32 = 8.0;
 
 impl eframe::App for HostApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {

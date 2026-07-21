@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use eframe::egui;
 
+use super::icons::{self, Icon};
 use crate::hook;
 use crate::i18n;
 
@@ -162,20 +163,29 @@ fn window_ui(ui: &mut egui::Ui) {
     let texts = i18n::t();
     let mut follow_tail = FOLLOW_TAIL.load(Ordering::Relaxed);
 
+    // Reading the log is the point of this window, so the top holds only what
+    // changes how it reads. The two commands live at the bottom, out of the
+    // way of the newest line (owner decision 2026-07-21).
     egui::Panel::top("log-controls").show(ui, |ui| {
         ui.horizontal(|ui| {
+            // No icon: the checkmark is this control's own marker.
             if ui
                 .checkbox(&mut follow_tail, texts.log_window_follow)
                 .changed()
             {
                 FOLLOW_TAIL.store(follow_tail, Ordering::Relaxed);
             }
-            if ui.button(texts.log_window_clear).clicked()
+        });
+    });
+
+    egui::Panel::bottom("log-actions").show(ui, |ui| {
+        ui.horizontal(|ui| {
+            if icons::button(ui, Icon::Clear, texts.log_window_clear).clicked()
                 && let Ok(mut lines) = buffer().lock()
             {
                 lines.clear();
             }
-            if ui.button(texts.log_window_copy).clicked()
+            if icons::button(ui, Icon::Copy, texts.log_window_copy).clicked()
                 && let Ok(lines) = buffer().lock()
             {
                 let joined = lines.iter().cloned().collect::<Vec<_>>().join("\r\n");

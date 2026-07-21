@@ -41,6 +41,10 @@ const UI_ICONS: &[&str] = &[
     "question-circle",
     "box-arrow-up-right",
     "link-45deg",
+    "arrow-clockwise",
+    "file-earmark-text",
+    "trash",
+    "clipboard",
 ];
 
 fn main() {

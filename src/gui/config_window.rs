@@ -66,14 +66,8 @@ impl ConfigWindow {
         egui::Panel::top("config-header").show(ui, |ui| {
             ui.add_space(6.0);
             ui.horizontal(|ui| {
+                icons::show(ui, Icon::File, SECTION_TEXT);
                 ui.label(egui::RichText::new(texts.config_window_file).strong());
-                if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
-                    open_in_default_editor(&path);
-                }
-                if ui.button(texts.menu_reload).clicked() {
-                    super::log::action(texts.menu_reload);
-                    super::request_reload();
-                }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(
                         egui::RichText::new(format!(
@@ -89,6 +83,20 @@ impl ConfigWindow {
             file_table(ui, &path, &file_time);
             ui.add_space(NOTE_GAP);
             ui.label(egui::RichText::new(texts.config_window_readonly).weak());
+            // Under the note that explains why they are needed: this window
+            // shows, the editor changes, the button applies (owner decision
+            // 2026-07-21).
+            ui.add_space(NOTE_GAP);
+            ui.horizontal(|ui| {
+                if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
+                    open_in_default_editor(&path);
+                }
+                ui.add_space(NOTE_GAP);
+                if icons::button(ui, Icon::Reload, texts.menu_reload).clicked() {
+                    super::log::action(texts.menu_reload);
+                    super::request_reload();
+                }
+            });
             ui.add_space(6.0);
         });
 

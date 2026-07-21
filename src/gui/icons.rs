@@ -27,6 +27,10 @@ pub enum Icon {
     External,
     /// Leaves WinRemap for the browser.
     Link,
+    File,
+    Reload,
+    Clear,
+    Copy,
 }
 
 impl Icon {
@@ -41,6 +45,10 @@ impl Icon {
             Icon::Notation => "question-circle",
             Icon::External => "box-arrow-up-right",
             Icon::Link => "link-45deg",
+            Icon::File => "file-earmark-text",
+            Icon::Reload => "arrow-clockwise",
+            Icon::Clear => "trash",
+            Icon::Copy => "clipboard",
         }
     }
 
@@ -56,8 +64,22 @@ impl Icon {
                 include_bytes!(concat!(env!("OUT_DIR"), "/ui-box-arrow-up-right.rgba"))
             }
             Icon::Link => include_bytes!(concat!(env!("OUT_DIR"), "/ui-link-45deg.rgba")),
+            Icon::File => include_bytes!(concat!(env!("OUT_DIR"), "/ui-file-earmark-text.rgba")),
+            Icon::Reload => include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-clockwise.rgba")),
+            Icon::Clear => include_bytes!(concat!(env!("OUT_DIR"), "/ui-trash.rgba")),
+            Icon::Copy => include_bytes!(concat!(env!("OUT_DIR"), "/ui-clipboard.rgba")),
         }
     }
+}
+
+/// A button that leads with its icon. egui sizes the image to the font, so it
+/// lines up with the label without a size of our own.
+pub fn button(ui: &mut egui::Ui, icon: Icon, text: &str) -> egui::Response {
+    // The button's own text colour, not the panel's: on a button face they are
+    // not always the same shade.
+    let tint = ui.visuals().widgets.inactive.fg_stroke.color;
+    let image = image(ui.ctx(), icon).tint(tint);
+    ui.add(egui::Button::image_and_text(image, text))
 }
 
 /// A link that says where it goes: the icon marks it as leaving WinRemap.
@@ -78,13 +100,18 @@ const LINK_ICON_SIZE: f32 = 14.0;
 
 /// Draws an icon `size` points square, in the current text colour.
 pub fn show(ui: &mut egui::Ui, icon: Icon, size: f32) {
-    let texture = texture(ui.ctx(), icon);
     let tint = ui.visuals().text_color();
     ui.add(
-        egui::Image::new(egui::load::SizedTexture::from_handle(&texture))
+        image(ui.ctx(), icon)
             .fit_to_exact_size(egui::vec2(size, size))
             .tint(tint),
     );
+}
+
+/// The icon as an un-tinted, un-sized image, for callers that want to place it
+/// themselves.
+fn image(ctx: &egui::Context, icon: Icon) -> egui::Image<'static> {
+    egui::Image::new(egui::load::SizedTexture::from_handle(&texture(ctx, icon)))
 }
 
 /// The uploaded texture, uploaded once per context rather than per frame.
