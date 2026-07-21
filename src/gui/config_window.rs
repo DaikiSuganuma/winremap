@@ -215,13 +215,29 @@ fn keymap_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComment
 const SECTION_TEXT: f32 = 17.0;
 /// The keymap's own name, one step above its sections.
 const TITLE_TEXT: f32 = 21.0;
-/// Room around cell text, and the gap that keeps a note off the table it
-/// belongs to. Applied as grid spacing, so half of it lands on each side of
-/// the gap between two cells.
-const CELL_PAD: f32 = 4.0;
+/// Room around cell text. Applied as grid spacing, so half of it lands on
+/// each side of the gap between two cells.
+const CELL_PAD: i8 = 4;
+/// Room between the table's own border and the cells at its edges. Wider than
+/// the gap between cells, because text touching a rule is hard to read; kept
+/// equal on both sides so the header band stays centred in the frame.
+const EDGE_PAD: i8 = 8;
 /// A note reads as belonging to the table it sits under only if there is a
 /// clear break between them.
 const NOTE_GAP: f32 = 8.0;
+/// Whitespace above and below a section rule. Generous on purpose: the rule
+/// only reads as a divider when the content on either side is clear of it,
+/// and the detail pane is one long scroll of tables that otherwise run
+/// together (owner decision 2026-07-21).
+const SECTION_GAP: f32 = 36.0;
+
+/// Grid spacing is the gap *between* cells, so it is twice the padding each
+/// cell gets. Columns get the wider gap: adjacent values need more to read
+/// apart than stacked rows do.
+fn cell_spacing() -> egui::Vec2 {
+    let pad = f32::from(CELL_PAD);
+    egui::vec2(pad * 4.0, pad * 2.0)
+}
 
 /// The shared look for every table in this window: a hairline border, a
 /// reverse-coloured header row, and room around the text.
@@ -243,12 +259,12 @@ fn table(
     let header_text = ui.visuals().extreme_bg_color;
     egui::Frame::new()
         .stroke(border)
-        .inner_margin(CELL_PAD)
+        .inner_margin(egui::Margin::symmetric(EDGE_PAD, CELL_PAD))
         .show(ui, |ui| {
             egui::Grid::new(id)
                 .num_columns(columns.len())
                 .min_col_width(min_col_width)
-                .spacing([CELL_PAD * 4.0, CELL_PAD * 2.0])
+                .spacing(cell_spacing())
                 .with_row_color(|row, style| match row {
                     0 => Some(style.visuals.text_color()),
                     row if row % 2 == 1 => Some(style.visuals.faint_bg_color),
@@ -265,16 +281,16 @@ fn table(
 }
 
 fn section(ui: &mut egui::Ui, title: &str, key: &str) {
-    ui.add_space(14.0);
+    ui.add_space(SECTION_GAP);
     ui.separator();
-    ui.add_space(2.0);
+    ui.add_space(SECTION_GAP);
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new(title).size(SECTION_TEXT).strong());
         if !key.is_empty() {
             ui.label(egui::RichText::new(key).monospace().weak());
         }
     });
-    ui.add_space(CELL_PAD);
+    ui.add_space(f32::from(CELL_PAD));
 }
 
 /// Exe names one per row, each with whatever the user wrote next to it in
@@ -386,7 +402,7 @@ fn notation_help_ui(ui: &mut egui::Ui) {
     egui::Grid::new("notation")
         .num_columns(2)
         .min_col_width(60.0)
-        .spacing([CELL_PAD * 4.0, CELL_PAD * 2.0])
+        .spacing(cell_spacing())
         .show(ui, |ui| {
             for (prefix, meaning) in [
                 ("C-", texts.config_notation_ctrl),
@@ -401,7 +417,7 @@ fn notation_help_ui(ui: &mut egui::Ui) {
         });
     ui.add_space(NOTE_GAP);
     ui.label(texts.config_notation_sequence);
-    ui.add_space(CELL_PAD);
+    ui.add_space(f32::from(CELL_PAD));
     ui.label(texts.config_notation_macro);
     ui.add_space(NOTE_GAP);
     if ui.link(texts.config_help_link).clicked() {
