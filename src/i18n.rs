@@ -49,6 +49,9 @@ pub struct Texts {
     pub config_window_file: &'static str,
     pub config_window_open_in_editor: &'static str,
     pub config_window_readonly: &'static str,
+    pub config_window_file_time: &'static str,
+    pub config_window_loaded_at: &'static str,
+    pub config_unknown: &'static str,
     pub config_window_no_config: &'static str,
     pub config_general: &'static str,
     pub config_keymaps: &'static str,
@@ -125,7 +128,10 @@ static EN: Texts = Texts {
     config_window_title: "WinRemap — settings",
     config_window_file: "Config file",
     config_window_open_in_editor: "Open in text editor",
-    config_window_readonly: "Showing the config in effect right now. Editing arrives in a later build — for now, edit the file and reload from the tray.",
+    config_window_readonly: "Showing the config in effect right now. Editing arrives in a later build — for now, edit the file and reload.",
+    config_window_file_time: "File modified",
+    config_window_loaded_at: "Loaded",
+    config_unknown: "unknown",
     config_window_no_config: "No config is loaded.",
     config_general: "General",
     config_keymaps: "Keymaps",
@@ -196,7 +202,10 @@ static JA: Texts = Texts {
     config_window_title: "WinRemap — 設定",
     config_window_file: "設定ファイル",
     config_window_open_in_editor: "テキストエディタで開く",
-    config_window_readonly: "現在動作中の設定を表示しています。編集機能は今後のビルドで追加します。今はファイルを編集し、トレイから再読み込みしてください。",
+    config_window_readonly: "現在動作中の設定を表示しています。編集機能は今後のバージョンで追加します。設定を変更するには、ファイルを編集して再読み込みしてください。",
+    config_window_file_time: "ファイル更新",
+    config_window_loaded_at: "読み込み",
+    config_unknown: "不明",
     config_window_no_config: "設定が読み込まれていません。",
     config_general: "全体設定",
     config_keymaps: "キーマップ",
@@ -383,6 +392,14 @@ pub fn macro_note(delay_ms: u32) -> String {
         (Lang::En, delay) => format!("→ marks a macro: the chords are tapped in order, {delay} ms apart ([macro] delay_ms in General)."),
         (Lang::Ja, 0) => "→ はマクロです。各コマンドを順にタップします。間隔は空けません（全体設定の [macro] delay_ms で調整できます）。".to_owned(),
         (Lang::Ja, delay) => format!("→ はマクロです。各コマンドを {delay} ミリ秒間隔で順にタップします（全体設定の [macro] delay_ms）。"),
+    }
+}
+
+/// Log line for closing a window; `window` says which one.
+pub fn action_closed(window: &str) -> String {
+    match lang() {
+        Lang::En => format!("closed: {window}"),
+        Lang::Ja => format!("{window} を閉じました"),
     }
 }
 

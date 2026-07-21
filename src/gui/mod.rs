@@ -50,6 +50,44 @@ static CONFIG_OPEN: AtomicBool = AtomicBool::new(false);
 /// only place allowed to talk to its viewport.
 static FOCUS_CONFIG: AtomicBool = AtomicBool::new(false);
 
+/// The settings window asked for a reload. It cannot do one itself: the tray
+/// icon and its tooltip belong to the thread that created them, so the request
+/// is picked up by the message loop instead.
+static RELOAD_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+/// When the config in effect was loaded. Local time, formatted once — the
+/// settings window shows it next to the file's own timestamp so a stale view
+/// is obvious.
+fn loaded_at() -> &'static Mutex<Option<String>> {
+    static AT: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+    AT.get_or_init(|| Mutex::new(None))
+}
+
+/// Records that the config was just loaded. Called for the startup load and
+/// for every successful reload, whoever asked for it.
+pub fn mark_config_loaded() {
+    if let Ok(mut at) = loaded_at().lock() {
+        *at = Some(crate::clock::local_now());
+    }
+}
+
+pub fn config_loaded_at() -> Option<String> {
+    loaded_at().lock().ok().and_then(|at| at.clone())
+}
+
+/// Asks the message loop for a reload; see `RELOAD_REQUESTED`. The wake is
+/// what makes the button feel immediate — that loop is blocked in
+/// `GetMessageW` whenever the user is not typing.
+pub fn request_reload() {
+    RELOAD_REQUESTED.store(true, Ordering::SeqCst);
+    crate::hook::wake_message_loop();
+}
+
+/// Consumed by the message loop once per pass.
+pub fn take_reload_request() -> bool {
+    RELOAD_REQUESTED.swap(false, Ordering::SeqCst)
+}
+
 /// The running loop's context, used to wake it from the tray thread. eframe
 /// paints hidden windows directly (egui Issue #5229), so the host wakes even
 /// while it has nothing on screen.
@@ -292,6 +330,7 @@ fn show_config_viewport(ctx: &egui::Context, state: &Arc<Mutex<config_window::Co
             // to the host, so nothing is lost (ADR 0037).
             if ctx.input(|i| i.viewport().close_requested()) {
                 CONFIG_OPEN.store(false, Ordering::SeqCst);
+                log::action(&i18n::action_closed(i18n::t().config_window_title));
             }
             if let Ok(mut window) = state.lock() {
                 window.ui(ui);

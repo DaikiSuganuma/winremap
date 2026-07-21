@@ -127,6 +127,13 @@ impl Tray {
         }
     }
 
+    /// A reload asked for from somewhere other than the menu — today, the
+    /// settings window's button. It runs here because the tray icon and its
+    /// tooltip belong to the thread that created them.
+    pub fn reload_now(&self) {
+        self.reload();
+    }
+
     fn reload(&self) {
         match config::load(&self.config_path) {
             Ok(table) => {
@@ -141,6 +148,7 @@ impl Tray {
                 // [ime_indicator] section (ADR 0020).
                 crate::ime_indicator::sync_with_config();
                 self.keymap_count.set(count);
+                crate::gui::mark_config_loaded();
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
                 crate::gui::log::emit(&i18n::reload_ok(count));
                 if hook::debug_enabled() {

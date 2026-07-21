@@ -75,6 +75,7 @@ fn run() -> anyhow::Result<()> {
     // Precedence: --macro-delay > config's macro_delay_ms > 0 (ADR 0019).
     sender::set_macro_delay(cli.macro_delay_ms.unwrap_or(table.macro_delay_ms));
     hook::REMAP_TABLE.store(Some(Arc::new(table)));
+    gui::mark_config_loaded();
 
     sender::init_scan_codes();
     // Seed the cache before hooking so the first keystrokes resolve against
@@ -91,6 +92,11 @@ fn run() -> anyhow::Result<()> {
 
     hook::run_message_loop(|| {
         tray.pump_events();
+        // The settings window's reload button lands here rather than on the
+        // GUI thread: the tray icon belongs to this one.
+        if gui::take_reload_request() {
+            tray.reload_now();
+        }
         // Debug key events are queued by the hook (no I/O there) and
         // formatted here on the message loop (ADR 0016).
         hook::drain_debug_log();

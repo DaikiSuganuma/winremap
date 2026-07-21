@@ -9,7 +9,7 @@
 //! runs on the thread that installed it, via its message loop.
 
 use std::cell::{Cell, RefCell};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use arc_swap::ArcSwapOption;
 use windows::Win32::Foundation::{
@@ -334,6 +334,8 @@ pub fn acquire_single_instance() -> windows::core::Result<Option<SingleInstance>
 /// each dispatched message so the tray can drain its event channel without a
 /// second thread.
 pub fn run_message_loop(mut on_message: impl FnMut()) {
+    // SAFETY: no preconditions; returns the calling thread's own id.
+    MESSAGE_THREAD.store(unsafe { GetCurrentThreadId() }, Ordering::SeqCst);
     let mut msg = MSG::default();
     // SAFETY: msg is a live local; a null HWND means "all messages of this
     // thread", which hook dispatch requires. `.0 > 0` also stops on the -1
@@ -346,6 +348,26 @@ pub fn run_message_loop(mut on_message: impl FnMut()) {
         }
         on_message();
     }
+}
+
+/// The message loop's thread, so other threads can wake it. Zero until the
+/// loop starts.
+static MESSAGE_THREAD: AtomicU32 = AtomicU32::new(0);
+
+/// Wakes the message loop from another thread.
+///
+/// `GetMessageW` blocks, and nothing queues a message for this thread while
+/// the user is not typing — so a flag set on the GUI thread (the settings
+/// window's reload button) would sit unnoticed until some unrelated event
+/// arrived. The message itself carries nothing; waking is the point.
+pub fn wake_message_loop() {
+    let thread = MESSAGE_THREAD.load(Ordering::SeqCst);
+    if thread == 0 {
+        return;
+    }
+    // SAFETY: posting to a thread id is safe even if that thread has exited —
+    // the call just fails, and the caller's request is dropped with it.
+    let _ = unsafe { PostThreadMessageW(thread, WM_APP, WPARAM(0), LPARAM(0)) };
 }
 
 /// Asks the message loop to exit (used by the tray's Quit item).

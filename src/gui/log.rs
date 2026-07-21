@@ -112,6 +112,12 @@ pub fn request_open() {
 /// buffer is released. Called when the user closes the window and when the
 /// whole GUI loop dies.
 pub fn on_closed() {
+    // Before the flag drops: `push` ignores lines while the window is down, so
+    // this is the last moment the closing can be recorded. It still reaches a
+    // terminal, which is where a closed window's transcript lives.
+    if OPEN.load(Ordering::SeqCst) {
+        action(&i18n::action_closed(i18n::t().log_window_title));
+    }
     OPEN.store(false, Ordering::SeqCst);
     hook::set_debug(CLI_DEBUG.load(Ordering::Relaxed));
     if let Ok(mut lines) = buffer().lock() {

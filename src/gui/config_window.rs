@@ -14,6 +14,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use eframe::egui;
 
@@ -39,7 +40,15 @@ pub struct ConfigWindow {
     /// re-read when a reload swaps in a new one (ADR 0003) rather than every
     /// frame. Compared, never dereferenced.
     comments_for: Option<usize>,
+    /// The config file's modification time, and when it was last read off
+    /// disk. See `file_time`.
+    file_time: Option<(Instant, String)>,
 }
+
+/// How stale the file's timestamp is allowed to get. Short enough that saving
+/// in an editor shows up while the window is open, long enough that painting
+/// stays free of disk access.
+const FILE_TIME_INTERVAL: Duration = Duration::from_secs(2);
 
 impl ConfigWindow {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
@@ -72,7 +81,33 @@ impl ConfigWindow {
                     );
                 });
             });
-            ui.add_space(2.0);
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                if ui.button(texts.menu_reload).clicked() {
+                    super::log::action(texts.menu_reload);
+                    super::request_reload();
+                }
+                ui.add_space(NOTE_GAP);
+                // Side by side on purpose: a file newer than the load is the
+                // one thing this window cannot show, and seeing both stamps is
+                // what makes that obvious.
+                ui.label(texts.config_window_file_time);
+                ui.label(
+                    egui::RichText::new(self.file_time(&path))
+                        .monospace()
+                        .weak(),
+                );
+                ui.add_space(NOTE_GAP);
+                ui.label(texts.config_window_loaded_at);
+                ui.label(
+                    egui::RichText::new(
+                        super::config_loaded_at().unwrap_or_else(|| texts.config_none.to_owned()),
+                    )
+                    .monospace()
+                    .weak(),
+                );
+            });
+            ui.add_space(4.0);
             ui.label(egui::RichText::new(texts.config_window_readonly).weak());
             ui.add_space(6.0);
         });
@@ -118,6 +153,27 @@ impl ConfigWindow {
                     },
                 });
         });
+    }
+
+    /// The config file's own timestamp, re-read at most every
+    /// `FILE_TIME_INTERVAL` — this is called from a paint, and hitting the
+    /// disk on every frame to answer a question that changes once an hour
+    /// would be silly.
+    fn file_time(&mut self, path: &Path) -> String {
+        if let Some((read_at, shown)) = &self.file_time
+            && read_at.elapsed() < FILE_TIME_INTERVAL
+        {
+            return shown.clone();
+        }
+        let shown = std::fs::metadata(path)
+            .and_then(|meta| meta.modified())
+            .ok()
+            .and_then(crate::clock::local_from)
+            // A file that cannot be stat'ed is worth showing as unknown rather
+            // than as an empty gap: it usually means it was moved or deleted.
+            .unwrap_or_else(|| i18n::t().config_unknown.to_owned());
+        self.file_time = Some((Instant::now(), shown.clone()));
+        shown
     }
 
     /// Whether the detail pane is currently showing a keymap. Mirrors the
