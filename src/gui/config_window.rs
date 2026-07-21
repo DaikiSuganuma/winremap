@@ -43,10 +43,11 @@ impl ConfigWindow {
 /// Hands the file to whatever the user associated with `.toml`. Moved here
 /// from the tray when the menu item became "Settings" (owner decision
 /// 2026-07-21).
+///
+/// A failure is reported rather than swallowed: the button doing nothing at
+/// all is exactly the bug ADR 0038 came from.
 fn open_in_default_editor(path: &Path) {
-    // `start` defers to the user's .toml file association; the empty string
-    // fills start's window-title slot so the path is not mistaken for it.
-    let _ = std::process::Command::new("cmd")
-        .args(["/C", "start", "", &path.to_string_lossy()])
-        .spawn();
+    if !super::win32::open_in_default_editor(path) {
+        crate::notify::error(&i18n::open_editor_failed(&path.display().to_string()));
+    }
 }

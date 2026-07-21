@@ -197,6 +197,21 @@ pub fn gui_failed(error: &str) -> String {
     }
 }
 
+/// The shell refused to open the config file (no `.toml` association, or the
+/// file is gone). Says which file, so the user can open it by hand.
+pub fn open_editor_failed(path: &str) -> String {
+    match lang() {
+        Lang::En => format!(
+            "could not open the config file in an editor:
+{path}"
+        ),
+        Lang::Ja => format!(
+            "設定ファイルをエディタで開けませんでした:
+{path}"
+        ),
+    }
+}
+
 /// Message for a failed reload; `error` stays in English on purpose
 /// (diagnostics policy above).
 pub fn reload_failed(error: &str) -> String {

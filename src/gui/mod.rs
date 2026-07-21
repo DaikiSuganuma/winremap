@@ -17,11 +17,13 @@
 //!   torn down; it could never be rebuilt (ADR 0032).
 //! * With every window closed nothing is scheduled, so the thread sleeps.
 //! * Only `config.toml` is ever written. Logs stay in memory (invariant 6).
-//! * No `unsafe` here: the GUI reaches Win32 through the existing modules
-//!   (invariant 3).
+//! * No `unsafe` in this file: what egui cannot express — per-size window
+//!   icons, handing the config file to the shell — lives in `win32`
+//!   (invariant 3, ADR 0038).
 
 pub mod config_window;
 pub mod log;
+mod win32;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -164,19 +166,6 @@ fn run_loop() {
     log::on_closed();
 }
 
-/// The window icon: the same keyboard mark as the tray and the exe. winit
-/// takes raw pixels rather than an .ico, so a PNG is decoded here — eframe
-/// already depends on a PNG decoder, so this costs no new crate.
-///
-/// egui-winit installs it as `ICON_SMALL` only (winit's `set_window_icon`),
-/// and leaves `ICON_BIG` unset, so Windows scales this one bitmap to every
-/// size it needs. `None` if it ever fails to decode; the window then gets the
-/// default icon.
-fn window_icon() -> Option<Arc<egui::IconData>> {
-    let png = include_bytes!("../../assets/png/kbd-enabled-32.png");
-    eframe::icon_data::from_png_bytes(png).ok().map(Arc::new)
-}
-
 /// egui ships no CJK glyphs, so Japanese text would render as boxes. Borrow a
 /// face from the system rather than embedding megabytes of font in the exe; if
 /// none of the candidates exist the GUI still works, just without Japanese
@@ -214,12 +203,32 @@ fn install_fonts(ctx: &egui::Context) {
 }
 
 /// Owns nothing on screen: it declares the real windows and keeps them alive.
-#[derive(Default)]
 struct HostApp {
     /// Behind a lock because a deferred viewport's callback must be `Fn` and
     /// outlive the frame that declared it.
     config: Arc<Mutex<config_window::ConfigWindow>>,
+    /// Which windows were up last frame, so icons are re-applied when one
+    /// appears rather than on every frame.
+    windows_shown: (bool, bool),
+    /// Frames left to re-apply icons and re-hide the host. Both have to
+    /// outlast the frame that asked for the window, because the window itself
+    /// only exists from the next one.
+    settle_frames: u8,
 }
+
+impl Default for HostApp {
+    fn default() -> Self {
+        Self {
+            config: Arc::default(),
+            windows_shown: (false, false),
+            // Non-zero so the host is hidden right after eframe reveals it.
+            settle_frames: SETTLE_FRAMES,
+        }
+    }
+}
+
+/// How many frames a window change keeps `set_window_icons` running.
+const SETTLE_FRAMES: u8 = 3;
 
 impl eframe::App for HostApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
@@ -227,6 +236,23 @@ impl eframe::App for HostApp {
 
         show_config_viewport(&ctx, &self.config);
         log::show_viewport(&ctx);
+
+        let shown = (CONFIG_OPEN.load(Ordering::Relaxed), log::is_open());
+        if shown != self.windows_shown {
+            self.windows_shown = shown;
+            self.settle_frames = SETTLE_FRAMES;
+        }
+        if self.settle_frames > 0 {
+            self.settle_frames -= 1;
+            // egui only ever sets ICON_SMALL, so the icons are put on the
+            // windows directly (ADR 0038). Cheap, and re-setting is a no-op.
+            win32::set_window_icons();
+            // eframe reveals the host after its first frame (ADR 0037). It is
+            // off-screen and has no taskbar button, but a visible window still
+            // shows up in Task Manager's window list, so hide it again.
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+            ctx.request_repaint();
+        }
 
         // A deferred viewport only survives while its parent keeps declaring
         // it, so the host has to keep painting while any window is up — which
@@ -244,12 +270,9 @@ fn show_config_viewport(ctx: &egui::Context, state: &Arc<Mutex<config_window::Co
     if !CONFIG_OPEN.load(Ordering::Relaxed) {
         return;
     }
-    let mut builder = egui::ViewportBuilder::default()
+    let builder = egui::ViewportBuilder::default()
         .with_title(i18n::t().config_window_title)
         .with_inner_size([960.0, 640.0]);
-    if let Some(icon) = window_icon() {
-        builder = builder.with_icon(icon);
-    }
     let state = state.clone();
     ctx.show_viewport_deferred(
         egui::ViewportId::from_hash_of("winremap-settings"),

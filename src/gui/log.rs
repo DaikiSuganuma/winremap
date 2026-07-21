@@ -106,12 +106,11 @@ pub fn show_viewport(ctx: &egui::Context) {
     if !OPEN.load(Ordering::Relaxed) {
         return;
     }
-    let mut builder = egui::ViewportBuilder::default()
+    // No icon here: egui would install it as ICON_SMALL only, and
+    // `win32::set_window_icons` sets both slots properly (ADR 0038).
+    let builder = egui::ViewportBuilder::default()
         .with_title(i18n::t().log_window_title)
         .with_inner_size([760.0, 480.0]);
-    if let Some(icon) = super::window_icon() {
-        builder = builder.with_icon(icon);
-    }
     ctx.show_viewport_deferred(egui::ViewportId::from_hash_of("winremap-log"), builder, {
         move |ui, _class| {
             let ctx = ui.ctx().clone();
