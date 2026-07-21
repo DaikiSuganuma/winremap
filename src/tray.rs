@@ -162,10 +162,10 @@ impl Tray {
 /// Menu icons, rasterized from Bootstrap Icons SVGs by build.rs (ADR 0040):
 /// 16x16 straight RGBA, which is the only thing a Win32 menu takes.
 const MENU_ICON_SIZE: u32 = 16;
-const SETTINGS_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/gear.rgba"));
-const RELOAD_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/arrow-clockwise.rgba"));
-const LOG_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/card-list.rgba"));
-const QUIT_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/box-arrow-right.rgba"));
+const SETTINGS_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/menu-gear.rgba"));
+const RELOAD_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/menu-arrow-clockwise.rgba"));
+const LOG_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/menu-card-list.rgba"));
+const QUIT_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/menu-box-arrow-right.rgba"));
 
 fn menu_icon(rgba: &[u8]) -> Option<tray_icon::menu::Icon> {
     tray_icon::menu::Icon::from_rgba(rgba.to_vec(), MENU_ICON_SIZE, MENU_ICON_SIZE).ok()

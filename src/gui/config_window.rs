@@ -11,11 +11,13 @@
 //! come from a second, formatting-preserving read of the file
 //! (`config::comments`), refreshed whenever the table is swapped.
 
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
 use eframe::egui;
 
+use super::icons::{self, Icon};
 use crate::i18n;
 use winremap::config::comments::{ConfigComments, KeymapComments};
 use winremap::ime_indicator_settings::IndicatorSettings;
@@ -109,7 +111,9 @@ impl ConfigWindow {
                     // The table can shrink under us on a reload; fall back to
                     // the general page rather than panicking on the index.
                     Selection::Keymap(index) => match table.keymaps.get(index) {
-                        Some(keymap) => keymap_ui(ui, keymap, self.comments.keymap(index)),
+                        Some(keymap) => {
+                            keymap_ui(ui, &table, index, keymap, self.comments.keymap(index))
+                        }
                         None => general_ui(ui, &table, &self.comments),
                     },
                 });
@@ -165,7 +169,13 @@ fn keymap_label(keymap: &Keymap) -> String {
     }
 }
 
-fn keymap_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComments>) {
+fn keymap_ui(
+    ui: &mut egui::Ui,
+    table: &RemapTable,
+    index: usize,
+    keymap: &Keymap,
+    comments: Option<&KeymapComments>,
+) {
     let texts = i18n::t();
     ui.add_space(8.0);
     ui.label(
@@ -178,7 +188,7 @@ fn keymap_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComment
         note(ui, comments.and_then(|c| c.field("name")));
     }
 
-    section(ui, texts.config_field_apps, "application");
+    section(ui, Icon::Apps, texts.config_field_apps, "application");
     note(ui, comments.and_then(|c| c.field("application")));
     match &keymap.apps {
         // One row, so the targets are always in the same place whichever
@@ -198,15 +208,15 @@ fn keymap_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComment
     }
 
     if let AppFilter::All { exclude } = &keymap.apps {
-        section(ui, texts.config_field_exclude, "exclude");
+        section(ui, Icon::Exclude, texts.config_field_exclude, "exclude");
         note(ui, comments.and_then(|c| c.field("exclude")));
         app_table(ui, "excludes", exclude, &|name| {
             comments.and_then(|c| c.exclude(name))
         });
     }
 
-    section(ui, texts.config_rules, "[keymap.remap]");
-    rules_ui(ui, keymap, comments);
+    section(ui, Icon::Rules, texts.config_rules, "[keymap.remap]");
+    rules_ui(ui, table, index, keymap, comments);
     macro_note_ui(ui, keymap);
 }
 
@@ -326,11 +336,12 @@ fn comment_cell(ui: &mut egui::Ui, text: &str) {
     ui.add(egui::Label::new(text).wrap());
 }
 
-fn section(ui: &mut egui::Ui, title: &str, key: &str) {
+fn section(ui: &mut egui::Ui, icon: Icon, title: &str, key: &str) {
     ui.add_space(SECTION_GAP);
     hairline(ui);
     ui.add_space(SECTION_GAP);
     ui.horizontal(|ui| {
+        icons::show(ui, icon, SECTION_TEXT);
         ui.label(egui::RichText::new(title).size(SECTION_TEXT).strong());
         if !key.is_empty() {
             ui.label(egui::RichText::new(key).monospace().weak());
@@ -373,10 +384,12 @@ fn own_note(ui: &mut egui::Ui, text: &str) {
     ui.label(format!("{} {text}", i18n::t().note_marker));
 }
 
-fn rules_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComments>) {
-    let texts = i18n::t();
-    // HashMap iteration order is arbitrary, so sort — a list that reshuffles
-    // between frames would be unreadable.
+/// Every rule of one keymap as (input, output) display strings, sorted.
+///
+/// The maps iterate in arbitrary order, so the sort is what keeps the table
+/// from reshuffling between frames. Sharing this with the duplicate scan is
+/// what makes the two agree on what "the same input" means.
+fn rule_rows(keymap: &Keymap) -> Vec<(String, String)> {
     let mut rules: Vec<(String, String)> = Vec::new();
     for (input, output) in &keymap.exact {
         rules.push((input.to_string(), render_output(output)));
@@ -390,25 +403,79 @@ fn rules_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComments
         }
     }
     rules.sort();
+    rules
+}
 
+/// Which *other* keymaps bind each input, keyed by the input as displayed.
+///
+/// A key bound in two keymaps is the thing that is impossible to see in a
+/// long config file and surprising at the keyboard: only one of them can win
+/// (ADR 0004), and which one is not obvious from reading either in isolation.
+fn shared_inputs(table: &RemapTable, index: usize) -> HashMap<String, Vec<String>> {
+    let mut owners: HashMap<String, Vec<String>> = HashMap::new();
+    let Some(mine) = table.keymaps.get(index) else {
+        return owners;
+    };
+    // Only the inputs this keymap displays can fill a cell, so the scan drops
+    // everything else instead of carrying the whole config around.
+    let mine: HashSet<String> = rule_rows(mine)
+        .into_iter()
+        .map(|(input, _)| input)
+        .collect();
+    for (other, keymap) in table.keymaps.iter().enumerate() {
+        if other == index {
+            continue;
+        }
+        for (input, _) in rule_rows(keymap) {
+            if !mine.contains(&input) {
+                continue;
+            }
+            owners.entry(input).or_default().push(keymap_label(keymap));
+        }
+    }
+    owners
+}
+
+fn rules_ui(
+    ui: &mut egui::Ui,
+    table_data: &RemapTable,
+    index: usize,
+    keymap: &Keymap,
+    comments: Option<&KeymapComments>,
+) {
+    let texts = i18n::t();
+    let rules = rule_rows(keymap);
     if rules.is_empty() {
         ui.label(egui::RichText::new(texts.config_no_rules).weak());
         return;
     }
-    let columns = [
-        texts.config_rule_input,
-        texts.config_rule_output,
-        texts.config_rule_comment,
-    ];
+
+    // The column only appears when it has something to say. An always-empty
+    // column would cost width on every keymap to serve the rare one.
+    let shared = shared_inputs(table_data, index);
+    let mut columns = vec![texts.config_rule_input, texts.config_rule_output];
+    if !shared.is_empty() {
+        columns.push(texts.config_rule_shared);
+    }
+    columns.push(texts.config_rule_comment);
+
     table(ui, "rules", &columns, 120.0, |ui| {
         for (input, output) in &rules {
             ui.label(egui::RichText::new(input).monospace());
             ui.label(egui::RichText::new(output).monospace());
+            if !shared.is_empty() {
+                let owners = shared.get(input);
+                ui.label(owners.map(|names| names.join(", ")).unwrap_or_default());
+            }
             let comment = comments.and_then(|c| c.rule(input)).unwrap_or_default();
             comment_cell(ui, comment);
             ui.end_row();
         }
     });
+    if !shared.is_empty() {
+        ui.add_space(NOTE_GAP);
+        own_note(ui, texts.config_rule_shared_note);
+    }
 }
 
 /// Explains the arrows, and where the pacing between them comes from — only
@@ -439,11 +506,14 @@ fn macro_note_ui(ui: &mut egui::Ui, keymap: &Keymap) {
 fn notation_help_ui(ui: &mut egui::Ui) {
     let texts = i18n::t();
     ui.add_space(8.0);
-    ui.label(
-        egui::RichText::new(texts.config_notation_title)
-            .size(SECTION_TEXT)
-            .strong(),
-    );
+    ui.horizontal(|ui| {
+        icons::show(ui, Icon::Notation, SECTION_TEXT);
+        ui.label(
+            egui::RichText::new(texts.config_notation_title)
+                .size(SECTION_TEXT)
+                .strong(),
+        );
+    });
     ui.add_space(NOTE_GAP);
     egui::Grid::new("notation")
         .num_columns(2)
@@ -494,7 +564,7 @@ fn general_ui(ui: &mut egui::Ui, table: &RemapTable, comments: &ConfigComments) 
             .strong(),
     );
 
-    section(ui, texts.config_macro_section, "[macro]");
+    section(ui, Icon::Macro, texts.config_macro_section, "[macro]");
     // The v0.1 spelling still works, so show whichever key the file uses
     // (ADR 0039) - otherwise the comment column would come up empty.
     let (delay_key, delay_comment) = match comments.general("macro.delay_ms") {
@@ -515,7 +585,7 @@ fn general_ui(ui: &mut egui::Ui, table: &RemapTable, comments: &ConfigComments) 
         )],
     );
 
-    section(ui, texts.config_ime_indicator, "[ime_indicator]");
+    section(ui, Icon::Ime, texts.config_ime_indicator, "[ime_indicator]");
     ime_ui(ui, &table.ime_indicator, comments);
 }
 

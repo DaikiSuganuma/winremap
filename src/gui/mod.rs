@@ -22,6 +22,7 @@
 //!   (invariant 3, ADR 0038).
 
 pub mod config_window;
+mod icons;
 pub mod log;
 mod win32;
 
