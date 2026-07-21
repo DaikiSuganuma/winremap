@@ -13,8 +13,8 @@ use eframe::egui;
 /// drawn at, so they stay sharp on a HiDPI display.
 const SOURCE_SIZE: usize = 32;
 
-/// Section headings, named for what they mark rather than for the Bootstrap
-/// icon behind them — the drawing can be swapped without touching callers.
+/// Named for what they mark rather than for the Bootstrap icon behind them —
+/// the drawing can be swapped without touching callers.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Icon {
     Apps,
@@ -23,6 +23,10 @@ pub enum Icon {
     Macro,
     Ime,
     Notation,
+    /// Leaves WinRemap for another application.
+    External,
+    /// Leaves WinRemap for the browser.
+    Link,
 }
 
 impl Icon {
@@ -35,6 +39,8 @@ impl Icon {
             Icon::Macro => "lightning-charge",
             Icon::Ime => "translate",
             Icon::Notation => "question-circle",
+            Icon::External => "box-arrow-up-right",
+            Icon::Link => "link-45deg",
         }
     }
 
@@ -46,9 +52,29 @@ impl Icon {
             Icon::Macro => include_bytes!(concat!(env!("OUT_DIR"), "/ui-lightning-charge.rgba")),
             Icon::Ime => include_bytes!(concat!(env!("OUT_DIR"), "/ui-translate.rgba")),
             Icon::Notation => include_bytes!(concat!(env!("OUT_DIR"), "/ui-question-circle.rgba")),
+            Icon::External => {
+                include_bytes!(concat!(env!("OUT_DIR"), "/ui-box-arrow-up-right.rgba"))
+            }
+            Icon::Link => include_bytes!(concat!(env!("OUT_DIR"), "/ui-link-45deg.rgba")),
         }
     }
 }
+
+/// A link that says where it goes: the icon marks it as leaving WinRemap.
+///
+/// Returns whether it was clicked. The icon is not part of the hit area —
+/// egui has no widget for an image-plus-link, and the text is the target
+/// people aim at anyway.
+pub fn link(ui: &mut egui::Ui, icon: Icon, text: &str) -> bool {
+    ui.horizontal(|ui| {
+        show(ui, icon, LINK_ICON_SIZE);
+        ui.link(text).clicked()
+    })
+    .inner
+}
+
+/// Link icons sit next to body text, so they match its height.
+const LINK_ICON_SIZE: f32 = 14.0;
 
 /// Draws an icon `size` points square, in the current text colour.
 pub fn show(ui: &mut egui::Ui, icon: Icon, size: f32) {

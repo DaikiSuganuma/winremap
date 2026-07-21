@@ -187,6 +187,10 @@ fn run_loop() {
             // draws it as a plain selection (ADR 0034).
             cc.egui_ctx.all_styles_mut(|style| {
                 style.visuals.ime_composition.legacy_visuals = false;
+                // egui's default is 6x2, which gives a button barely taller
+                // than its text. These are clicked with a mouse, not aimed at
+                // with a controller, but a comfortable target still helps.
+                style.spacing.button_padding = egui::vec2(BUTTON_PADDING, BUTTON_PADDING);
             });
             if let Ok(mut ctx) = wake_context().lock() {
                 *ctx = Some(cc.egui_ctx.clone());
@@ -273,6 +277,10 @@ impl Default for HostApp {
 /// How many frames a window change keeps `set_window_icons` running.
 const SETTLE_FRAMES: u8 = 3;
 
+/// Room around the text inside every button and checkbox (owner decision
+/// 2026-07-21).
+const BUTTON_PADDING: f32 = 8.0;
+
 impl eframe::App for HostApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
@@ -313,9 +321,13 @@ fn show_config_viewport(ctx: &egui::Context, state: &Arc<Mutex<config_window::Co
     if !CONFIG_OPEN.load(Ordering::Relaxed) {
         return;
     }
+    // Tall enough that a keymap's apps, rules and the notes under them fit
+    // without scrolling on a 1080p screen (owner decision 2026-07-21). The
+    // size is not remembered between openings, so this is what people see
+    // every time.
     let builder = egui::ViewportBuilder::default()
         .with_title(i18n::t().config_window_title)
-        .with_inner_size([960.0, 640.0]);
+        .with_inner_size([960.0, 860.0]);
     let state = state.clone();
     ctx.show_viewport_deferred(
         egui::ViewportId::from_hash_of("winremap-settings"),

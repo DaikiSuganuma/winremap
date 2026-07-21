@@ -62,13 +62,17 @@ impl ConfigWindow {
         let table = crate::hook::REMAP_TABLE.load_full();
         self.sync_comments(table.as_ref(), &path);
 
+        let file_time = self.file_time(&path);
         egui::Panel::top("config-header").show(ui, |ui| {
             ui.add_space(6.0);
             ui.horizontal(|ui| {
-                ui.label(texts.config_window_file);
-                ui.label(egui::RichText::new(path.display().to_string()).monospace());
-                if ui.link(texts.config_window_open_in_editor).clicked() {
+                ui.label(egui::RichText::new(texts.config_window_file).strong());
+                if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
                     open_in_default_editor(&path);
+                }
+                if ui.button(texts.menu_reload).clicked() {
+                    super::log::action(texts.menu_reload);
+                    super::request_reload();
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(
@@ -81,33 +85,9 @@ impl ConfigWindow {
                     );
                 });
             });
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                if ui.button(texts.menu_reload).clicked() {
-                    super::log::action(texts.menu_reload);
-                    super::request_reload();
-                }
-                ui.add_space(NOTE_GAP);
-                // Side by side on purpose: a file newer than the load is the
-                // one thing this window cannot show, and seeing both stamps is
-                // what makes that obvious.
-                ui.label(texts.config_window_file_time);
-                ui.label(
-                    egui::RichText::new(self.file_time(&path))
-                        .monospace()
-                        .weak(),
-                );
-                ui.add_space(NOTE_GAP);
-                ui.label(texts.config_window_loaded_at);
-                ui.label(
-                    egui::RichText::new(
-                        super::config_loaded_at().unwrap_or_else(|| texts.config_none.to_owned()),
-                    )
-                    .monospace()
-                    .weak(),
-                );
-            });
-            ui.add_space(4.0);
+            ui.add_space(NOTE_GAP);
+            file_table(ui, &path, &file_time);
+            ui.add_space(NOTE_GAP);
             ui.label(egui::RichText::new(texts.config_window_readonly).weak());
             ui.add_space(6.0);
         });
@@ -212,6 +192,30 @@ impl ConfigWindow {
             );
         }
     }
+}
+
+/// Where the config came from and how current it is.
+///
+/// A table rather than a run of labels: the two timestamps only mean anything
+/// read against each other, since a file saved but not reloaded is the one
+/// state this window cannot otherwise show.
+fn file_table(ui: &mut egui::Ui, path: &Path, file_time: &str) {
+    let texts = i18n::t();
+    let columns = [texts.config_column_field, texts.config_column_value];
+    table(ui, "config-file", &columns, 120.0, |ui| {
+        for (label, value) in [
+            (texts.config_window_path, path.display().to_string()),
+            (texts.config_window_file_time, file_time.to_owned()),
+            (
+                texts.config_window_loaded_at,
+                super::config_loaded_at().unwrap_or_else(|| texts.config_none.to_owned()),
+            ),
+        ] {
+            ui.label(label);
+            ui.label(egui::RichText::new(value).monospace());
+            ui.end_row();
+        }
+    });
 }
 
 /// List entry text: the section's `name`, or its target when it has none.
@@ -592,7 +596,7 @@ fn notation_help_ui(ui: &mut egui::Ui) {
     ui.add_space(f32::from(CELL_PAD));
     ui.label(texts.config_notation_macro);
     ui.add_space(NOTE_GAP);
-    if ui.link(texts.config_help_link).clicked() {
+    if icons::link(ui, Icon::Link, texts.config_help_link) {
         super::log::action(texts.config_help_link);
         super::win32::open_url(i18n::help_url());
     }

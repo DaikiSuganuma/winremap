@@ -31,7 +31,7 @@ const UI_ICON_SIZE: u32 = 32;
 /// See THIRD-PARTY-NOTICES.md — the pixels these become ship in the binary.
 const MENU_ICONS: &[&str] = &["gear", "arrow-clockwise", "card-list", "box-arrow-right"];
 
-/// The settings window's section headings.
+/// The settings window's section headings and links.
 const UI_ICONS: &[&str] = &[
     "window-stack",
     "slash-circle",
@@ -39,6 +39,8 @@ const UI_ICONS: &[&str] = &[
     "lightning-charge",
     "translate",
     "question-circle",
+    "box-arrow-up-right",
+    "link-45deg",
 ];
 
 fn main() {
