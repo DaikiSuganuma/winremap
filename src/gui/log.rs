@@ -167,43 +167,40 @@ fn window_ui(ui: &mut egui::Ui) {
     // Reading the log is the point of this window, so the top holds only what
     // changes how it reads. The two commands live at the bottom, out of the
     // way of the newest line (owner decision 2026-07-21).
-    egui::Panel::top("log-controls").show(ui, |ui| {
-        ui.add_space(theme::PANEL_PAD);
-        ui.horizontal(|ui| {
-            ui.add_space(theme::PANEL_PAD_LEFT);
-            // No icon: the checkmark is this control's own marker.
-            if ui
-                .checkbox(&mut follow_tail, texts.log_window_follow)
-                .changed()
-            {
-                FOLLOW_TAIL.store(follow_tail, Ordering::Relaxed);
-            }
+    // A filled band with an even margin, so the two ends of the window read
+    // as chrome rather than as the first and last lines of the log (owner
+    // decision 2026-07-21).
+    egui::Panel::top("log-controls")
+        .frame(theme::chrome_frame(ui.visuals()))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                // No icon: the checkmark is this control's own marker.
+                if ui
+                    .checkbox(&mut follow_tail, texts.log_window_follow)
+                    .changed()
+                {
+                    FOLLOW_TAIL.store(follow_tail, Ordering::Relaxed);
+                }
+            });
         });
-        ui.add_space(theme::PANEL_PAD);
-    });
 
-    egui::Panel::bottom("log-actions").show(ui, |ui| {
-        // A panel gives its contents no margin, so the buttons would
-        // otherwise sit against the scroll area above and the window frame
-        // below. Same value as the header, so both ends of the window match
-        // (owner decision 2026-07-21).
-        ui.add_space(theme::PANEL_PAD);
-        ui.horizontal(|ui| {
-            ui.add_space(theme::PANEL_PAD_LEFT);
-            if icons::button(ui, Icon::Clear, texts.log_window_clear).clicked()
-                && let Ok(mut lines) = buffer().lock()
-            {
-                lines.clear();
-            }
-            if icons::button(ui, Icon::Copy, texts.log_window_copy).clicked()
-                && let Ok(lines) = buffer().lock()
-            {
-                let joined = lines.iter().cloned().collect::<Vec<_>>().join("\r\n");
-                ui.ctx().copy_text(joined);
-            }
+    egui::Panel::bottom("log-actions")
+        .frame(theme::chrome_frame(ui.visuals()))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if icons::button(ui, Icon::Clear, texts.log_window_clear).clicked()
+                    && let Ok(mut lines) = buffer().lock()
+                {
+                    lines.clear();
+                }
+                if icons::button(ui, Icon::Copy, texts.log_window_copy).clicked()
+                    && let Ok(lines) = buffer().lock()
+                {
+                    let joined = lines.iter().cloned().collect::<Vec<_>>().join("\r\n");
+                    ui.ctx().copy_text(joined);
+                }
+            });
         });
-        ui.add_space(theme::PANEL_PAD);
-    });
 
     egui::CentralPanel::default().show(ui, |ui| {
         egui::ScrollArea::vertical()

@@ -77,22 +77,17 @@ pub const NOTE_GAP: f32 = 8.0;
 /// section from the last — which is why it is generous.
 pub const SECTION_GAP: f32 = 20.0;
 
-/// Room above and below a row of controls pinned to a window's edge — the
-/// log window's header and footer both (owner decision 2026-07-21, one
-/// value so the two ends match). A panel gives its contents no margin of its
-/// own, so without this the controls sit against the scroll area and the
-/// window frame.
-pub const PANEL_PAD: f32 = 8.0;
+/// Margin inside a window's chrome — the log window's header and footer,
+/// the settings window's file header. Equal on all four sides so the
+/// controls sit clear of both the window edge and the content they top or
+/// tail (owner decision 2026-07-21).
+pub const PANEL_PAD: i8 = 8;
 
-/// Room to the left of the first control in such a row, so a checkbox or a
-/// button does not sit against the window edge (owner decision 2026-07-21).
-pub const PANEL_PAD_LEFT: f32 = 10.0;
-
-/// The config-file table's width. Fixed rather than filling the header: its
-/// three rows are short, and stretching them to the window width pushed the
-/// values a long way from their labels (owner decision 2026-07-21). It also
-/// leaves the rest of the row for the controls that act on the file.
-pub const FILE_TABLE_WIDTH: f32 = 620.0;
+/// The config-file table's share of the header's width. Half, so the
+/// controls that act on the file have the other half; stretching the table
+/// across the whole window pushed each value a long way from its label
+/// (owner decision 2026-07-21).
+pub const FILE_TABLE_WIDTH_RATIO: f32 = 0.5;
 
 /// Padding inside a highlighted box, so its fill reads as a surface rather
 /// than as ink spilled behind the text.
@@ -122,10 +117,31 @@ pub fn body_icon_size(ui: &egui::Ui) -> f32 {
 
 // ---- Colours -------------------------------------------------------------
 
+/// How far a window's chrome is pushed from the panel background toward the
+/// text colour. Just enough to read as a band rather than as part of the
+/// content — the windows had too many hairlines already, so the separation
+/// is carried by tone instead of by a rule.
+const CHROME_FILL_LERP: f32 = 0.05;
+
 /// How far a highlighted box's fill is pushed from the panel background
 /// toward the text colour. Enough to read as a distinct surface, not so far
 /// that it competes with the tables around it.
 const HIGHLIGHT_FILL_LERP: f32 = 0.10;
+
+/// Fill for a header or footer band.
+pub fn chrome_fill(visuals: &egui::Visuals) -> egui::Color32 {
+    visuals
+        .panel_fill
+        .lerp_to_gamma(visuals.text_color(), CHROME_FILL_LERP)
+}
+
+/// The frame a header or footer panel draws itself with: the band's fill
+/// plus the margin its controls sit in.
+pub fn chrome_frame(visuals: &egui::Visuals) -> egui::Frame {
+    egui::Frame::new()
+        .fill(chrome_fill(visuals))
+        .inner_margin(egui::Margin::same(PANEL_PAD))
+}
 
 /// The stroke enclosing a table.
 pub fn table_border(visuals: &egui::Visuals) -> egui::Stroke {

@@ -67,48 +67,54 @@ impl ConfigWindow {
         self.sync_comments(table.as_ref(), &path);
 
         let file_time = self.file_time(&path);
-        egui::Panel::top("config-header").show(ui, |ui| {
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                icons::show(ui, Icon::File, SECTION_TEXT);
-                ui.label(egui::RichText::new(texts.config_window_file).strong());
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(
-                        egui::RichText::new(format!(
-                            "{} v{}",
-                            texts.app_name,
-                            env!("CARGO_PKG_VERSION")
-                        ))
-                        .weak(),
-                    );
+        // A filled band, like the log window's header (owner decision
+        // 2026-07-21): it names the file everything below is read from, so
+        // it reads as chrome rather than as the first section of the pane.
+        egui::Panel::top("config-header")
+            .frame(theme::chrome_frame(ui.visuals()))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    icons::show(ui, Icon::File, SECTION_TEXT);
+                    ui.label(egui::RichText::new(texts.config_window_file).strong());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "{} v{}",
+                                texts.app_name,
+                                env!("CARGO_PKG_VERSION")
+                            ))
+                            .weak(),
+                        );
+                    });
                 });
+                ui.add_space(NOTE_GAP);
+                // The table keeps a fixed width and the controls that act on the
+                // file sit to its right, level with it: this window shows, the
+                // editor changes, the button applies (owner decision
+                // 2026-07-21).
+                let table_width = ui.available_width() * theme::FILE_TABLE_WIDTH_RATIO;
+                ui.horizontal(|ui| {
+                    ui.scope(|ui| {
+                        ui.set_max_width(table_width);
+                        file_table(ui, &path, &file_time);
+                    });
+                    ui.add_space(SECTION_GAP);
+                    // Stacked and left-aligned beside the table: they act on the
+                    // file it describes (owner decision 2026-07-21).
+                    ui.vertical(|ui| {
+                        if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
+                            open_in_default_editor(&path);
+                        }
+                        ui.add_space(NOTE_GAP);
+                        if icons::button(ui, Icon::Reload, texts.menu_reload).clicked() {
+                            super::log::action(texts.menu_reload);
+                            super::request_reload();
+                        }
+                    });
+                });
+                ui.add_space(NOTE_GAP);
+                ui.label(egui::RichText::new(texts.config_window_readonly).weak());
             });
-            ui.add_space(NOTE_GAP);
-            // The table keeps a fixed width and the controls that act on the
-            // file sit to its right, level with it: this window shows, the
-            // editor changes, the button applies (owner decision
-            // 2026-07-21).
-            ui.horizontal(|ui| {
-                ui.scope(|ui| {
-                    ui.set_max_width(theme::FILE_TABLE_WIDTH);
-                    file_table(ui, &path, &file_time);
-                });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    // Right-to-left, so the first one added is the rightmost.
-                    if icons::button(ui, Icon::Reload, texts.menu_reload).clicked() {
-                        super::log::action(texts.menu_reload);
-                        super::request_reload();
-                    }
-                    ui.add_space(NOTE_GAP);
-                    if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
-                        open_in_default_editor(&path);
-                    }
-                });
-            });
-            ui.add_space(NOTE_GAP);
-            ui.label(egui::RichText::new(texts.config_window_readonly).weak());
-            ui.add_space(6.0);
-        });
 
         let Some(table) = table else {
             egui::CentralPanel::default().show(ui, |ui| {
