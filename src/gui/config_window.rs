@@ -162,18 +162,24 @@ fn keymap_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComment
     section(ui, texts.config_field_apps, "application");
     note(ui, comments.and_then(|c| c.field("application")));
     match &keymap.apps {
-        // A one-item list, so the targets are always in the same place
-        // whichever form the keymap uses.
-        AppFilter::All { .. } => name_list(ui, &[texts.config_apps_all.to_owned()]),
-        AppFilter::Names(names) => name_list(ui, names),
+        // One row, so the targets are always in the same place whichever
+        // form the keymap uses.
+        AppFilter::All { .. } => {
+            app_table(ui, "apps", &[texts.config_apps_all.to_owned()], &|_| {
+                Some(texts.config_apps_all_note)
+            })
+        }
+        AppFilter::Names(names) => app_table(ui, "apps", names, &|name| {
+            comments.and_then(|c| c.app(name))
+        }),
     }
-    hint(ui, texts.config_apps_case_note);
 
     if let AppFilter::All { exclude } = &keymap.apps {
         section(ui, texts.config_field_exclude, "exclude");
         note(ui, comments.and_then(|c| c.field("exclude")));
-        name_list(ui, exclude);
-        hint(ui, texts.config_apps_case_note);
+        app_table(ui, "excludes", exclude, &|name| {
+            comments.and_then(|c| c.exclude(name))
+        });
     }
 
     section(ui, texts.config_rules, "[keymap.remap]");
@@ -203,29 +209,38 @@ fn section(ui: &mut egui::Ui, title: &str, key: &str) {
     ui.add_space(4.0);
 }
 
-/// A small explanatory line under a value, in WinRemap's own words — as
-/// opposed to `note`, which shows the user's own comment.
-fn hint(ui: &mut egui::Ui, text: &str) {
-    ui.add_space(2.0);
-    ui.indent("hint", |ui| {
-        ui.label(egui::RichText::new(text).weak().small());
-    });
-}
-
-/// One exe name per line: a comma-joined run of eight is unreadable, which is
-/// exactly what a global keymap's exclude list looks like.
-fn name_list(ui: &mut egui::Ui, names: &[String]) {
+/// Exe names one per row, each with whatever the user wrote next to it in
+/// the file: a comma-joined run of eight is unreadable, which is exactly what
+/// a global keymap's exclude list looks like.
+fn app_table<'a>(
+    ui: &mut egui::Ui,
+    id: &str,
+    names: &[String],
+    // The lifetime says the comment borrows from the comment set, not from
+    // the name it was looked up by.
+    comment_of: &dyn Fn(&str) -> Option<&'a str>,
+) {
+    let texts = i18n::t();
     if names.is_empty() {
-        ui.indent("empty-names", |ui| {
-            ui.label(egui::RichText::new(i18n::t().config_none).weak());
-        });
-        return;
+        ui.label(egui::RichText::new(texts.config_none).weak());
+    } else {
+        egui::Grid::new(id)
+            .striped(true)
+            .num_columns(2)
+            .min_col_width(180.0)
+            .show(ui, |ui| {
+                ui.label(egui::RichText::new(texts.config_column_app).strong());
+                ui.label(egui::RichText::new(texts.config_rule_comment).strong());
+                ui.end_row();
+                for name in names {
+                    ui.label(egui::RichText::new(name).monospace());
+                    ui.label(comment_of(name).unwrap_or_default());
+                    ui.end_row();
+                }
+            });
     }
-    ui.indent("names", |ui| {
-        for name in names {
-            ui.label(egui::RichText::new(format!("• {name}")).monospace());
-        }
-    });
+    ui.add_space(4.0);
+    ui.label(texts.config_apps_case_note);
 }
 
 fn rules_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComments>) {
@@ -339,18 +354,53 @@ fn general_ui(ui: &mut egui::Ui, table: &RemapTable, comments: &ConfigComments) 
             .strong(),
     );
 
-    section(ui, texts.config_macro_section, "");
-    field(
+    section(ui, texts.config_macro_section, "[macro]");
+    // The v0.1 spelling still works, so show whichever key the file uses
+    // (ADR 0039) - otherwise the comment column would come up empty.
+    let (delay_key, delay_comment) = match comments.general("macro.delay_ms") {
+        Some(comment) => ("delay_ms", Some(comment)),
+        None => match comments.general("macro_delay_ms") {
+            Some(comment) => ("macro_delay_ms", Some(comment)),
+            None => ("delay_ms", None),
+        },
+    };
+    settings_table(
         ui,
-        texts.config_macro_delay,
-        "macro_delay_ms",
-        &table.macro_delay_ms.to_string(),
+        "macro-settings",
+        &[(
+            texts.config_macro_delay,
+            delay_key,
+            table.macro_delay_ms.to_string(),
+            delay_comment,
+        )],
     );
-    note(ui, comments.general("macro_delay_ms"));
-    hint(ui, texts.config_macro_delay_hint);
 
     section(ui, texts.config_ime_indicator, "[ime_indicator]");
     ime_ui(ui, &table.ime_indicator, comments);
+}
+
+/// The shared four-column shape for a settings section: what it is, the key
+/// in the file, the value in effect, and the user's own note.
+fn settings_table(ui: &mut egui::Ui, id: &str, rows: &[(&str, &str, String, Option<&str>)]) {
+    let texts = i18n::t();
+    egui::Grid::new(id)
+        .striped(true)
+        .num_columns(4)
+        .min_col_width(110.0)
+        .show(ui, |ui| {
+            ui.label(egui::RichText::new(texts.config_column_item).strong());
+            ui.label(egui::RichText::new(texts.config_column_key).strong());
+            ui.label(egui::RichText::new(texts.config_column_value).strong());
+            ui.label(egui::RichText::new(texts.config_rule_comment).strong());
+            ui.end_row();
+            for (label, key, value, comment) in rows {
+                ui.label(*label);
+                ui.label(egui::RichText::new(*key).monospace().weak());
+                ui.label(egui::RichText::new(value).monospace());
+                ui.label(comment.unwrap_or_default());
+                ui.end_row();
+            }
+        });
 }
 
 fn ime_ui(ui: &mut egui::Ui, settings: &IndicatorSettings, comments: &ConfigComments) {
@@ -395,27 +445,14 @@ fn ime_ui(ui: &mut egui::Ui, settings: &IndicatorSettings, comments: &ConfigComm
         ]);
     }
 
-    egui::Grid::new("ime-settings")
-        .striped(true)
-        .num_columns(4)
-        .min_col_width(110.0)
-        .show(ui, |ui| {
-            ui.label(egui::RichText::new(texts.config_column_item).strong());
-            ui.label(egui::RichText::new(texts.config_column_key).strong());
-            ui.label(egui::RichText::new(texts.config_column_value).strong());
-            ui.label(egui::RichText::new(texts.config_rule_comment).strong());
-            ui.end_row();
-            for (label, key, value) in &rows {
-                ui.label(*label);
-                ui.label(egui::RichText::new(*key).monospace().weak());
-                ui.label(egui::RichText::new(value).monospace());
-                let comment = comments
-                    .general(&format!("ime_indicator.{key}"))
-                    .unwrap_or_default();
-                ui.label(egui::RichText::new(comment).weak());
-                ui.end_row();
-            }
-        });
+    let rows: Vec<(&str, &str, String, Option<&str>)> = rows
+        .into_iter()
+        .map(|(label, key, value)| {
+            let comment = comments.general(&format!("ime_indicator.{key}"));
+            (label, key, value, comment)
+        })
+        .collect();
+    settings_table(ui, "ime-settings", &rows);
 }
 
 fn on_off(value: bool) -> String {

@@ -8,20 +8,21 @@
 #   （ネイティブの保存のまま）。
 # - C-k（kill-line）は単一コマンドで表現できないため未移植。
 
-# マクロの各ストローク間の待ち時間（ms、0-15）。WinUI 系アプリ（新しいメモ帳等）は
-# 一括注入のマクロを取りこぼすことがあるため 8ms を指定（実測で安定を確認）。
-macro_delay_ms = 8
+[macro]
+delay_ms = 8 # マクロの各打鍵の間隔（ms、0-15）。WinUI 系アプリの取りこぼし対策
 
 # --- 全アプリに Emacs バインドを適用（独自のキー処理を持つアプリは除外） ---
 [[keymap]]
 name = "emacs"
-application = ["*"]
+application = [
+    "*" # 全アプリ。ここから除外するアプリはexclude で指定
+]
 exclude = [
     # not_emacs_target 相当
-    "Illustrator.exe",
-    "Photoshop.exe",
-    "Adobe Premiere Pro.exe",
-    "InDesign.exe",
+    "Illustrator.exe", # アドビイラストレーター
+    "Photoshop.exe", # アドビフォトショップ
+    "Adobe Premiere Pro.exe", # アドビプレミアプロ
+    "InDesign.exe", # アドビインデザイン
     #"WindowsTerminal.exe",
     #"Zed.exe",
 ]

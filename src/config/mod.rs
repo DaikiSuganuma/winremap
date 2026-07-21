@@ -74,21 +74,7 @@ pub fn parse_str(source: &str) -> Result<RemapTable, ConfigError> {
 
     let mut issues = Vec::new();
 
-    let macro_delay_ms = match &raw.macro_delay_ms {
-        Some(delay) if *delay.get_ref() > MAX_MACRO_DELAY_MS => {
-            issues.push(issue_at_offset(
-                source,
-                delay.span().start,
-                &format!(
-                    "`macro_delay_ms` must be 0-{MAX_MACRO_DELAY_MS} (got {})",
-                    delay.get_ref()
-                ),
-            ));
-            0
-        }
-        Some(delay) => *delay.get_ref(),
-        None => 0,
-    };
+    let macro_delay_ms = compile_macro_delay(&raw, source, &mut issues);
 
     let ime_indicator = compile_ime_indicator(raw.ime_indicator, source, &mut issues);
 
@@ -134,6 +120,36 @@ pub fn parse_str(source: &str) -> Result<RemapTable, ConfigError> {
 /// Validates the `[ime_indicator]` section against the ranges in
 /// config-spec §6, falling back to the field's default on violation so all
 /// issues are still collected in one pass.
+/// `[macro] delay_ms`, falling back to the v0.1 top-level `macro_delay_ms`
+/// (ADR 0039). Setting both is an error rather than a silent precedence: the
+/// user would otherwise never learn which one is in effect.
+fn compile_macro_delay(raw: &RawConfig, source: &str, issues: &mut Vec<Issue>) -> u32 {
+    let new = raw.macro_section.as_ref().and_then(|m| m.delay_ms.as_ref());
+    let old = raw.macro_delay_ms.as_ref();
+    if let (Some(new), Some(old)) = (new, old) {
+        issues.push(issue_at_offset(
+            source,
+            new.span().start.max(old.span().start),
+            "both `[macro] delay_ms` and the deprecated top-level `macro_delay_ms` are set; keep only `[macro] delay_ms`",
+        ));
+    }
+    let (spanned, key) = match (new, old) {
+        (Some(new), _) => (new, "[macro] delay_ms"),
+        (None, Some(old)) => (old, "macro_delay_ms"),
+        (None, None) => return 0,
+    };
+    let value = *spanned.get_ref();
+    if value > MAX_MACRO_DELAY_MS {
+        issues.push(issue_at_offset(
+            source,
+            spanned.span().start,
+            &format!("`{key}` must be 0-{MAX_MACRO_DELAY_MS} (got {value})"),
+        ));
+        return 0;
+    }
+    value
+}
+
 fn compile_ime_indicator(
     raw: Option<RawImeIndicator>,
     source: &str,

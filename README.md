@@ -112,7 +112,7 @@ complete examples.
 - A two-stroke LHS (`"A-x h" = ...`) defines an Emacs-style prefix: the
   first chord is swallowed and the next keystroke completes the binding.
   An array RHS (`["C-Home", "C-S-End"]`, up to 8) taps each chord in order.
-- Top-level `macro_delay_ms = 8` (0-15) paces macro strokes for apps that
+- `[macro]` `delay_ms = 8` (0-15) paces macro strokes for apps that
   drop burst-injected input (e.g. the WinUI Notepad); the `--macro-delay`
   CLI flag overrides it for experiments.
 - Config errors are reported with line numbers, all at once. Reloading a

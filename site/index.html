@@ -178,7 +178,7 @@ application = ["phpstorm64.exe", "idea64.exe"]
   <p>An array output taps each chord once, in order, injected as a single batch so your
   typing can't interleave. A macro fires once per press — holding the key does not repeat it.</p>
   <p>If an app drops some strokes of a macro (the WinUI Notepad does), add a top-level
-  <code>macro_delay_ms = 8</code> (0–15) to pace the strokes.</p>
+  <code>[macro]</code> <code>delay_ms = 8</code> (0–15) to pace the strokes.</p>
 
   <h3>When something is wrong</h3>
   <p>Config errors are reported all at once, with line numbers. If a reload fails, the
@@ -277,7 +277,7 @@ enabled = true                # default: false
 
   <details>
     <summary>A macro types too fast for the target app</summary>
-    <p>Set <code>macro_delay_ms = 8</code> (top level, 0–15) — some apps sample input
+    <p>Set <code>delay_ms = 8</code> under <code>[macro]</code> (0–15) — some apps sample input
     asynchronously and drop burst-injected strokes.</p>
   </details>
 

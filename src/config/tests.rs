@@ -283,3 +283,14 @@ fn rejects_rules_that_normalize_to_the_same_combo() {
     assert_eq!(found.len(), 1);
     assert!(found[0].message.contains("duplicates"));
 }
+
+#[test]
+fn suganuma_example_uses_the_macro_table() {
+    let source = include_str!("../../examples/suganuma.toml");
+    let table = crate::config::parse_str(source).expect("example config must be valid");
+    assert_eq!(table.macro_delay_ms, 8);
+    let comments = crate::config::comments::parse(source);
+    assert!(comments.general("macro.delay_ms").is_some());
+    let first = comments.keymap(0).expect("first keymap");
+    assert_eq!(first.exclude("photoshop.exe"), Some("アドビフォトショップ"));
+}

@@ -23,6 +23,11 @@ use crate::keymap::{InputPattern, parse_input_pattern};
 pub struct KeymapComments {
     /// Keyed by field name (`name`, `application`, `exclude`).
     pub fields: HashMap<String, String>,
+    /// Per entry of `application` / `exclude`, keyed by the lowercased exe
+    /// name — a multi-line array carries a comment per line, and that is
+    /// where users explain why an app is on the list.
+    pub apps: HashMap<String, String>,
+    pub excludes: HashMap<String, String>,
     /// Keyed by the canonical rendering of the rule's input pattern.
     pub rules: HashMap<String, String>,
 }
@@ -56,6 +61,18 @@ impl KeymapComments {
     pub fn rule(&self, canonical: &str) -> Option<&str> {
         self.rules.get(canonical).map(String::as_str)
     }
+
+    /// Exe names are matched case-insensitively everywhere else, so their
+    /// comments are looked up the same way.
+    pub fn app(&self, exe: &str) -> Option<&str> {
+        self.apps.get(&exe.to_ascii_lowercase()).map(String::as_str)
+    }
+
+    pub fn exclude(&self, exe: &str) -> Option<&str> {
+        self.excludes
+            .get(&exe.to_ascii_lowercase())
+            .map(String::as_str)
+    }
 }
 
 /// Reads a config file for its comments. Any failure yields no comments:
@@ -74,6 +91,13 @@ pub fn parse(source: &str) -> ConfigComments {
 
     if let Some(text) = trailing_comment(doc.get("macro_delay_ms")) {
         comments.general.insert("macro_delay_ms".to_owned(), text);
+    }
+    if let Some(section) = doc.get("macro").and_then(Item::as_table) {
+        for (key, item) in section.iter() {
+            if let Some(text) = trailing_comment(Some(item)) {
+                comments.general.insert(format!("macro.{key}"), text);
+            }
+        }
     }
     if let Some(section) = doc.get("ime_indicator").and_then(Item::as_table) {
         for (key, item) in section.iter() {
@@ -100,6 +124,8 @@ fn keymap_comments(table: &Table) -> KeymapComments {
             comments.fields.insert(key.to_owned(), text);
         }
     }
+    comments.apps = array_comments(table.get("application"));
+    comments.excludes = array_comments(table.get("exclude"));
     if let Some(remap) = table.get("remap").and_then(Item::as_table) {
         for (key, item) in remap.iter() {
             let Some(text) = trailing_comment(Some(item)) else {
@@ -111,6 +137,32 @@ fn keymap_comments(table: &Table) -> KeymapComments {
         }
     }
     comments
+}
+
+/// Trailing comments on the entries of a string array, keyed by the
+/// lowercased entry. Written per line, which is the only way a long
+/// `exclude` list stays explainable.
+///
+/// The comma sits between the entry and its comment, so `toml_edit` files
+/// that comment under the *next* entry's prefix — or, for the last entry,
+/// under the array's own trailing decor. Hence the look-ahead.
+fn array_comments(item: Option<&Item>) -> HashMap<String, String> {
+    let mut found = HashMap::new();
+    let Some(array) = item.and_then(Item::as_array) else {
+        return found;
+    };
+    for (index, value) in array.iter().enumerate() {
+        let Some(name) = value.as_str() else { continue };
+        let after = match array.get(index + 1) {
+            Some(next) => comment_in(next.decor().prefix()),
+            None => comment_in(Some(array.trailing())),
+        };
+        let comment = comment_in(value.decor().suffix()).or(after);
+        if let Some(text) = comment {
+            found.insert(name.to_ascii_lowercase(), text);
+        }
+    }
+    found
 }
 
 /// The rule's input as the settings window renders it, so a comment can be
@@ -126,11 +178,17 @@ fn canonical_input(written: &str) -> Option<String> {
 /// line land in the *next* item's prefix decor, so only suffix decor is read;
 /// that is exactly the "same line" the owner asked for.
 fn trailing_comment(item: Option<&Item>) -> Option<String> {
-    let suffix = item?.as_value()?.decor().suffix()?.as_str()?;
-    let (_, comment) = suffix.split_once('#')?;
-    // A suffix can only hold one line's comment, but trim defensively so a
-    // stray newline never widens a row in the table.
-    let comment = comment.lines().next().unwrap_or_default().trim();
+    comment_in(item?.as_value()?.decor().suffix())
+}
+
+/// The `# ...` on the same line as whatever this decor follows. A `#` after
+/// a newline started a line of its own and belongs to nothing, so it is
+/// dropped — "same line" is the whole point (owner decision 2026-07-21).
+fn comment_in(decor: Option<&toml_edit::RawString>) -> Option<String> {
+    let text = decor?.as_str()?;
+    let same_line = text.lines().next().unwrap_or_default();
+    let (_, comment) = same_line.split_once('#')?;
+    let comment = comment.trim();
     (!comment.is_empty()).then(|| comment.to_owned())
 }
 
@@ -139,7 +197,8 @@ mod tests {
     use super::*;
 
     const SOURCE: &str = r#"
-macro_delay_ms = 8  # WinUI メモ帳向け
+[macro]
+delay_ms = 8  # WinUI メモ帳向け
 
 # この行は前置コメントなので拾わない
 [ime_indicator]
@@ -147,7 +206,10 @@ enabled = true # IME の状態を表示
 
 [[keymap]]
 name = "emacs"  # Emacs 風
-application = ["chrome.exe", "code.exe"]   #  ブラウザとエディタ
+application = [
+  "Chrome.exe",  # ブラウザ
+  "code.exe",
+]   #  ブラウザとエディタ
 exclude = []
 
 [keymap.remap]
@@ -167,7 +229,7 @@ application = ["*"]
     #[test]
     fn reads_general_and_ime_comments() {
         let comments = parse(SOURCE);
-        assert_eq!(comments.general("macro_delay_ms"), Some("WinUI メモ帳向け"));
+        assert_eq!(comments.general("macro.delay_ms"), Some("WinUI メモ帳向け"));
         assert_eq!(
             comments.general("ime_indicator.enabled"),
             Some("IME の状態を表示")
@@ -197,6 +259,17 @@ application = ["*"]
 
         let second = comments.keymap(1).expect("second keymap");
         assert_eq!(second.rule("CapsLock"), Some("単キー"));
+    }
+
+    #[test]
+    fn reads_per_entry_comments_case_insensitively() {
+        let comments = parse(SOURCE);
+        let first = comments.keymap(0).expect("first keymap");
+        // Written "Chrome.exe"; the table stores whatever the user typed, and
+        // lookups have to work either way.
+        assert_eq!(first.app("chrome.exe"), Some("ブラウザ"));
+        assert_eq!(first.app("Chrome.exe"), Some("ブラウザ"));
+        assert_eq!(first.app("code.exe"), None);
     }
 
     #[test]

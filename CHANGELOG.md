@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The tray menu now opens with a disabled caption line showing the app name and version (`WinRemap v0.2.0`).
 - Tray menu item **Settings**, opening a settings window. It is the shell for the v0.2 config GUI; for now it shows the config file's path and hands it to your text editor — which is where the old **Open config file** menu item went. All WinRemap windows share one event loop, with the settings window as the root and the log window as a child (ADR 0035).
 
+### Changed
+
+- Macro pacing moves from the top-level `macro_delay_ms` to `[macro]` `delay_ms` (ADR 0039), so it sits in a section like `[ime_indicator]` does. **The v0.1 spelling still works** — setting both is a validation error rather than a silent precedence.
+
 ### Fixed
 
 - IME indicator: the panel never appeared in the Windows 11 Notepad (ADR 0033). Notepad is a WinUI 3 app whose editor runs on a second UI thread, and the IME open status is per thread, so querying the foreground window always read OFF. The status is now asked of every input thread of the foreground app, which also subsumes the UWP CoreWindow special case from ADR 0023.

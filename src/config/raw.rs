@@ -10,7 +10,11 @@ use toml::Spanned;
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct RawConfig {
-    /// Top-level pacing for macro outputs, in ms (ADR 0019).
+    /// `[macro]` — pacing for macro outputs (ADR 0039).
+    #[serde(default, rename = "macro")]
+    pub(super) macro_section: Option<RawMacro>,
+    /// The v0.1 spelling of `[macro] delay_ms`, still accepted so configs
+    /// written for 0.1 keep working (ADR 0039).
     #[serde(default)]
     pub(super) macro_delay_ms: Option<Spanned<u32>>,
     /// IME status indicator section (ADR 0020, config-spec §6).
@@ -18,6 +22,14 @@ pub(super) struct RawConfig {
     pub(super) ime_indicator: Option<RawImeIndicator>,
     #[serde(default)]
     pub(super) keymap: Vec<RawKeymap>,
+}
+
+/// `[macro]` — how macro outputs are paced (ADR 0018/0019/0039).
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct RawMacro {
+    #[serde(default)]
+    pub(super) delay_ms: Option<Spanned<u32>>,
 }
 
 /// `[ime_indicator]` — every field optional so users can set just `enabled`.
