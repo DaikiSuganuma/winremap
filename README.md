@@ -204,6 +204,8 @@ repository, point your AI agent at it, and describe the feature you want.
   keybinding configuration for Keyhac (MIT)
 - [xremap](https://github.com/xremap/xremap) — the architectural reference
   for per-application remapping on Linux (MIT)
+- [Bootstrap Icons](https://icons.getbootstrap.com/) — the tray menu icons
+  (MIT), rasterized at build time from the SVGs in `assets/icons/`
 
 ## License
 

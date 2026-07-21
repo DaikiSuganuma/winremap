@@ -43,16 +43,17 @@ pub fn init(
     let title_item = IconMenuItem::new(
         format!("{} v{}", texts.app_name, env!("CARGO_PKG_VERSION")),
         false,
-        menu_icon(),
+        app_menu_icon(),
         None,
     );
     // No icon: the checkmark is this item's own marker, and a second glyph
     // beside it would only compete with it.
     let enabled_item = CheckMenuItem::new(texts.menu_enabled, true, true, None);
-    let reload_item = IconMenuItem::new(texts.menu_reload, true, None, None);
-    let settings_item = IconMenuItem::new(texts.menu_settings, true, None, None);
-    let log_item = IconMenuItem::new(texts.menu_log, true, None, None);
-    let quit_item = IconMenuItem::new(texts.menu_quit, true, None, None);
+    let reload_item = IconMenuItem::new(texts.menu_reload, true, menu_icon(RELOAD_ICON), None);
+    let settings_item =
+        IconMenuItem::new(texts.menu_settings, true, menu_icon(SETTINGS_ICON), None);
+    let log_item = IconMenuItem::new(texts.menu_log, true, menu_icon(LOG_ICON), None);
+    let quit_item = IconMenuItem::new(texts.menu_quit, true, menu_icon(QUIT_ICON), None);
 
     let menu = Menu::new();
     menu.append_items(&[
@@ -158,10 +159,22 @@ impl Tray {
     }
 }
 
+/// Menu icons, rasterized from Bootstrap Icons SVGs by build.rs (ADR 0040):
+/// 16x16 straight RGBA, which is the only thing a Win32 menu takes.
+const MENU_ICON_SIZE: u32 = 16;
+const SETTINGS_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/gear.rgba"));
+const RELOAD_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/arrow-clockwise.rgba"));
+const LOG_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/card-list.rgba"));
+const QUIT_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/box-arrow-right.rgba"));
+
+fn menu_icon(rgba: &[u8]) -> Option<tray_icon::menu::Icon> {
+    tray_icon::menu::Icon::from_rgba(rgba.to_vec(), MENU_ICON_SIZE, MENU_ICON_SIZE).ok()
+}
+
 /// The app icon at menu size, for the caption row. Decoded from the 16 px PNG
 /// because menu items take raw pixels, not an .ico; `None` just leaves the
 /// row without an icon.
-fn menu_icon() -> Option<tray_icon::menu::Icon> {
+fn app_menu_icon() -> Option<tray_icon::menu::Icon> {
     let png = include_bytes!("../assets/png/kbd-enabled-16.png");
     let data = eframe::icon_data::from_png_bytes(png).ok()?;
     tray_icon::menu::Icon::from_rgba(data.rgba, data.width, data.height).ok()

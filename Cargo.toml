@@ -28,4 +28,8 @@ windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Window
 winit = "0.30.13"
 
 [build-dependencies]
+# Build-time only: rasterizes the menu icons (ADR 0040). No runtime cost and
+# nothing of it ends up in the binary — only the pixels it produces do.
+# Text and raster-image support are off; the icons are pure paths.
+resvg = { version = "0.47.0", default-features = false }
 winresource = "0.1.31"
