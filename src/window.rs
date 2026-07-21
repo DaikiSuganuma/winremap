@@ -142,6 +142,9 @@ unsafe extern "system" fn on_foreground_changed(
     // IME indicator touch point: show the panel when focus lands on a window
     // whose IME is on (ADR 0020). No-op unless the feature is enabled.
     crate::ime_indicator::notify_foreground_changed();
+    // Macro recording touch point: the banner names the app being recorded
+    // and sits on that app's monitor, so both follow the focus.
+    crate::macro_record::notify_foreground_changed();
 }
 
 /// Full image path for the process owning `hwnd`, or `None` when it cannot

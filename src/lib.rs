@@ -6,3 +6,4 @@
 pub mod config;
 pub mod ime_indicator_settings;
 pub mod keymap;
+pub mod recorder;

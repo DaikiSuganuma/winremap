@@ -9,6 +9,8 @@
 
 use eframe::egui;
 
+use crate::theme;
+
 /// Matches `UI_ICON_SIZE` in build.rs. Rasterized at twice the size icons are
 /// drawn at, so they stay sharp on a HiDPI display.
 const SOURCE_SIZE: usize = 32;
@@ -72,13 +74,17 @@ impl Icon {
     }
 }
 
-/// A button that leads with its icon. egui sizes the image to the font, so it
-/// lines up with the label without a size of our own.
+/// A button that leads with its icon, sized to the height of the button's own
+/// label. Without an explicit size egui draws the texture at its source
+/// resolution, which towers over the text (owner decision 2026-07-21).
 pub fn button(ui: &mut egui::Ui, icon: Icon, text: &str) -> egui::Response {
     // The button's own text colour, not the panel's: on a button face they are
     // not always the same shade.
     let tint = ui.visuals().widgets.inactive.fg_stroke.color;
-    let image = image(ui.ctx(), icon).tint(tint);
+    let size = theme::button_icon_size(ui);
+    let image = image(ui.ctx(), icon)
+        .fit_to_exact_size(egui::vec2(size, size))
+        .tint(tint);
     ui.add(egui::Button::image_and_text(image, text))
 }
 
@@ -89,14 +95,12 @@ pub fn button(ui: &mut egui::Ui, icon: Icon, text: &str) -> egui::Response {
 /// people aim at anyway.
 pub fn link(ui: &mut egui::Ui, icon: Icon, text: &str) -> bool {
     ui.horizontal(|ui| {
-        show(ui, icon, LINK_ICON_SIZE);
+        let size = theme::body_icon_size(ui);
+        show(ui, icon, size);
         ui.link(text).clicked()
     })
     .inner
 }
-
-/// Link icons sit next to body text, so they match its height.
-const LINK_ICON_SIZE: f32 = 14.0;
 
 /// Draws an icon `size` points square, in the current text colour.
 pub fn show(ui: &mut egui::Ui, icon: Icon, size: f32) {

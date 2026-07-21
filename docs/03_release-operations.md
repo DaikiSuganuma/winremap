@@ -41,9 +41,12 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 > **`--no-ff` で**マージする。`main` へ直接トピックブランチを入れない。
 
 0. **リリースブランチ**: `git checkout -b release/0.3.0 develop`
-1. **受け入れテスト**: [05_acceptance-checklist.md](./v0.1/03_acceptance-checklist.md) の「リリース前フルチェック」全項目を実施し、結果を記録・コミット
+1. **受け入れテスト**: 適用する全チェックリストを実施し、結果を記録・コミットする（マージ前にリリースブランチ上で行う）:
+   - [v0.1 受け入れチェックリスト](./v0.1/03_acceptance-checklist.md) — リマップ基盤の回帰確認（全項目）
+   - [v0.2 受け入れチェックリスト](./v0.2/03_acceptance-checklist.md) — ログ・設定ウィンドウ
+   - [v0.3 受け入れチェックリスト](./v0.3/03_acceptance-checklist.md) — マクロ記憶。とくに **M-50 群**（`delay_ms = 15` × 20 コマンドの再生を、打鍵しながら 10 回繰り返してもフックが外れずリマップが生き続けること）は本リリースの最重要確認
 2. **CHANGELOG**: `Unreleased` の内容を新バージョン見出し（例 `## [0.1.0] - 2026-07-XX`）に切り出す
-3. **バージョン**: `Cargo.toml` の `version` を更新（`Cargo.lock` も追随）
+3. **バージョン**: `Cargo.toml` の `version` が**リリースする番号になっているか確認**する。番号を上げるのは開発の開始時であって、ここではない（[04_git-branching.md](04_git-branching.md) §2.6）。上がっていなければこの時点で上げる
 4. **マージとタグ push**:
 
    ```powershell
@@ -71,5 +74,5 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 
 ## 3. 配布ポリシー（ブリーフ §10-3）
 
-- 配布は GitHub Releases のみ。crates.io / winget への展開は必要になった時点で ADR（Architecture Decision Record: 設計判断の記録）を書いて判断する
+- 配布の一次は GitHub Releases。winget（`DaikiSuganuma.WinRemap`）と scoop（公式 Extras バケット）は [ADR 0045](./v0.3/decisions/0045-package-manager-channels.md) で採用済みで、いずれも公式 Releases の URL と SHA256 を参照する**別の入口**である。**マニフェストの確定・提出は v0.3.0 のリリース後**（タグを打つまで資産の URL とハッシュが定まらないため）。パッケージ更新手順は Phase B で本書に追記する
 - 他サイトで配布されているバイナリは非公式（README / SECURITY.md に明記済み）

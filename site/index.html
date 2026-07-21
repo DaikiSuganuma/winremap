@@ -6,314 +6,129 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WinRemap — Help</title>
-<meta name="description" content="WinRemap help: install, configure, and troubleshoot the per-application key remapper for Windows.">
+<meta name="description" content="WinRemap help: a per-application key remapper for Windows. Install, configure, record macros, and troubleshoot.">
+<meta name="color-scheme" content="light dark">
+<!-- Bootstrap 5.3.8 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous">
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+"
+      crossorigin="anonymous">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/kbd-enabled-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/kbd-enabled-16.png">
 <link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/">
 <link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/">
+<!-- Follow the OS light/dark setting (Bootstrap 5.3 switches on data-bs-theme).
+     Inline and self-contained — the site loads no third-party scripts. -->
+<script>
+  (function () {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function apply() {
+      var dark = mq.matches;
+      document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+      // The footer runs the opposite theme, so it reads as a distinct band.
+      var footer = document.getElementById('site-footer');
+      if (footer) footer.setAttribute('data-bs-theme', dark ? 'light' : 'dark');
+    }
+    apply();
+    mq.addEventListener('change', apply);
+    document.addEventListener('DOMContentLoaded', apply);
+  })();
+</script>
 </head>
 <body>
 
-<header class="topnav">
+<nav class="navbar navbar-expand-lg bg-body-tertiary sticky-top border-bottom">
   <div class="container">
-    <a class="brand" href="#top"><img src="assets/kbd-enabled-32.png" alt="">WinRemap</a>
-    <nav>
-      <a href="#install">Install</a>
-      <a href="#quickstart">Quick start</a>
-      <a href="#config">Configuration</a>
-      <a href="#keys">Key notation</a>
-      <a href="#ime">IME indicator</a>
-      <a href="#faq">FAQ</a>
-    </nav>
-    <span class="lang"><a href="ja/" lang="ja">日本語</a></span>
+    <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#top">
+      <img src="assets/kbd-enabled-32.png" alt="" width="24" height="24">WinRemap
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#nav" aria-controls="nav" aria-expanded="false"
+            aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="install.html">Install</a></li>
+        <li class="nav-item"><a class="nav-link" href="config.html">Configuration</a></li>
+        <li class="nav-item"><a class="nav-link" href="macro.html">Macro recording</a></li>
+        <li class="nav-item"><a class="nav-link" href="ime.html">IME indicator</a></li>
+        <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
+      </ul>
+      <ul class="navbar-nav">
+        <li class="nav-item"><a class="nav-link" href="ja/" lang="ja">日本語</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <img src="assets/kbd-enabled.svg" alt="WinRemap icon" width="96" height="96" class="mb-3">
+    <h1 class="display-5 fw-bold">WinRemap</h1>
+    <p class="lead text-body-secondary">A per-application key remapper for Windows, written in Rust.
+    Remap keys only in the apps you choose — declared in one simple TOML file.</p>
+    <div class="d-flex flex-wrap gap-2 justify-content-center my-4">
+      <a class="btn btn-primary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>Download installer</a>
+      <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>Portable exe</a>
+      <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap"><i class="bi bi-github me-1"></i>GitHub</a>
+    </div>
+    <p class="small text-body-secondary mb-0">Free &amp; open source (MIT) · No network access · Never logs keystrokes ·
+    <a href="https://github.com/DaikiSuganuma/winremap/releases">all releases</a></p>
   </div>
 </header>
 
-<div class="hero" id="top">
-  <div class="container">
-    <img class="logo" src="assets/kbd-enabled.svg" alt="WinRemap icon">
-    <h1>WinRemap</h1>
-    <p class="tagline">A per-application key remapper for Windows, written in Rust.
-    Remap keys only in the apps you choose — declared in one simple TOML file.</p>
-    <div class="buttons">
-      <a class="btn primary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe">Download installer</a>
-      <a class="btn" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe">Portable exe</a>
-      <a class="btn" href="https://github.com/DaikiSuganuma/winremap">GitHub</a>
+<main>
+
+<section id="docs" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-compass text-primary me-2"></i>Where to go</h2>
+  <div class="row row-cols-1 row-cols-md-2 g-3">
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>Install &amp; quick start</h3>
+          <p class="card-text text-body-secondary">Download, run, and make your first per-application remap.</p>
+          <a href="install.html" class="stretched-link">Get started<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
     </div>
-    <p class="sub">Free &amp; open source (MIT) · No network access · Never logs keystrokes ·
-    <a href="https://github.com/DaikiSuganuma/winremap/releases">all releases</a></p>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-gear text-primary me-2"></i>Configuration guide</h3>
+          <p class="card-text text-body-secondary">Every option in <code>config.toml</code>, the key-notation table, and worked examples.</p>
+          <a href="config.html" class="stretched-link">Read the guide<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-record-circle text-primary me-2"></i>Macro recording</h3>
+          <p class="card-text text-body-secondary">Record what you do and play it back, for one-off repetitive edits.</p>
+          <a href="macro.html" class="stretched-link">How it works<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-translate text-primary me-2"></i>IME status indicator</h3>
+          <p class="card-text text-body-secondary">Flash an 「あ」 panel when the IME turns on, so you know your input mode.</p>
+          <a href="ime.html" class="stretched-link">See the option<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
-
-<main class="container">
-
-<section id="install">
-  <h2>Install</h2>
-  <ol>
-    <li>Download <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><code>winremap-setup.exe</code></a> and run it.
-      No administrator rights are needed — WinRemap installs per-user.</li>
-    <li>Choose whether WinRemap should <strong>start automatically when you sign in</strong> (recommended for daily use; you can change this later).</li>
-    <li>Finish the wizard. WinRemap starts and a keyboard icon appears in the task tray.</li>
-  </ol>
-  <p>The installer also creates a starter config at
-  <code>%APPDATA%\winremap\config.toml</code> — only if you don't already have one.
-  Your existing config is never touched, and uninstalling keeps it.</p>
-
-  <div class="warn">
-    <strong>"Windows protected your PC" (SmartScreen)?</strong> WinRemap binaries are not
-    code-signed (signing certificates are costly for a free tool), so Windows may show this
-    warning for a new download. Click <em>More info</em> → <em>Run anyway</em>.
-    You can — and should — verify the download instead of trusting it blindly:
-    every release ships with a <code>SHA256SUMS</code> file and a GitHub build-provenance
-    attestation proving it was built from this repository's public source.
-    See <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a> for the two commands.
-  </div>
-
-  <h3>Portable use (no installer)</h3>
-  <p>Prefer a single file? Download
-  <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><code>winremap.exe</code></a>
-  and run it from anywhere. It reads the same
-  <code>%APPDATA%\winremap\config.toml</code>, or any file you pass with
-  <code>--config path\to\file.toml</code>. There are no other files or registry entries.</p>
 </section>
 
-<section id="quickstart">
-  <h2>Quick start</h2>
-  <p>WinRemap lives in the task tray. The tray menu has everything:</p>
-  <ul>
-    <li><strong>Enabled</strong> — toggle all remapping on/off without quitting</li>
-    <li><strong>Settings</strong> — see the config in effect right now (below), and hand <code>config.toml</code> to your text editor</li>
-    <li><strong>Reload config</strong> — apply config changes instantly (no restart, no lost keystrokes)</li>
-    <li><strong>Show log</strong> — watch what WinRemap does with each keystroke, live</li>
-    <li><strong>Quit</strong></li>
-  </ul>
-  <p>Open the config and describe what you want, per application:</p>
-<pre><code># Ctrl+H sends a plain Backspace, but only inside Notepad
-[[keymap]]
-name = "notepad"
-application = ["notepad.exe"]
-
-[keymap.remap]
-"C-h" = "Back"
-</code></pre>
-  <p>Save, choose <em>Reload config</em> from the tray, and press
-  <kbd>Ctrl</kbd>+<kbd>H</kbd> in Notepad — it now deletes one character, while every
-  other app still sees a normal Ctrl+H.</p>
-
-  <div class="note">
-    <strong>Which name goes in <code>application</code>?</strong> Pick
-    <em>Show log</em> from the tray and switch to the target window: the log shows each
-    foreground app's full path, the exact <code>application</code> value to use, and
-    which of your keymaps would apply.
-  </div>
-
-  <p>Ready-made configs to copy from:
-  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/minimal.toml">minimal.toml</a> (the example above),
-  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/emacs.toml">emacs.toml</a> (fakeymacs-style Emacs bindings), and
-  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/suganuma.toml">suganuma.toml</a>
-  (a full personal setup with exclusion lists, macros, and prefix keys).</p>
-</section>
-
-<section id="config">
-  <h2>Configuration</h2>
-  <p>The config is a list of <code>[[keymap]]</code> sections. Each names the applications
-  it applies to and the key rules for them.</p>
-
-  <h3>Targeting applications</h3>
-<pre><code># Applies everywhere except the listed apps
-[[keymap]]
-name = "global-emacs"
-application = ["*"]
-exclude = ["windowsterminal.exe", "mintty.exe"]
-
-[keymap.remap]
-"C-p" = "Up"
-
-# Applies only to these two apps — app rules always win over "*" rules
-[[keymap]]
-name = "jetbrains"
-application = ["phpstorm64.exe", "idea64.exe"]
-
-[keymap.remap]
-"C-h" = "Back"
-</code></pre>
-  <ul>
-    <li><code>application</code> lists exe names (case-insensitive, full name with <code>.exe</code>),
-      or <code>["*"]</code> for all apps. Mixing <code>"*"</code> with concrete names is an error.</li>
-    <li><code>exclude</code> is allowed only together with <code>["*"]</code>.</li>
-    <li>App-specific keymaps always take priority over global ones; within the same group,
-      the first matching rule wins.</li>
-  </ul>
-
-  <h3>Two kinds of rules</h3>
-  <div class="table-wrap"><table>
-    <tr><th>Rule</th><th>Example</th><th>Behavior</th></tr>
-    <tr>
-      <td>Chord rule (has modifiers)</td>
-      <td><code>"C-h" = "Back"</code></td>
-      <td>Matches that exact chord only (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> won't trigger it)
-        and replaces the modifier state too — the app receives a plain Backspace even though
-        Ctrl is physically held. The output may have its own modifiers: <code>"C-i" = "S-Tab"</code>.</td>
-    </tr>
-    <tr>
-      <td>Bare-key rule</td>
-      <td><code>"CapsLock" = "LCtrl"</code></td>
-      <td>Swaps the key itself regardless of held modifiers — ideal for CapsLock→Ctrl.
-        The output must be a single key without modifiers.</td>
-    </tr>
-  </table></div>
-
-  <h3>Prefix keys (two-stroke sequences)</h3>
-<pre><code>"A-x u" = "C-z"      # Alt+X, then U  →  undo
-"A-x C-s" = "C-s"    # Alt+X, then Ctrl+S  →  save
-</code></pre>
-  <p>The first chord is swallowed and waits (no timeout, like Emacs); the next keystroke
-  completes the binding. An undefined second stroke is discarded, so typos never leak
-  into the app. The prefix must be a chord with modifiers.</p>
-
-  <h3>Macros</h3>
-<pre><code>"C-t" = ["C-Right", "C-Left", "C-S-Right"]   # up to 8 chords
-</code></pre>
-  <p>An array output taps each chord once, in order, injected as a single batch so your
-  typing can't interleave. A macro fires once per press — holding the key does not repeat it.</p>
-  <p>If an app drops some strokes of a macro (the WinUI Notepad does), add a top-level
-  <code>[macro]</code> <code>delay_ms = 8</code> (0–15) to pace the strokes.</p>
-
-  <h3>When something is wrong</h3>
-  <p>Config errors are reported all at once, with line numbers. If a reload fails, the
-  previous working config stays active — a typo never disables your keyboard setup.</p>
-</section>
-
-<section id="keys">
-  <h2>Key notation</h2>
-  <p>Rules use the Emacs-style notation familiar from Keyhac/fakeymacs:
-  modifier prefixes plus a key name, e.g. <code>C-h</code>, <code>A-S-F5</code>,
-  <code>W-Space</code>. Everything is case-insensitive.</p>
-
-  <div class="table-wrap"><table>
-    <tr><th>Prefix</th><th>Modifier</th></tr>
-    <tr><td><code>C-</code></td><td>Ctrl (either side)</td></tr>
-    <tr><td><code>A-</code></td><td>Alt (either side)</td></tr>
-    <tr><td><code>S-</code></td><td>Shift (either side)</td></tr>
-    <tr><td><code>W-</code></td><td>Win (either side)</td></tr>
-  </table></div>
-
-  <div class="table-wrap"><table>
-    <tr><th>Group</th><th>Key names</th></tr>
-    <tr><td>Letters / digits</td><td><code>a</code>–<code>z</code>, <code>0</code>–<code>9</code></td></tr>
-    <tr><td>Function</td><td><code>F1</code>–<code>F24</code></td></tr>
-    <tr><td>Editing</td><td><code>Back</code> (<code>Backspace</code>, <code>BS</code>), <code>Tab</code>, <code>Enter</code> (<code>Return</code>), <code>Esc</code> (<code>Escape</code>), <code>Space</code>, <code>Insert</code> (<code>Ins</code>), <code>Delete</code> (<code>Del</code>)</td></tr>
-    <tr><td>Navigation</td><td><code>PageUp</code> (<code>PgUp</code>), <code>PageDown</code> (<code>PgDn</code>), <code>Home</code>, <code>End</code>, <code>Left</code>, <code>Up</code>, <code>Right</code>, <code>Down</code></td></tr>
-    <tr><td>Lock</td><td><code>CapsLock</code></td></tr>
-    <tr><td>Modifiers as output keys</td><td><code>LCtrl</code>, <code>RCtrl</code>, <code>LShift</code>, <code>RShift</code>, <code>LAlt</code>, <code>RAlt</code>, <code>LWin</code>, <code>RWin</code>, <code>Apps</code> (<code>Menu</code>) — output side only</td></tr>
-  </table></div>
-
-  <p>Not supported in v0.1: punctuation/OEM keys (<code>;</code>, <code>,</code>, …
-  their key codes depend on the keyboard layout) and modifier keys on the
-  <em>input</em> side of a rule.</p>
-</section>
-
-<section id="ime">
-  <h2>IME status indicator (optional)</h2>
-  <p>Independent of remapping, WinRemap can flash a translucent
-  <strong>「あ」</strong> panel at the center of the active window the moment the IME
-  turns on — or when you focus a window whose IME is on — so you always know your
-  input mode before typing. Display only: WinRemap never switches the IME.</p>
-<pre><code>[ime_indicator]
-enabled = true                # default: false
-# trigger_keys = ["C-Space"]  # if you toggle the IME with Ctrl+Space
-# duration_ms = 800           # 100–5000
-# size = 96                   # 32–256
-# opacity = 200               # 0–255
-# show_app_name = true        # exe name under the glyph
-</code></pre>
-  <p>Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are detected
-  out of the box; add <code>trigger_keys</code> if you use a custom toggle like the
-  Windows 11 IME's Ctrl+Space option. The panel never takes focus or input, and a problem
-  in the indicator never affects remapping.</p>
-</section>
-
-<section id="faq">
-  <h2>FAQ &amp; troubleshooting</h2>
-
-  <details>
-    <summary>Remapping doesn't work in one specific window</summary>
-    <p>If that window runs <strong>as administrator</strong>, Windows blocks input from
-    non-elevated programs (UIPI). Run WinRemap elevated too if you really need remapping
-    there. Games with anti-cheat and some virtualization software also ignore injected input.</p>
-  </details>
-
-  <details>
-    <summary>How do I check what is actually in effect?</summary>
-    <p>Right-click the tray icon and pick <em>Settings</em>. It shows the config WinRemap
-    is resolving against right now — every keymap, its target apps and exclusions, and its
-    rules, each with the comment you wrote beside it in the file. Where the same input is
-    bound in more than one keymap, a column names the others, since only one of them can
-    win.</p>
-    <p>The window is <strong>read-only in this release</strong>. Edit the file and press
-    <em>Reload config</em>; the display follows. The file's modification time and the load
-    time sit side by side, so a config you saved but did not reload is obvious.</p>
-  </details>
-
-  <details>
-    <summary>My rule doesn't match — how do I debug it?</summary>
-    <p>Right-click the tray icon and pick <em>Show log</em>. It shows the exact
-    <code>application</code> value for each foreground window and logs every key decision
-    (pass-through / remap / macro / prefix) at key-name level, as you type. Prefer a
-    terminal? Start WinRemap with <code>winremap.exe --debug</code> and the same lines go
-    there. Debug output never includes typed text and is never written to disk.</p>
-  </details>
-
-  <details>
-    <summary>Can I use it together with Keyhac / AutoHotkey?</summary>
-    <p>Not recommended for the same keys: stacked low-level keyboard hooks have undefined
-    ordering, so behavior becomes unpredictable. Disable one while testing the other.</p>
-  </details>
-
-  <details>
-    <summary>Where did the console window go?</summary>
-    <p>WinRemap no longer opens one: launching it from Explorer, the Start menu or at
-    sign-in is silent, and anything you must see (a startup error, a failed reload)
-    appears as a dialog. Start it from a terminal and it still prints there, though the
-    prompt returns immediately so output arrives interleaved with it. For a readable
-    running log, use <em>Show log</em> in the tray.</p>
-  </details>
-
-  <details>
-    <summary>How do I turn autostart on or off after installing?</summary>
-    <p>Press <kbd>Win</kbd>+<kbd>R</kbd>, run <code>shell:startup</code>, and add or remove
-    the <em>WinRemap</em> shortcut there. (Re-running the installer also lets you re-choose
-    the option.)</p>
-  </details>
-
-  <details>
-    <summary>A macro types too fast for the target app</summary>
-    <p>Set <code>delay_ms = 8</code> under <code>[macro]</code> (0–15) — some apps sample input
-    asynchronously and drop burst-injected strokes.</p>
-  </details>
-
-  <details>
-    <summary>Where does WinRemap store things?</summary>
-    <p>Program: <code>%LOCALAPPDATA%\Programs\WinRemap</code> (installer) or wherever you
-    put the portable exe. Config: <code>%APPDATA%\winremap\config.toml</code>. That's all —
-    no services, no drivers, no registry settings.</p>
-  </details>
-
-  <details>
-    <summary>How do I verify my download is genuine?</summary>
-    <p>Compare the SHA-256 hash against <code>SHA256SUMS</code> from the release, and check
-    the build-provenance attestation with the GitHub CLI:</p>
-<pre><code>(Get-FileHash .\winremap-setup.exe -Algorithm SHA256).Hash.ToLower()
-gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
-</code></pre>
-    <p>Details in <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>.
-    Binaries from anywhere other than GitHub Releases are unofficial.</p>
-  </details>
-</section>
-
-<section id="about">
-  <h2>Security &amp; scope</h2>
+<section id="about" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-shield-check text-primary me-2"></i>Security &amp; scope</h2>
   <ul>
     <li>WinRemap <strong>never logs or stores keystrokes</strong> — enforced as repository
       policy, not just good intentions.</li>
@@ -325,13 +140,126 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
   </ul>
 </section>
 
+<section id="faq" class="container py-4">
+  <h2 class="mb-3"><i class="bi bi-question-circle text-primary me-2"></i>FAQ &amp; troubleshooting</h2>
+
+  <div class="accordion" id="faqAccordion">
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">Remapping doesn't work in one specific window</button>
+      </h3>
+      <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">If that window runs <strong>as administrator</strong>, Windows blocks input from
+        non-elevated programs (UIPI). Run WinRemap elevated too if you really need remapping
+        there. Games with anti-cheat and some virtualization software also ignore injected input.</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">How do I check what is actually in effect?</button>
+      </h3>
+      <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          <p>Right-click the tray icon and pick <em>Settings</em>. It shows the config WinRemap
+          is resolving against right now — every keymap, its target apps and exclusions, and its
+          rules, each with the comment you wrote beside it in the file. Where the same input is
+          bound in more than one keymap, a column names the others, since only one of them can
+          win.</p>
+          <p class="mb-0">The window is <strong>read-only in this release</strong>. Edit the file and press
+          <em>Reload config</em>; the display follows. The file's modification time and the load
+          time sit side by side, so a config you saved but did not reload is obvious.</p>
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">My rule doesn't match — how do I debug it?</button>
+      </h3>
+      <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">Right-click the tray icon and pick <em>Show log</em>. It shows the exact
+        <code>application</code> value for each foreground window and logs every key decision
+        (pass-through / remap / macro / prefix) at key-name level, as you type. Prefer a
+        terminal? Start WinRemap with <code>winremap.exe --debug</code> and the same lines go
+        there. Debug output never includes typed text and is never written to disk.</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">Can I use it together with Keyhac / AutoHotkey?</button>
+      </h3>
+      <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">Not recommended for the same keys: stacked low-level keyboard hooks have undefined
+        ordering, so behavior becomes unpredictable. Disable one while testing the other.</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">Where did the console window go?</button>
+      </h3>
+      <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">WinRemap no longer opens one: launching it from Explorer, the Start menu or at
+        sign-in is silent, and anything you must see (a startup error, a failed reload)
+        appears as a dialog. Start it from a terminal and it still prints there, though the
+        prompt returns immediately so output arrives interleaved with it. For a readable
+        running log, use <em>Show log</em> in the tray.</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq6">How do I turn autostart on or off after installing?</button>
+      </h3>
+      <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">Press <kbd>Win</kbd>+<kbd>R</kbd>, run <code>shell:startup</code>, and add or remove
+        the <em>WinRemap</em> shortcut there. (Re-running the installer also lets you re-choose
+        the option.)</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq7">A macro types too fast for the target app</button>
+      </h3>
+      <div id="faq7" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">Set <code>delay_ms = 8</code> under <code>[macro]</code> (0–15) — some apps sample input
+        asynchronously and drop burst-injected strokes.</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq8">Where does WinRemap store things?</button>
+      </h3>
+      <div id="faq8" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">Program: <code>%LOCALAPPDATA%\Programs\WinRemap</code> (installer) or wherever you
+        put the portable exe. Config: <code>%APPDATA%\winremap\config.toml</code>. That's all —
+        no services, no drivers, no registry settings.</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq9">How do I verify my download is genuine?</button>
+      </h3>
+      <div id="faq9" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          <p>Compare the SHA-256 hash against <code>SHA256SUMS</code> from the release, and check
+          the build-provenance attestation with the GitHub CLI:</p>
+<pre class="bg-body-tertiary border rounded p-3 mb-2"><code>(Get-FileHash .\winremap-setup.exe -Algorithm SHA256).Hash.ToLower()
+gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
+</code></pre>
+          <p class="mb-0">Details in <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>.
+          Binaries from anywhere other than GitHub Releases are unofficial.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 </main>
 
-<footer>
-  <div class="container">
+<footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
+  <div class="container small d-grid gap-2">
     <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
     <span>Tray menu icons from <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a> (MIT) —
-      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">notices</a>.</span>
+      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">notices</a>.
+      This site is built with <a href="https://getbootstrap.com/">Bootstrap</a> (MIT).</span>
     <span>Inspired by <a href="https://github.com/xremap/xremap">xremap</a> and
       <a href="https://sites.google.com/site/craftware/keyhac-ja">Keyhac</a> /
       <a href="https://github.com/smzht/fakeymacs">fakeymacs</a> — an independent project,
@@ -343,5 +271,8 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
 </body>
 </html>

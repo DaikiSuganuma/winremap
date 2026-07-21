@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<!-- Created: 2026-07-22 by Claude Code (model: claude-opus-4-8). Japanese
+     translation of site/install.html — keep in sync with the English original. -->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WinRemap — インストールとクイックスタート</title>
+<meta name="description" content="WinRemap のインストールと、最初のアプリ別キーリマップの作り方。">
+<meta name="color-scheme" content="light dark">
+<!-- Bootstrap 5.3.8 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous">
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+"
+      crossorigin="anonymous">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/kbd-enabled-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../assets/kbd-enabled-16.png">
+<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/install.html">
+<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/install.html">
+<!-- Follow the OS light/dark setting (Bootstrap 5.3 switches on data-bs-theme).
+     Inline and self-contained — the site loads no third-party scripts. -->
+<script>
+  (function () {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function apply() {
+      var dark = mq.matches;
+      document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+      // The footer runs the opposite theme, so it reads as a distinct band.
+      var footer = document.getElementById('site-footer');
+      if (footer) footer.setAttribute('data-bs-theme', dark ? 'light' : 'dark');
+    }
+    apply();
+    mq.addEventListener('change', apply);
+    document.addEventListener('DOMContentLoaded', apply);
+  })();
+</script>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-body-tertiary sticky-top border-bottom">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="index.html">
+      <img src="../assets/kbd-enabled-32.png" alt="" width="24" height="24">WinRemap
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#nav" aria-controls="nav" aria-expanded="false"
+            aria-label="ナビゲーション切り替え">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link active" aria-current="page" href="install.html">インストール</a></li>
+        <li class="nav-item"><a class="nav-link" href="config.html">設定</a></li>
+        <li class="nav-item"><a class="nav-link" href="macro.html">マクロ記憶</a></li>
+        <li class="nav-item"><a class="nav-link" href="ime.html">IME 表示</a></li>
+        <li class="nav-item"><a class="nav-link" href="index.html#faq">FAQ</a></li>
+      </ul>
+      <ul class="navbar-nav">
+        <li class="nav-item"><a class="nav-link" href="../install.html" lang="en">English</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <h1 class="display-5 fw-bold">インストールとクイックスタート</h1>
+    <p class="lead text-body-secondary mb-0">WinRemap を動かして、最初のアプリ別リマップを作ります。
+    <a href="index.html">ヘルプ目次</a>へ戻る。</p>
+  </div>
+</header>
+
+<main>
+
+<section id="install" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>インストール</h2>
+  <ol>
+    <li><a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><code>winremap-setup.exe</code></a>
+      をダウンロードして実行します。ユーザー単位のインストールなので<strong>管理者権限は不要</strong>です。</li>
+    <li><strong>サインイン時に自動起動</strong>するかを選びます(常用するなら推奨。後から変更できます)。</li>
+    <li>ウィザードを完了すると WinRemap が起動し、タスクトレイにキーボードのアイコンが現れます。</li>
+  </ol>
+  <p>設定ファイルがまだ無い場合のみ、インストーラーが初期設定
+  <code>%APPDATA%\winremap\config.toml</code> を作成します。既存の設定には一切触れず、
+  アンインストールしても設定は残ります。</p>
+
+  <div class="d-flex flex-wrap gap-2 my-3">
+    <a class="btn btn-primary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>インストーラーをダウンロード</a>
+    <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>ポータブル版 exe</a>
+    <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases"><i class="bi bi-github me-1"></i>全リリース</a>
+  </div>
+
+  <div class="alert alert-warning d-flex gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+    <div><strong>「Windows によって PC が保護されました」(SmartScreen) が出たら?</strong>
+    WinRemap のバイナリはコード署名されていないため(無料ツールには署名証明書の費用負担が大きいため)、
+    ダウンロード直後は
+    この警告が表示されることがあります。<em>詳細情報</em> → <em>実行</em> で起動できます。
+    やみくもに信用する代わりに、ダウンロードの検証を推奨します: 各リリースには
+    <code>SHA256SUMS</code> と、このリポジトリの公開ソースからビルドされたことを証明する
+    GitHub の attestation(ビルド来歴証明)が付属します。手順は
+    <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a> を参照してください。</div>
+  </div>
+
+  <h3 class="h5 mt-4">ポータブル利用(インストーラーなし)</h3>
+  <p>1 ファイルで使いたい場合は
+  <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><code>winremap.exe</code></a>
+  をダウンロードして好きな場所から実行してください。設定は同じ
+  <code>%APPDATA%\winremap\config.toml</code>、または
+  <code>--config パス\ファイル.toml</code> で指定したファイルを読みます。
+  ほかのファイルやレジストリ項目は作りません。</p>
+</section>
+
+<section id="quickstart" class="container py-4">
+  <h2 class="mb-3"><i class="bi bi-rocket-takeoff text-primary me-2"></i>クイックスタート</h2>
+  <p>WinRemap はタスクトレイに常駐します。操作はすべてトレイメニューから:</p>
+  <ul>
+    <li><strong>有効</strong> — リマップ全体の一時 ON/OFF(終了せずに切替)</li>
+    <li><strong>設定</strong> — 今効いている設定を確認する(<code>config.toml</code> をテキストエディタで開くこともできます)</li>
+    <li><strong>設定をリロード</strong> — 設定変更を即時反映(再起動不要・キー取りこぼしなし)</li>
+    <li><strong>ログを表示</strong> — キーがどう処理されたかをその場で確認する</li>
+    <li><strong>終了</strong></li>
+  </ul>
+  <p>設定を開いて、アプリごとにやりたいことを書きます:</p>
+<pre class="bg-body-tertiary border rounded p-3"><code># メモ帳でのみ Ctrl+H を素の Backspace にする
+[[keymap]]
+name = "notepad"
+application = ["notepad.exe"]
+
+[keymap.remap]
+"C-h" = "Back"
+</code></pre>
+  <p>保存してトレイの<em>設定をリロード</em>を選び、メモ帳で
+  <kbd>Ctrl</kbd>+<kbd>H</kbd> を押すと 1 文字削除になります。他のアプリには
+  通常の Ctrl+H がそのまま届きます。</p>
+
+  <div class="alert alert-info d-flex gap-2" role="alert">
+    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+    <div><strong><code>application</code> に何を書けばいい?</strong>
+    トレイから<em>ログを表示</em>を選んで対象ウィンドウに切り替えると、
+    前面アプリのフルパス、<code>application</code> に指定すべき値、
+    適用されるキーマップが表示されます。</div>
+  </div>
+
+  <p>コピーして使える設定例:
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/minimal.toml">minimal.toml</a>(上の例)、
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/emacs.toml">emacs.toml</a>(fakeymacs 風 Emacs キーバインド)、
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/suganuma.toml">suganuma.toml</a>
+  (除外リスト・マクロ・プレフィックスキーを使った実運用例)。</p>
+
+  <p class="mt-4">
+    <a class="btn btn-primary" href="config.html"><i class="bi bi-book me-1"></i>設定ガイド</a>
+  </p>
+  <p class="text-body-secondary">全項目の説明、キー記法の一覧表、そして CapsLock・Emacs 風
+  キーバインド・アプリ別の例外・マクロの記述例を掲載しています。</p>
+</section>
+
+</main>
+
+<footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
+  <div class="container small d-grid gap-2">
+    <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
+    <span><a href="https://getbootstrap.com/">Bootstrap</a> と
+      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>（MIT）で構築しています。</span>
+    <span><a href="index.html">ヘルプ</a> ·
+      <a href="https://github.com/DaikiSuganuma/winremap">ソース</a> ·
+      <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
+      <a href="../install.html" lang="en">English</a></span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
+</body>
+</html>

@@ -98,6 +98,7 @@ fn table_with(keymap: Keymap) -> RemapTable {
         keymaps: vec![keymap],
         macro_delay_ms: 0,
         ime_indicator: Default::default(),
+        macro_record: None,
     }
 }
 
