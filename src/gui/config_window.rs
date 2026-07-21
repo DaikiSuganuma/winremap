@@ -19,7 +19,11 @@ use std::time::{Duration, Instant};
 use eframe::egui;
 
 use super::icons::{self, Icon};
+// Every size and colour in this window comes from `theme`, so they can be
+// read and adjusted in one place.
 use crate::i18n;
+use crate::theme;
+use crate::theme::{CELL_PAD, EDGE_PAD, NOTE_GAP, SECTION_GAP, SECTION_TEXT, TITLE_TEXT};
 use winremap::config::comments::{ConfigComments, KeymapComments};
 use winremap::ime_indicator_settings::IndicatorSettings;
 use winremap::keymap::{AppFilter, Keymap, Output, RemapTable, vk_display_name};
@@ -63,42 +67,54 @@ impl ConfigWindow {
         self.sync_comments(table.as_ref(), &path);
 
         let file_time = self.file_time(&path);
-        egui::Panel::top("config-header").show(ui, |ui| {
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                icons::show(ui, Icon::File, SECTION_TEXT);
-                ui.label(egui::RichText::new(texts.config_window_file).strong());
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(
-                        egui::RichText::new(format!(
-                            "{} v{}",
-                            texts.app_name,
-                            env!("CARGO_PKG_VERSION")
-                        ))
-                        .weak(),
-                    );
+        // A filled band, like the log window's header (owner decision
+        // 2026-07-21): it names the file everything below is read from, so
+        // it reads as chrome rather than as the first section of the pane.
+        egui::Panel::top("config-header")
+            .frame(theme::chrome_frame(ui.visuals()))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    icons::show(ui, Icon::File, SECTION_TEXT);
+                    ui.label(egui::RichText::new(texts.config_window_file).strong());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "{} v{}",
+                                texts.app_name,
+                                env!("CARGO_PKG_VERSION")
+                            ))
+                            .weak(),
+                        );
+                    });
                 });
-            });
-            ui.add_space(NOTE_GAP);
-            file_table(ui, &path, &file_time);
-            ui.add_space(NOTE_GAP);
-            ui.label(egui::RichText::new(texts.config_window_readonly).weak());
-            // Under the note that explains why they are needed: this window
-            // shows, the editor changes, the button applies (owner decision
-            // 2026-07-21).
-            ui.add_space(NOTE_GAP);
-            ui.horizontal(|ui| {
-                if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
-                    open_in_default_editor(&path);
-                }
                 ui.add_space(NOTE_GAP);
-                if icons::button(ui, Icon::Reload, texts.menu_reload).clicked() {
-                    super::log::action(texts.menu_reload);
-                    super::request_reload();
-                }
+                // The table keeps a fixed width and the controls that act on the
+                // file sit to its right, level with it: this window shows, the
+                // editor changes, the button applies (owner decision
+                // 2026-07-21).
+                let table_width = ui.available_width() * theme::FILE_TABLE_WIDTH_RATIO;
+                ui.horizontal(|ui| {
+                    ui.scope(|ui| {
+                        ui.set_max_width(table_width);
+                        file_table(ui, &path, &file_time);
+                    });
+                    ui.add_space(SECTION_GAP);
+                    // Stacked and left-aligned beside the table: they act on the
+                    // file it describes (owner decision 2026-07-21).
+                    ui.vertical(|ui| {
+                        if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
+                            open_in_default_editor(&path);
+                        }
+                        ui.add_space(NOTE_GAP);
+                        if icons::button(ui, Icon::Reload, texts.menu_reload).clicked() {
+                            super::log::action(texts.menu_reload);
+                            super::request_reload();
+                        }
+                    });
+                });
+                ui.add_space(NOTE_GAP);
+                ui.label(egui::RichText::new(texts.config_window_readonly).weak());
             });
-            ui.add_space(6.0);
-        });
 
         let Some(table) = table else {
             egui::CentralPanel::default().show(ui, |ui| {
@@ -288,50 +304,6 @@ fn keymap_ui(
     macro_note_ui(ui, keymap);
 }
 
-/// Section titles are bigger than body text and sit under a rule, so a long
-/// detail pane reads as parts rather than one wall.
-const SECTION_TEXT: f32 = 17.0;
-/// The keymap's own name, one step above its sections.
-const TITLE_TEXT: f32 = 21.0;
-/// Room around cell text. Applied as grid spacing, so half of it lands on
-/// each side of the gap between two cells.
-const CELL_PAD: i8 = 4;
-/// Room between the table's own border and the cells at its edges. Wider than
-/// the gap between cells, because text touching a rule is hard to read; kept
-/// equal on both sides so the header band stays centred in the frame.
-const EDGE_PAD: i8 = 8;
-/// A note reads as belonging to the table it sits under only if there is a
-/// clear break between them.
-const NOTE_GAP: f32 = 8.0;
-/// Whitespace above and below a section rule. The rule only reads as a
-/// divider when the content on either side is clear of it, and the detail
-/// pane is one long scroll of tables that otherwise run together.
-const SECTION_GAP: f32 = 20.0;
-/// How much of the default rule colour a section divider keeps. It separates
-/// text rather than enclosing a widget, so the stock stroke reads as heavy.
-const HAIRLINE_ALPHA: f32 = 0.5;
-
-/// A section divider, lighter than `ui.separator()` — that one draws with the
-/// stroke widgets use for their own borders, which is more line than a break
-/// between two blocks of text needs. Painted by hand because `Separator` has
-/// no colour of its own.
-fn hairline(ui: &mut egui::Ui) {
-    let color = ui
-        .visuals()
-        .widgets
-        .noninteractive
-        .bg_stroke
-        .color
-        .gamma_multiply(HAIRLINE_ALPHA);
-    let (rect, _) =
-        ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::empty());
-    ui.painter().hline(
-        rect.x_range(),
-        rect.center().y,
-        egui::Stroke::new(1.0, color),
-    );
-}
-
 /// Grid spacing is the gap *between* cells, so it is twice the padding each
 /// cell gets. Columns get the wider gap: adjacent values need more to read
 /// apart than stacked rows do.
@@ -340,7 +312,7 @@ fn cell_spacing() -> egui::Vec2 {
     egui::vec2(pad * 4.0, pad * 2.0)
 }
 
-/// The shared look for every table in this window: a hairline border, a
+/// The shared look for every table in this window: a thin border, a
 /// reverse-coloured header row, and room around the text.
 ///
 /// egui's `Grid` has no notion of a header, so row 0 is coloured through
@@ -354,10 +326,10 @@ fn table(
     min_col_width: f32,
     rows: impl FnOnce(&mut egui::Ui),
 ) {
-    let border = ui.visuals().widgets.noninteractive.bg_stroke;
+    let border = theme::table_border(ui.visuals());
     // The header's text takes the window's background colour, which is what
     // "reversed" means here — and it follows the light/dark theme for free.
-    let header_text = ui.visuals().extreme_bg_color;
+    let header_text = theme::table_header_text(ui.visuals());
     egui::Frame::new()
         .stroke(border)
         .inner_margin(egui::Margin::symmetric(EDGE_PAD, CELL_PAD))
@@ -371,8 +343,8 @@ fn table(
                 .min_col_width(min_col_width)
                 .spacing(cell_spacing())
                 .with_row_color(|row, style| match row {
-                    0 => Some(style.visuals.text_color()),
-                    row if row % 2 == 1 => Some(style.visuals.faint_bg_color),
+                    0 => Some(theme::table_header_bg(&style.visuals)),
+                    row if row % 2 == 1 => Some(theme::table_stripe(&style.visuals)),
                     _ => None,
                 })
                 .show(ui, |ui| {
@@ -404,10 +376,12 @@ fn comment_cell(ui: &mut egui::Ui, text: &str) {
     ui.add(egui::Label::new(text).wrap());
 }
 
+/// Sections are separated by whitespace alone: the pane had collected enough
+/// horizontal rules — table borders, dividers — that they stopped reading as
+/// structure and started reading as clutter (owner decision 2026-07-21). The
+/// gap is doubled to carry the break the line used to.
 fn section(ui: &mut egui::Ui, icon: Icon, title: &str, key: &str) {
-    ui.add_space(SECTION_GAP);
-    hairline(ui);
-    ui.add_space(SECTION_GAP);
+    ui.add_space(SECTION_GAP * 2.0);
     ui.horizontal(|ui| {
         icons::show(ui, icon, SECTION_TEXT);
         ui.label(egui::RichText::new(title).size(SECTION_TEXT).strong());
@@ -642,19 +616,87 @@ fn general_ui(ui: &mut egui::Ui, table: &RemapTable, comments: &ConfigComments) 
             None => ("delay_ms", None),
         },
     };
-    settings_table(
-        ui,
-        "macro-settings",
-        &[(
-            texts.config_macro_delay,
-            delay_key,
-            table.macro_delay_ms.to_string(),
-            delay_comment,
-        )],
-    );
+    let mut rows: Vec<(&str, &str, String, Option<&str>)> = vec![(
+        texts.config_macro_delay,
+        delay_key,
+        table.macro_delay_ms.to_string(),
+        delay_comment,
+    )];
+    // Recording is opt-in, so the three keys only earn rows once they exist
+    // (ADR 0043); listing "(not configured)" three times would be noise for
+    // everyone who does not use the feature.
+    if let Some(keys) = table.macro_record.as_ref() {
+        rows.push((
+            texts.config_macro_record_start,
+            "record_start",
+            keys.start.to_string(),
+            comments.general("macro.record_start"),
+        ));
+        rows.push((
+            texts.config_macro_record_stop,
+            "record_stop",
+            keys.stop.to_string(),
+            comments.general("macro.record_stop"),
+        ));
+        rows.push((
+            texts.config_macro_record_play,
+            "record_play",
+            keys.play.to_string(),
+            comments.general("macro.record_play"),
+        ));
+    }
+    settings_table(ui, "macro-settings", &rows);
+
+    if table.macro_record.is_some() {
+        recorded_macro_ui(ui);
+    }
 
     section(ui, Icon::Ime, texts.config_ime_indicator, "[ime_indicator]");
     ime_ui(ui, &table.ime_indicator, comments);
+}
+
+/// The macro held in memory right now, rendered the way a config macro is so
+/// the two read alike (owner decision 2026-07-21).
+///
+/// Deliberately outside the settings table: every other row states what the
+/// file says, and this one states what memory holds. The note spells that
+/// out, because a reader who takes it for a config value would go looking
+/// for it in the file and never find it.
+fn recorded_macro_ui(ui: &mut egui::Ui) {
+    let texts = i18n::t();
+    let commands = crate::macro_record::recorded();
+    let rendered = match commands {
+        Some(ref commands) if !commands.is_empty() => commands
+            .iter()
+            .map(|combo| combo.to_string())
+            .collect::<Vec<_>>()
+            .join(" → "),
+        _ => texts.config_none.to_owned(),
+    };
+    ui.add_space(NOTE_GAP);
+    // Given its own filled box rather than another table row (owner decision
+    // 2026-07-21). It is the one value in this window that changes while you
+    // watch it, and the surrounding tables all report the file — so looking
+    // different is the point, not decoration.
+    egui::Frame::new()
+        .fill(theme::highlight_fill(ui.visuals()))
+        .stroke(theme::highlight_stroke(ui.visuals()))
+        .corner_radius(theme::HIGHLIGHT_ROUNDING)
+        .inner_margin(egui::Margin::same(theme::HIGHLIGHT_PAD))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.label(egui::RichText::new(texts.config_macro_recorded).strong());
+            ui.add_space(f32::from(CELL_PAD));
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new(rendered)
+                        .monospace()
+                        .size(theme::HIGHLIGHT_TEXT),
+                )
+                .wrap(),
+            );
+        });
+    own_note(ui, texts.config_macro_recorded_note);
 }
 
 /// The shared four-column shape for a settings section: what it is, the key

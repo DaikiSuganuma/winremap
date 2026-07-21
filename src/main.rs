@@ -16,8 +16,10 @@ mod gui;
 mod hook;
 mod i18n;
 mod ime_indicator;
+mod macro_record;
 mod notify;
 mod sender;
+mod theme;
 mod tray;
 mod window;
 
@@ -88,6 +90,9 @@ fn run() -> anyhow::Result<()> {
     // IME indicator touch point: starts its thread only when the config
     // enables the feature (ADR 0020).
     ime_indicator::sync_with_config();
+    // Macro recording touch point: same shape — no thread unless [macro]
+    // names the recording keys (ADR 0043/0044).
+    macro_record::sync_with_config();
     notify::console_line(i18n::t().remapping_active);
 
     hook::run_message_loop(|| {
@@ -100,11 +105,15 @@ fn run() -> anyhow::Result<()> {
         // Debug key events are queued by the hook (no I/O there) and
         // formatted here on the message loop (ADR 0016).
         hook::drain_debug_log();
+        // Recording events are queued by the hook too: publishing a
+        // finished macro allocates, so it happens here (ADR 0044).
+        hook::drain_record_events();
     });
 
     hook::uninstall(keyboard_hook);
     window::uninstall_foreground_watch(event_hook);
     ime_indicator::stop();
+    macro_record::stop();
     // Closes the session the startup banner opened, so a terminal transcript
     // says how long WinRemap was actually up.
     gui::log::emit(&i18n::session_ended(&clock::local_now()));

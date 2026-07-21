@@ -185,7 +185,7 @@ v0.2 の内容（コンソール非表示化、ログウィンドウ、閲覧専
 ## 6. Phase D — リリース（v0.3.0）
 
 1. `release/0.3.0` を `develop` から切る（[04_git-branching.md](../04_git-branching.md) §2.4）。**v0.3.0 から git-flow を正式適用する**
-2. `Cargo.toml` のバージョン更新（`release/*` 上で行う。それまで `develop` では触らない）
+2. `Cargo.toml` のバージョンが `0.3.0` になっていることを確認（**上げるのは開発開始時**。本バージョンでは 2026-07-21 に実施済み。[04_git-branching.md §2.6](../04_git-branching.md)）
 3. `CHANGELOG.md` の 0.3.0 化
 4. `docs/v0.3/03_acceptance-checklist.md` と v0.1・v0.2 の全項目で手動受け入れテスト実施・記録
 5. タグ `v0.3.0` → GitHub Release（installer + portable + SHA256SUMS + THIRD-PARTY-NOTICES + attestation）

@@ -154,7 +154,7 @@ xremap と同じく「**本体は汎用のアプリ別キーリマッパー、Em
 AI エージェントが実装時に必ず守ること。違反はレビューで差し戻す。
 
 1. **自己送出ループの防止**: フックコールバックで `KBDLLHOOKSTRUCT.flags` の `LLKHF_INJECTED` を必ず確認し、自分（および他ソフト）が `SendInput` で注入したイベントは変換せず素通しする。これを怠ると無限ループになる
-2. **フックコールバック内の処理制限**: コールバック内でのヒープ確保、ロック待ち、ファイル I/O、ログ出力、Win32 API の重い呼び出しを禁止する。設定データは事前に構築した読み取り専用構造を参照するのみとし、リロードは atomic swap（`arc-swap` 等）で行う。これは Keyhac のタイムアウト問題（§1.3）を再現しないための根幹条件である。明示的な例外は 4 つのみ（`--debug` の `PostThreadMessageW` = ADR 0016、`--macro-delay` の有界 sleep = ADR 0018、IME インジケーターの通知 = ADR 0020、マクロ記憶スレッドへの通知 = ADR 0044）。マクロの再生自体をコールバック内で行ってはならない（20 コマンド × 15ms は `LowLevelHooksTimeout` の既定 300ms に達し、OS がフックを外す）
+2. **フックコールバック内の処理制限**: コールバック内でのヒープ確保、ロック待ち、ファイル I/O、ログ出力、Win32 API の重い呼び出しを禁止する。設定データは事前に構築した読み取り専用構造を参照するのみとし、リロードは atomic swap（`arc-swap` 等）で行う。これは Keyhac のタイムアウト問題（§1.3）を再現しないための根幹条件である。明示的な例外は 4 つのみ（`--debug` の `PostThreadMessageW` = ADR 0016、`--macro-delay` の有界 sleep = ADR 0018、IME インジケーターの通知 = ADR 0020、マクロ記憶スレッドおよび自スレッドへの通知 = ADR 0044）。マクロの再生自体をコールバック内で行ってはならない（20 コマンド × 15ms は `LowLevelHooksTimeout` の既定 300ms に達し、OS がフックを外す）
 3. **unsafe の隔離**: `unsafe` ブロックは `hook.rs` / `sender.rs` / `window.rs`、IME インジケーター関連の `src/ime_indicator/`（detect.rs / overlay.rs）と検証用 `examples/ime_probe.rs`（ADR 0020）、コンソール接続・通知ダイアログの `notify.rs`（ADR 0031）、GUI のウィンドウアイコン・関連付け起動の `src/gui/win32.rs`（ADR 0038）、ログのセッション境界用ローカル時刻の `src/clock.rs`（ADR 0041）、およびマクロ記憶中・再生中バナーの `src/macro_record/banner.rs`（ADR 0044）のみに置く。各 unsafe には安全性の根拠コメント（`// SAFETY:`）を必須とする
 4. **抑止と送出の順序**: 置換時は元イベントを抑止（コールバックが非 0 を返す）し、置換キーを送出する。キーリピート（`LLKHF_*` と keydown/keyup の対応）を正しく扱い、modifier の押下状態を壊さないこと
 5. **既知の制限の明文化**: 管理者権限で動作するウィンドウには通常権限のフックが効かない（UIPI）。回避ハックは実装せず、README の Limitations に記載する

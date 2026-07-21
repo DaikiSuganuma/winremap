@@ -24,12 +24,23 @@ pub(super) struct RawConfig {
     pub(super) keymap: Vec<RawKeymap>,
 }
 
-/// `[macro]` — how macro outputs are paced (ADR 0018/0019/0039).
+/// `[macro]` — how macro outputs are paced (ADR 0018/0019/0039) and which
+/// keys drive runtime macro recording (ADR 0043).
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct RawMacro {
     #[serde(default)]
     pub(super) delay_ms: Option<Spanned<u32>>,
+    /// Recording keys in key notation. All optional: writing none of them
+    /// leaves recording off entirely (opt-in, ADR 0043 decision 7).
+    #[serde(default)]
+    pub(super) record_start: Option<Spanned<String>>,
+    /// Omitted means "the same key as `record_start`", which is the
+    /// press-once-to-start, press-again-to-end shape.
+    #[serde(default)]
+    pub(super) record_stop: Option<Spanned<String>>,
+    #[serde(default)]
+    pub(super) record_play: Option<Spanned<String>>,
 }
 
 /// `[ime_indicator]` — every field optional so users can set just `enabled`.

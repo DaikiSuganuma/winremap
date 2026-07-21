@@ -27,6 +27,7 @@ use crate::i18n;
 use crate::sender;
 use crate::sender::{ModAdjustment, SideMods};
 use winremap::keymap::{KeyCombo, MAX_MACRO_LEN, Mods, Output, RemapTable, Resolution};
+use winremap::recorder::{MAX_RECORDED_LEN, RecordEvent, Recorder};
 
 /// The active remap table. Written by the main/reload thread, read wait-free
 /// from the hook (ADR 0003). `None` (before startup finishes) passes all
@@ -43,6 +44,9 @@ pub fn set_enabled(enabled: bool) {
     ENABLED.store(enabled, Ordering::Relaxed);
     if !enabled {
         PENDING.set(None);
+        // Recording keys are only intercepted while enabled, so a recording
+        // left running here could never be stopped (design doc §5.6).
+        abort_recording(i18n::t().macro_record_reason_disabled);
     }
 }
 
@@ -227,6 +231,131 @@ thread_local! {
     /// of keys we do not remap (their repeats are not debug-logged so a held
     /// key cannot flood the log).
     static PHYS_DOWN: RefCell<[bool; 256]> = const { RefCell::new([false; 256]) };
+    /// The in-progress macro recording (ADR 0043). Fixed-size and owned by
+    /// this thread, so recording costs the callback a copy and nothing else.
+    static RECORDER: RefCell<Recorder> = const { RefCell::new(Recorder::new()) };
+    /// Recording events awaiting the message loop, which is where they can
+    /// be logged and where the finished macro can be published (allocating).
+    static RECORD_EVENTS: RefCell<RecordEventRing> = const { RefCell::new(RecordEventRing::new()) };
+}
+
+/// One recording's worth of `Recorded` events plus the start/stop pair, with
+/// room to spare. Overflow is impossible in practice; dropping is still
+/// preferable to growing inside the callback.
+const RECORD_EVENT_RING_SIZE: usize = MAX_RECORDED_LEN + 8;
+
+/// A recorder transition, or a refusal that only the macro-record side
+/// knows about. Kept apart from [`RecordEvent`] because "nothing recorded
+/// yet" is not a state of the recorder — it is a state of the stored macro.
+#[derive(Clone, Copy)]
+enum RecordNote {
+    Event(RecordEvent),
+    NothingToPlay,
+}
+
+struct RecordEventRing {
+    events: [Option<RecordNote>; RECORD_EVENT_RING_SIZE],
+    len: usize,
+}
+
+impl RecordEventRing {
+    const fn new() -> Self {
+        Self {
+            events: [None; RECORD_EVENT_RING_SIZE],
+            len: 0,
+        }
+    }
+}
+
+/// Queues a recording event for the message loop and wakes it.
+///
+/// Hook-safe: a write into a pre-allocated array plus one non-blocking
+/// self-post (invariant 2, exception 4). The wake is needed because
+/// keystrokes queue no message for this thread, so `GetMessageW` would
+/// otherwise sit idle and the banner would lag behind the typing.
+fn queue_record_event(note: RecordNote) {
+    RECORD_EVENTS.with(|ring| {
+        let mut ring = ring.borrow_mut();
+        let len = ring.len;
+        if len < RECORD_EVENT_RING_SIZE {
+            ring.events[len] = Some(note);
+            ring.len = len + 1;
+        }
+    });
+    // SAFETY: posts to our own thread's queue; failure (queue full) only
+    // delays the log line and the banner update.
+    let _ = unsafe { PostThreadMessageW(GetCurrentThreadId(), WM_APP, WPARAM(0), LPARAM(0)) };
+}
+
+/// Handles queued recording events on the message loop: logging, and
+/// publishing a finished recording to the macro-record thread. Runs outside
+/// the hook callback, where allocation and I/O are fine.
+pub fn drain_record_events() {
+    let events = RECORD_EVENTS.with(|ring| {
+        let mut ring = ring.borrow_mut();
+        let taken = ring.len;
+        ring.len = 0;
+        (0..taken)
+            .filter_map(|i| ring.events[i])
+            .collect::<Vec<_>>()
+    });
+    for note in events {
+        let event = match note {
+            RecordNote::Event(event) => event,
+            RecordNote::NothingToPlay => {
+                crate::gui::log::action(&i18n::macro_record_nothing_to_play());
+                continue;
+            }
+        };
+        match event {
+            RecordEvent::Started => {
+                crate::macro_record::banner_recording(0);
+                crate::gui::log::action(&i18n::macro_record_started(MAX_RECORDED_LEN));
+            }
+            // The banner carries the progress; a log line per command would
+            // only repeat what the key lines already say.
+            RecordEvent::Recorded { len } => crate::macro_record::banner_recording(len),
+            RecordEvent::Stopped { len } => {
+                publish_recording();
+                crate::macro_record::banner_hide();
+                crate::gui::log::action(&i18n::macro_record_stopped(len));
+            }
+            RecordEvent::Truncated { .. } => {
+                publish_recording();
+                crate::macro_record::banner_notice(i18n::macro_record_banner_limit(
+                    MAX_RECORDED_LEN,
+                ));
+                crate::gui::log::action(&i18n::macro_record_truncated(MAX_RECORDED_LEN));
+            }
+            RecordEvent::Play => {}
+            RecordEvent::Ignored => {
+                crate::gui::log::action(&i18n::macro_record_ignored());
+            }
+        }
+    }
+}
+
+/// Copies the finished recording out of the hook's thread-local buffer.
+/// Only safe to call from this thread, which the message loop is.
+fn publish_recording() {
+    RECORDER.with(|recorder| crate::macro_record::publish(recorder.borrow().recorded()));
+}
+
+/// Drops an in-progress recording. Called when the tray disables remapping
+/// or a reload lands: the keys that would end the recording come from the
+/// config, so leaving it running risks a recording that cannot be stopped
+/// (design doc §5.6). Must run on the hook thread — both callers already do.
+pub fn abort_recording(reason: &str) {
+    let was_recording = RECORDER.with(|recorder| {
+        let mut recorder = recorder.borrow_mut();
+        let active = recorder.is_recording();
+        recorder.abort();
+        active
+    });
+    if was_recording {
+        crate::macro_record::banner_notice(i18n::macro_record_aborted(reason));
+        crate::gui::log::action(&i18n::macro_record_aborted(reason));
+    }
 }
 
 const GUARD_ALT: u8 = 1;
@@ -513,6 +642,34 @@ fn on_key_down(vk: u16, physical_repeat: bool) -> bool {
         return false;
     };
 
+    // Recording keys are taken before any keymap lookup and always
+    // suppressed, so they never reach the application (invariant 4). The
+    // config rejects a keymap rule on the same key, so nothing is being
+    // shadowed silently here (design doc §4/§5.1). An armed prefix is left
+    // armed: the next key can still complete the sequence.
+    if let Some(keys) = table.macro_record.as_ref()
+        && let Some(event) = RECORDER.with(|recorder| recorder.borrow_mut().on_key(input, keys))
+    {
+        // A refused replay must still say why: an unexplained dead key
+        // press is exactly what a recording feature must not produce.
+        let note = match event {
+            // Refused either because nothing is recorded yet or because a
+            // replay is still running; the two need different next steps.
+            RecordEvent::Play if !crate::macro_record::request_replay(sides) => {
+                if crate::macro_record::has_recording() {
+                    RecordNote::Event(RecordEvent::Ignored)
+                } else {
+                    RecordNote::NothingToPlay
+                }
+            }
+            other => RecordNote::Event(other),
+        };
+        queue_record_event(note);
+        arm_menu_guard(input.mods);
+        ACTIVE.with(|active| active.borrow_mut()[usize::from(vk)] = Some(ActiveKind::SuppressUp));
+        return true;
+    }
+
     if let Some(first) = PENDING.take() {
         // Second stroke of a sequence. Undefined combinations are swallowed
         // (Emacs-style) rather than passed through, so a typo after a prefix
@@ -522,6 +679,7 @@ fn on_key_down(vk: u16, physical_repeat: bool) -> bool {
             {
                 Some(output) => {
                     log_debug(Some(first), input, debug_action_of(output));
+                    record_output(output);
                     emit_output(output, sides)
                 }
                 None => {
@@ -538,15 +696,25 @@ fn on_key_down(vk: u16, physical_repeat: bool) -> bool {
     let kind = match resolution {
         Some(Resolution::Exact(output)) => {
             log_debug(None, input, debug_action_of(output));
+            record_output(output);
             emit_output(output, sides)
         }
         Some(Resolution::KeyOnly(target_vk)) => {
             log_debug(None, input, DebugAction::KeyOnly(target_vk));
+            // Bare substitution leaves the physical modifiers alone, so what
+            // the application receives is the held modifiers plus the
+            // substitute key — record that, not the bare key.
+            record_command(KeyCombo {
+                mods: input.mods,
+                vk: target_vk,
+            });
             sender::send_key_only(target_vk, false);
             ActiveKind::KeyOnly { target_vk }
         }
         Some(Resolution::Prefix) => {
             log_debug(None, input, DebugAction::Prefix);
+            // A prefix emits nothing on its own; the second stroke's output
+            // is what gets recorded.
             PENDING.set(Some(input));
             ActiveKind::SuppressUp
         }
@@ -557,6 +725,13 @@ fn on_key_down(vk: u16, physical_repeat: bool) -> bool {
             if !physical_repeat {
                 log_debug(None, input, DebugAction::Pass);
             }
+            // A key WinRemap does not remap still reaches the application,
+            // so it is part of what the recording has to reproduce. Repeats
+            // are skipped for the same reason macros ignore them: a held key
+            // must not fill the recording.
+            if !physical_repeat {
+                record_command(input);
+            }
             return false;
         }
     };
@@ -565,6 +740,29 @@ fn on_key_down(vk: u16, physical_repeat: bool) -> bool {
     arm_menu_guard(input.mods);
     ACTIVE.with(|active| active.borrow_mut()[usize::from(vk)] = Some(kind));
     true
+}
+
+/// Appends what a key press emitted to the recording, if one is running.
+///
+/// Recording stores the *remapped output* rather than the key pressed
+/// (ADR 0043 decision 4), which is what lets a replay travel the same sender
+/// path a config macro does. A macro output is stored as its individual
+/// commands, so replaying it is indistinguishable from having typed them.
+fn record_output(output: &Output) {
+    match output {
+        Output::Chord(target) => record_command(*target),
+        Output::Seq(sequence) => {
+            for combo in sequence {
+                record_command(*combo);
+            }
+        }
+    }
+}
+
+fn record_command(command: KeyCombo) {
+    if let Some(event) = RECORDER.with(|recorder| recorder.borrow_mut().push(command)) {
+        queue_record_event(RecordNote::Event(event));
+    }
 }
 
 /// Sends a resolved output and returns the bookkeeping for its key-up.

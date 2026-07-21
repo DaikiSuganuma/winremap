@@ -38,11 +38,11 @@ const TIMER_HOLD: usize = 1;
 const TIMER_FADE: usize = 2;
 const FADE_INTERVAL_MS: u32 = 25;
 
-/// Panel colors (fixed v1 design): near-black background, white glyph,
-/// slightly dimmed label.
-const BG_COLOR: COLORREF = COLORREF(0x00201C1C);
-const TEXT_COLOR: COLORREF = COLORREF(0x00FFFFFF);
-const LABEL_COLOR: COLORREF = COLORREF(0x00D0D0D0);
+// Panel colours live in `crate::theme` with the rest of the application's,
+// shared with the macro-recording banner so the two overlays match.
+use crate::theme::{
+    OVERLAY_BG as BG_COLOR, OVERLAY_LABEL as LABEL_COLOR, OVERLAY_TEXT as TEXT_COLOR,
+};
 
 /// What the window procedure paints/fades with. `size` is the configured
 /// square edge; `width`/`height` are the actual window extent, which grow
@@ -248,13 +248,13 @@ fn target_center(target: isize) -> Option<(i32, i32)> {
 unsafe fn create_panel_font(height: i32) -> HFONT {
     let mut font_spec = LOGFONTW {
         lfHeight: height,
-        lfWeight: 600, // semibold reads better at high translucency
+        lfWeight: crate::theme::OVERLAY_FONT_WEIGHT,
         ..Default::default()
     };
     for (slot, unit) in font_spec
         .lfFaceName
         .iter_mut()
-        .zip("Yu Gothic UI".encode_utf16())
+        .zip(crate::theme::OVERLAY_FONT_FACE.encode_utf16())
     {
         *slot = unit;
     }

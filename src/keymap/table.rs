@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use super::KeyCombo;
 use crate::ime_indicator_settings::IndicatorSettings;
+use crate::recorder::RecordKeys;
 
 /// What an exact or sequence rule emits (config-spec §3, ADR 0012).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -96,6 +97,10 @@ pub struct RemapTable {
     /// reason. Consumed by the indicator thread, not by key resolution
     /// (ADR 0020; the feature itself lives in src/ime_indicator/).
     pub ime_indicator: IndicatorSettings,
+    /// `[macro]` recording keys, or `None` when the user configured none and
+    /// the feature stays off (ADR 0043). Read from the hook callback to
+    /// decide whether a key is a record key before any keymap lookup.
+    pub macro_record: Option<RecordKeys>,
 }
 
 impl RemapTable {

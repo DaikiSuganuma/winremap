@@ -15,6 +15,7 @@ use eframe::egui;
 use super::icons::{self, Icon};
 use crate::hook;
 use crate::i18n;
+use crate::theme;
 
 /// Bounded so a long debug session cannot grow the buffer without limit.
 const MAX_LINES: usize = 5000;
@@ -136,7 +137,7 @@ pub fn show_viewport(ctx: &egui::Context) {
     // `win32::set_window_icons` sets both slots properly (ADR 0038).
     let builder = egui::ViewportBuilder::default()
         .with_title(i18n::t().log_window_title)
-        .with_inner_size([760.0, 480.0]);
+        .with_inner_size(theme::LOG_WINDOW);
     ctx.show_viewport_deferred(egui::ViewportId::from_hash_of("winremap-log"), builder, {
         move |ui, _class| {
             let ctx = ui.ctx().clone();
@@ -166,33 +167,40 @@ fn window_ui(ui: &mut egui::Ui) {
     // Reading the log is the point of this window, so the top holds only what
     // changes how it reads. The two commands live at the bottom, out of the
     // way of the newest line (owner decision 2026-07-21).
-    egui::Panel::top("log-controls").show(ui, |ui| {
-        ui.horizontal(|ui| {
-            // No icon: the checkmark is this control's own marker.
-            if ui
-                .checkbox(&mut follow_tail, texts.log_window_follow)
-                .changed()
-            {
-                FOLLOW_TAIL.store(follow_tail, Ordering::Relaxed);
-            }
+    // A filled band with an even margin, so the two ends of the window read
+    // as chrome rather than as the first and last lines of the log (owner
+    // decision 2026-07-21).
+    egui::Panel::top("log-controls")
+        .frame(theme::chrome_frame(ui.visuals()))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                // No icon: the checkmark is this control's own marker.
+                if ui
+                    .checkbox(&mut follow_tail, texts.log_window_follow)
+                    .changed()
+                {
+                    FOLLOW_TAIL.store(follow_tail, Ordering::Relaxed);
+                }
+            });
         });
-    });
 
-    egui::Panel::bottom("log-actions").show(ui, |ui| {
-        ui.horizontal(|ui| {
-            if icons::button(ui, Icon::Clear, texts.log_window_clear).clicked()
-                && let Ok(mut lines) = buffer().lock()
-            {
-                lines.clear();
-            }
-            if icons::button(ui, Icon::Copy, texts.log_window_copy).clicked()
-                && let Ok(lines) = buffer().lock()
-            {
-                let joined = lines.iter().cloned().collect::<Vec<_>>().join("\r\n");
-                ui.ctx().copy_text(joined);
-            }
+    egui::Panel::bottom("log-actions")
+        .frame(theme::chrome_frame(ui.visuals()))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if icons::button(ui, Icon::Clear, texts.log_window_clear).clicked()
+                    && let Ok(mut lines) = buffer().lock()
+                {
+                    lines.clear();
+                }
+                if icons::button(ui, Icon::Copy, texts.log_window_copy).clicked()
+                    && let Ok(lines) = buffer().lock()
+                {
+                    let joined = lines.iter().cloned().collect::<Vec<_>>().join("\r\n");
+                    ui.ctx().copy_text(joined);
+                }
+            });
         });
-    });
 
     egui::CentralPanel::default().show(ui, |ui| {
         egui::ScrollArea::vertical()

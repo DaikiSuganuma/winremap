@@ -147,6 +147,11 @@ impl Tray {
                 // IME indicator touch point: pick up the reloaded
                 // [ime_indicator] section (ADR 0020).
                 crate::ime_indicator::sync_with_config();
+                // A reload can change (or remove) the keys that end a
+                // recording, so an in-progress one is dropped rather than
+                // left with no way out (design doc §5.6).
+                hook::abort_recording(i18n::t().macro_record_reason_reload);
+                crate::macro_record::sync_with_config();
                 self.keymap_count.set(count);
                 crate::gui::mark_config_loaded();
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));

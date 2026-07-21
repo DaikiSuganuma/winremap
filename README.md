@@ -34,7 +34,7 @@ flowchart TD
     P --> A["Application interprets the keys natively<br/>(Ctrl+A → Select All)"]
 ```
 
-## Features (v0.2)
+## Features (v0.3)
 
 - **Per-application remapping**: rules apply only to the processes you list
   (`notepad.exe`, `chrome.exe`, ...), or globally (`*`) with an optional
@@ -43,6 +43,10 @@ flowchart TD
   `Back`, ...) familiar to Keyhac/fakeymacs users
 - **Two-stroke sequences** (`"A-x h"`, Emacs-style prefix keys) and **macro
   outputs** (`"C-t" = ["C-Right", "C-Left", "C-S-Right"]`)
+- **Macro recording**: press a key to start recording, work as usual, press
+  it again to stop, and a replay key repeats what you did. The recording
+  lives in memory only — nothing is written to disk, and it is gone when
+  WinRemap exits
 - **Task tray resident**: enable/disable toggle, config hot-reload, quit.
   Launching never flashes a console window
 - **Settings window**: see the config that is in effect right now — every
@@ -121,9 +125,56 @@ complete examples.
   An array RHS (`["C-Home", "C-S-End"]`, up to 8) taps each chord in order.
 - `[macro]` `delay_ms = 8` (0-15) paces macro strokes for apps that
   drop burst-injected input (e.g. the WinUI Notepad); the `--macro-delay`
-  CLI flag overrides it for experiments.
+  CLI flag overrides it for experiments. The same section configures macro
+  recording (below).
 - Config errors are reported with line numbers, all at once. Reloading a
   broken config from the tray keeps the previous working config.
+
+### Macro recording (optional)
+
+Name the keys in `[macro]` and WinRemap can record what you do and play it
+back. Nothing happens until you name them.
+
+```toml
+[macro]
+record_start = "S-F10"  # press to start recording
+# record_stop = "S-F11" # omit it and the start key stops it too
+record_play  = "F10"    # press to replay
+```
+
+Press `Shift+F10`, do the work, press `Shift+F10` again, then press `F10` as
+often as you like. While a recording runs, a banner sits at the bottom of
+whichever display holds the app you are typing into:
+
+```
+Recording macro  3/20   notepad.exe in progress   —   S-F10 to stop, F10 to replay
+```
+
+It follows you as you switch apps and displays, names the app receiving the
+keystrokes, and repeats the keys that end and replay the recording — so a
+recording never runs unnoticed, and you never have to open the config file
+to find out how to stop it. Replay shows the same banner with the commands
+it is sending.
+
+What is worth knowing before relying on it:
+
+- **The recording holds 20 commands.** A command is one chord: `C-a` is one,
+  and the two strokes of `A-x h` are two. The 21st ends the recording and
+  says so — nothing is dropped quietly.
+- **Nothing is written to disk.** The recording lives in memory and is gone
+  when WinRemap exits. It is not saved to your config file either. If you
+  want to keep a sequence, write it as a macro rule in `[keymap.remap]`.
+- **What is recorded is what WinRemap emitted**, not the keys you pressed.
+  If `C-h` is remapped to `Back`, the recording holds `Back` — so a replay
+  does the same thing whether or not the rule still applies.
+- **Order, not timing.** Each command is tapped once, in order. How long you
+  held a key, and holding one key while pressing another, are not
+  reproduced. Emacs keyboard macros behave the same way.
+- Only one recording is kept; recording again replaces it. The replay key
+  does nothing while a replay is still running, and recording is dropped if
+  you disable WinRemap or reload the config — the keys that would end it
+  come from that file.
+- `delay_ms` paces a replay just as it paces a config macro.
 
 ### IME status indicator (optional)
 
@@ -155,7 +206,9 @@ Right-click the tray icon and pick **Settings** to see the config WinRemap is
 resolving against right now: every keymap, its target apps and exclusions, and
 its rules — each with the comment you wrote beside it in the file. Where the
 same input is bound in more than one keymap, a column names the others, since
-only one of them can win. A key-notation legend sits beside the rules.
+only one of them can win. A key-notation legend sits beside the rules, and
+the `[macro]` section lists the recording keys plus whatever is recorded
+right now — marked as memory-only, since it is not in the file.
 
 The window is **read-only in this release**. Edit the file (the **Open in text
 editor** link hands it to whatever you associated with `.toml`) and press

@@ -14,6 +14,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 
 use winremap::keymap::{KeyCombo, MAX_MACRO_LEN, Mods};
+use winremap::recorder::MAX_RECORDED_LEN;
 
 /// `dwExtraInfo` marker on events we inject as remap output (the substitute
 /// key, or a modifier acting as one). The hook feeds these back into its
@@ -178,6 +179,10 @@ const CHORD_BATCH: usize = 16;
 /// is another full transition. All one `SendInput` call so no real input
 /// interleaves.
 const MACRO_BATCH: usize = MAX_MACRO_LEN * 16 + 16;
+/// Same worst case for a recorded macro, which holds more commands
+/// (ADR 0043). Sized separately because this batch only ever lives on the
+/// macro-record thread's stack, never inside the hook callback (ADR 0044).
+const RECORDED_BATCH: usize = MAX_RECORDED_LEN * 16 + 16;
 
 struct Batch<const N: usize> {
     inputs: [INPUT; N],
@@ -368,10 +373,27 @@ fn transition_mods<const N: usize>(
 /// from misreading the chord. Runs entirely within one hook callback, so
 /// `held` cannot change midway.
 pub fn send_sequence(sequence: &[KeyCombo], held: SideMods) {
+    let len = sequence.len().min(MAX_MACRO_LEN);
+    send_chords::<MACRO_BATCH>(&sequence[..len], held);
+}
+
+/// Replay of a recorded macro (ADR 0043). Identical to [`send_sequence`]
+/// except for the batch size, so a replay and a config macro produce exactly
+/// the same event stream for the same chords.
+///
+/// Only ever called from the macro-record thread: at the maximum pacing a
+/// full recording takes 300 ms, which inside the hook callback would reach
+/// `LowLevelHooksTimeout` and get the hook dropped by Windows (ADR 0044).
+pub fn send_recorded(sequence: &[KeyCombo], held: SideMods) {
+    let len = sequence.len().min(MAX_RECORDED_LEN);
+    send_chords::<RECORDED_BATCH>(&sequence[..len], held);
+}
+
+fn send_chords<const N: usize>(sequence: &[KeyCombo], held: SideMods) {
     let delay_ms = MACRO_DELAY_MS.load(Ordering::Relaxed);
-    let mut batch = Batch::<MACRO_BATCH>::new();
+    let mut batch = Batch::<N>::new();
     let mut current = held;
-    for combo in sequence.iter().take(MAX_MACRO_LEN) {
+    for combo in sequence {
         let (release, press) = plan_transition(current, combo.mods);
         current = transition_mods(&mut batch, current, release, press);
         batch.push(key_input(combo.vk, false, MARKER_REMAP));
@@ -381,7 +403,7 @@ pub fn send_sequence(sequence: &[KeyCombo], held: SideMods) {
         // macro: it stays blocked while this callback runs.
         if delay_ms > 0 {
             batch.send();
-            batch = Batch::<MACRO_BATCH>::new();
+            batch = Batch::<N>::new();
             std::thread::sleep(std::time::Duration::from_millis(u64::from(delay_ms)));
         }
     }

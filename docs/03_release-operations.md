@@ -43,7 +43,7 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 0. **リリースブランチ**: `git checkout -b release/0.3.0 develop`
 1. **受け入れテスト**: [05_acceptance-checklist.md](./v0.1/03_acceptance-checklist.md) の「リリース前フルチェック」全項目を実施し、結果を記録・コミット
 2. **CHANGELOG**: `Unreleased` の内容を新バージョン見出し（例 `## [0.1.0] - 2026-07-XX`）に切り出す
-3. **バージョン**: `Cargo.toml` の `version` を更新（`Cargo.lock` も追随）
+3. **バージョン**: `Cargo.toml` の `version` が**リリースする番号になっているか確認**する。番号を上げるのは開発の開始時であって、ここではない（[04_git-branching.md](04_git-branching.md) §2.6）。上がっていなければこの時点で上げる
 4. **マージとタグ push**:
 
    ```powershell
