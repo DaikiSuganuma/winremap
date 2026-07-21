@@ -225,11 +225,34 @@ const EDGE_PAD: i8 = 8;
 /// A note reads as belonging to the table it sits under only if there is a
 /// clear break between them.
 const NOTE_GAP: f32 = 8.0;
-/// Whitespace above and below a section rule. Generous on purpose: the rule
-/// only reads as a divider when the content on either side is clear of it,
-/// and the detail pane is one long scroll of tables that otherwise run
-/// together (owner decision 2026-07-21).
-const SECTION_GAP: f32 = 36.0;
+/// Whitespace above and below a section rule. The rule only reads as a
+/// divider when the content on either side is clear of it, and the detail
+/// pane is one long scroll of tables that otherwise run together.
+const SECTION_GAP: f32 = 20.0;
+/// How much of the default rule colour a section divider keeps. It separates
+/// text rather than enclosing a widget, so the stock stroke reads as heavy.
+const HAIRLINE_ALPHA: f32 = 0.5;
+
+/// A section divider, lighter than `ui.separator()` — that one draws with the
+/// stroke widgets use for their own borders, which is more line than a break
+/// between two blocks of text needs. Painted by hand because `Separator` has
+/// no colour of its own.
+fn hairline(ui: &mut egui::Ui) {
+    let color = ui
+        .visuals()
+        .widgets
+        .noninteractive
+        .bg_stroke
+        .color
+        .gamma_multiply(HAIRLINE_ALPHA);
+    let (rect, _) =
+        ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::empty());
+    ui.painter().hline(
+        rect.x_range(),
+        rect.center().y,
+        egui::Stroke::new(1.0, color),
+    );
+}
 
 /// Grid spacing is the gap *between* cells, so it is twice the padding each
 /// cell gets. Columns get the wider gap: adjacent values need more to read
@@ -261,6 +284,10 @@ fn table(
         .stroke(border)
         .inner_margin(egui::Margin::symmetric(EDGE_PAD, CELL_PAD))
         .show(ui, |ui| {
+            // Without this the frame shrinks to its widest row, and a table of
+            // short values sits in the corner of the pane instead of filling
+            // it.
+            ui.set_min_width(ui.available_width());
             egui::Grid::new(id)
                 .num_columns(columns.len())
                 .min_col_width(min_col_width)
@@ -271,8 +298,20 @@ fn table(
                     _ => None,
                 })
                 .show(ui, |ui| {
-                    for column in columns {
-                        ui.label(egui::RichText::new(*column).strong().color(header_text));
+                    let last = columns.len().saturating_sub(1);
+                    for (index, column) in columns.iter().enumerate() {
+                        let text = egui::RichText::new(*column).strong().color(header_text);
+                        if index == last {
+                            // The last column claims the rest of the row, which
+                            // is what makes the header a band across the whole
+                            // table and gives `comment_cell` room to fold into.
+                            ui.horizontal(|ui| {
+                                ui.label(text);
+                                ui.add_space(ui.available_width());
+                            });
+                        } else {
+                            ui.label(text);
+                        }
                     }
                     ui.end_row();
                     rows(ui);
@@ -280,9 +319,16 @@ fn table(
         });
 }
 
+/// The user's own comment, always the last column. Wrapping has to be asked
+/// for: a `Grid` gives its cells unbounded width, so a long comment would
+/// otherwise stretch the table past the edge of the window rather than fold.
+fn comment_cell(ui: &mut egui::Ui, text: &str) {
+    ui.add(egui::Label::new(text).wrap());
+}
+
 fn section(ui: &mut egui::Ui, title: &str, key: &str) {
     ui.add_space(SECTION_GAP);
-    ui.separator();
+    hairline(ui);
     ui.add_space(SECTION_GAP);
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new(title).size(SECTION_TEXT).strong());
@@ -312,7 +358,7 @@ fn app_table<'a>(
         table(ui, id, &columns, 180.0, |ui| {
             for name in names {
                 ui.label(egui::RichText::new(name).monospace());
-                ui.label(comment_of(name).unwrap_or_default());
+                comment_cell(ui, comment_of(name).unwrap_or_default());
                 ui.end_row();
             }
         });
@@ -359,7 +405,7 @@ fn rules_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComments
             ui.label(egui::RichText::new(input).monospace());
             ui.label(egui::RichText::new(output).monospace());
             let comment = comments.and_then(|c| c.rule(input)).unwrap_or_default();
-            ui.label(comment);
+            comment_cell(ui, comment);
             ui.end_row();
         }
     });
@@ -488,7 +534,7 @@ fn settings_table(ui: &mut egui::Ui, id: &str, rows: &[(&str, &str, String, Opti
             ui.label(*label);
             ui.label(egui::RichText::new(*key).monospace().weak());
             ui.label(egui::RichText::new(value).monospace());
-            ui.label(comment.unwrap_or_default());
+            comment_cell(ui, comment.unwrap_or_default());
             ui.end_row();
         }
     });
