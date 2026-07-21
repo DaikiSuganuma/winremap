@@ -8,12 +8,20 @@
 <title>WinRemap — ヘルプ</title>
 <meta name="description" content="WinRemap ヘルプ: Windows 用アプリ別キーリマッパーのインストール・設定・トラブルシューティング。">
 <meta name="color-scheme" content="light dark">
-<!-- Bootstrap 5.3.3, pinned and integrity-checked (ADR 0047). -->
+<!-- Bootstrap 5.3.8 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
 <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous">
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+"
       crossorigin="anonymous">
 <link rel="stylesheet" href="../style.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/kbd-enabled-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../assets/kbd-enabled-16.png">
+<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/">
+<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/">
 <!-- Follow the OS light/dark setting (Bootstrap 5.3 switches on data-bs-theme).
      Inline and self-contained — the site loads no third-party scripts. -->
 <script>
@@ -27,52 +35,55 @@
     mq.addEventListener('change', apply);
   })();
 </script>
-<link rel="icon" type="image/png" sizes="32x32" href="../assets/kbd-enabled-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="../assets/kbd-enabled-16.png">
-<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/">
-<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/">
 </head>
 <body>
 
-<header class="topnav">
-  <nav class="container">
-    <ul>
-      <li><a class="brand" href="#top"><img src="../assets/kbd-enabled-32.png" alt="">WinRemap</a></li>
-    </ul>
-    <ul>
-        <li><a href="#install">インストール</a></li>
-        <li><a href="#quickstart">クイックスタート</a></li>
-        <li><a href="config.html">設定</a></li>
-        <li><a href="#record">マクロ記憶</a></li>
-        <li><a href="#ime">IME 表示</a></li>
-        <li><a href="#faq">FAQ</a></li>
-    </ul>
-    <ul>
-      <li><a href="../" lang="en">English</a></li>
-    </ul>
-  </nav>
-</header>
-
-<div class="hero" id="top">
+<nav class="navbar navbar-expand-lg bg-body-tertiary sticky-top border-bottom">
   <div class="container">
-    <img class="logo" src="../assets/kbd-enabled.svg" alt="WinRemap アイコン">
-    <h1>WinRemap</h1>
-    <p class="tagline">Rust 製の Windows 用アプリ別キーリマッパー。
-    選んだアプリでだけキーを置き換え。設定はシンプルな TOML ファイル 1 つ。</p>
-    <div class="buttons">
-      <a class="btn btn-primary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe">インストーラーをダウンロード</a>
-      <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe">ポータブル版 exe</a>
-      <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap">GitHub</a>
+    <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#top">
+      <img src="../assets/kbd-enabled-32.png" alt="" width="24" height="24">WinRemap
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#nav" aria-controls="nav" aria-expanded="false"
+            aria-label="ナビゲーション切り替え">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="#install">インストール</a></li>
+        <li class="nav-item"><a class="nav-link" href="#quickstart">クイックスタート</a></li>
+        <li class="nav-item"><a class="nav-link" href="config.html">設定</a></li>
+        <li class="nav-item"><a class="nav-link" href="#record">マクロ記憶</a></li>
+        <li class="nav-item"><a class="nav-link" href="#ime">IME 表示</a></li>
+        <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
+      </ul>
+      <ul class="navbar-nav">
+        <li class="nav-item"><a class="nav-link" href="../" lang="en">English</a></li>
+      </ul>
     </div>
-    <p class="sub">無料・オープンソース (MIT) · ネットワーク通信なし · キー入力を記録しない ·
+  </div>
+</nav>
+
+<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <img src="../assets/kbd-enabled.svg" alt="WinRemap アイコン" width="96" height="96" class="mb-3">
+    <h1 class="display-5 fw-bold">WinRemap</h1>
+    <p class="lead text-body-secondary">Rust 製の Windows 用アプリ別キーリマッパー。
+    選んだアプリでだけキーを置き換え。設定はシンプルな TOML ファイル 1 つ。</p>
+    <div class="d-flex flex-wrap gap-2 justify-content-center my-4">
+      <a class="btn btn-primary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>インストーラーをダウンロード</a>
+      <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>ポータブル版 exe</a>
+      <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap"><i class="bi bi-github me-1"></i>GitHub</a>
+    </div>
+    <p class="small text-body-secondary mb-0">無料・オープンソース (MIT) · ネットワーク通信なし · キー入力を記録しない ·
     <a href="https://github.com/DaikiSuganuma/winremap/releases">全リリース</a></p>
   </div>
-</div>
+</header>
 
-<main class="container">
+<main>
 
-<section id="install">
-  <h2>インストール</h2>
+<section id="install" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>インストール</h2>
   <ol>
     <li><a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><code>winremap-setup.exe</code></a>
       をダウンロードして実行します。ユーザー単位のインストールなので<strong>管理者権限は不要</strong>です。</li>
@@ -83,18 +94,19 @@
   <code>%APPDATA%\winremap\config.toml</code> を作成します。既存の設定には一切触れず、
   アンインストールしても設定は残ります。</p>
 
-  <div class="warn">
-    <strong>「Windows によって PC が保護されました」(SmartScreen) が出たら?</strong>
+  <div class="alert alert-warning d-flex gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+    <div><strong>「Windows によって PC が保護されました」(SmartScreen) が出たら?</strong>
     WinRemap のバイナリはコード署名されていないため(無料ツールには署名証明書の費用負担が大きいため)、
     ダウンロード直後は
     この警告が表示されることがあります。<em>詳細情報</em> → <em>実行</em> で起動できます。
     やみくもに信用する代わりに、ダウンロードの検証を推奨します: 各リリースには
     <code>SHA256SUMS</code> と、このリポジトリの公開ソースからビルドされたことを証明する
     GitHub の attestation(ビルド来歴証明)が付属します。手順は
-    <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a> を参照してください。
+    <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a> を参照してください。</div>
   </div>
 
-  <h3>ポータブル利用(インストーラーなし)</h3>
+  <h3 class="h5 mt-4">ポータブル利用(インストーラーなし)</h3>
   <p>1 ファイルで使いたい場合は
   <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><code>winremap.exe</code></a>
   をダウンロードして好きな場所から実行してください。設定は同じ
@@ -103,8 +115,8 @@
   ほかのファイルやレジストリ項目は作りません。</p>
 </section>
 
-<section id="quickstart">
-  <h2>クイックスタート</h2>
+<section id="quickstart" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-rocket-takeoff text-primary me-2"></i>クイックスタート</h2>
   <p>WinRemap はタスクトレイに常駐します。操作はすべてトレイメニューから:</p>
   <ul>
     <li><strong>有効</strong> — リマップ全体の一時 ON/OFF(終了せずに切替)</li>
@@ -114,7 +126,7 @@
     <li><strong>終了</strong></li>
   </ul>
   <p>設定を開いて、アプリごとにやりたいことを書きます:</p>
-<pre><code># メモ帳でのみ Ctrl+H を素の Backspace にする
+<pre class="bg-body-tertiary border rounded p-3"><code># メモ帳でのみ Ctrl+H を素の Backspace にする
 [[keymap]]
 name = "notepad"
 application = ["notepad.exe"]
@@ -126,11 +138,12 @@ application = ["notepad.exe"]
   <kbd>Ctrl</kbd>+<kbd>H</kbd> を押すと 1 文字削除になります。他のアプリには
   通常の Ctrl+H がそのまま届きます。</p>
 
-  <div class="note">
-    <strong><code>application</code> に何を書けばいい?</strong>
+  <div class="alert alert-info d-flex gap-2" role="alert">
+    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+    <div><strong><code>application</code> に何を書けばいい?</strong>
     トレイから<em>ログを表示</em>を選んで対象ウィンドウに切り替えると、
     前面アプリのフルパス、<code>application</code> に指定すべき値、
-    適用されるキーマップが表示されます。
+    適用されるキーマップが表示されます。</div>
   </div>
 
   <p>コピーして使える設定例:
@@ -140,12 +153,12 @@ application = ["notepad.exe"]
   (除外リスト・マクロ・プレフィックスキーを使った実運用例)。</p>
 </section>
 
-<section id="config">
-  <h2>設定</h2>
+<section id="config" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-gear text-primary me-2"></i>設定</h2>
   <p>設定は <code>[[keymap]]</code> ブロックの並びです。各ブロックに「適用するアプリ」と
   「キーのルール」を書きます。</p>
 
-<pre><code># 列挙したアプリ以外のすべてに適用
+<pre class="bg-body-tertiary border rounded p-3"><code># 列挙したアプリ以外のすべてに適用
 [[keymap]]
 name = "global-emacs"
 application = ["*"]
@@ -171,16 +184,18 @@ application = ["phpstorm64.exe", "idea64.exe"]
   <p>設定エラーは行番号付きで全件まとめて報告されます。リロードに失敗した場合は直前の
   有効な設定が維持されるので、編集ミスでキーボード環境が止まることはありません。</p>
 
-  <p><a class="btn btn-primary" href="config.html">設定ガイド →</a></p>
-  <p class="note">全項目の説明、キー記法の一覧表、CapsLock・Emacs 風キーバインド・
+  <p class="mt-4">
+    <a class="btn btn-primary" href="config.html"><i class="bi bi-book me-1"></i>設定ガイド</a>
+  </p>
+  <p class="text-body-secondary">全項目の説明、キー記法の一覧表、CapsLock・Emacs 風キーバインド・
   アプリ別の例外・マクロの記述例、そして各エラーメッセージの意味を掲載しています。</p>
 </section>
 
-<section id="record">
-  <h2>マクロ記憶(任意)</h2>
+<section id="record" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-record-circle text-primary me-2"></i>マクロ記憶 <span class="badge text-bg-secondary align-middle">任意</span></h2>
   <p>キーを設定すると、操作を記憶して再生できるようになります。書かない限り機能は
   動きません。</p>
-<pre><code>[macro]
+<pre class="bg-body-tertiary border rounded p-3"><code>[macro]
 record_start = "S-F10"  # 記憶開始
 # record_stop = "S-F11" # 省略すると開始キーが終了キーも兼ねます
 record_play  = "F10"    # 再生
@@ -188,7 +203,7 @@ record_play  = "F10"    # 再生
   <p><kbd>Shift</kbd>+<kbd>F10</kbd> を押して操作し、もう一度押して終了。あとは
   <kbd>F10</kbd> で何度でも再生できます。記憶中は、<strong>今入力しているアプリがある
   ディスプレイ</strong>の下部にバナーが出続けます。</p>
-<pre><code>マクロ記憶中  3/20   notepad.exe で記憶中   —   S-F10 で終了 / F10 で再生
+<pre class="bg-body-tertiary border rounded p-3"><code>マクロ記憶中  3/20   notepad.exe で記憶中   —   S-F10 で終了 / F10 で再生
 </code></pre>
   <p>アプリやディスプレイを切り替えるとバナーも追従し、打鍵が入っているアプリ名と、
   記憶を終了するキー・再生するキーを常に表示します。気づかないうちに記録が走ることはなく、
@@ -214,13 +229,13 @@ record_play  = "F10"    # 再生
   <p>再生の間隔には <code>delay_ms</code> がそのまま使われます。</p>
 </section>
 
-<section id="ime">
-  <h2>IME 状態インジケーター(任意)</h2>
+<section id="ime" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-translate text-primary me-2"></i>IME 状態インジケーター <span class="badge text-bg-secondary align-middle">任意</span></h2>
   <p>リマップとは独立した機能として、IME がオンになった瞬間 — または IME オンの
   ウィンドウにフォーカスが移った瞬間 — に、アクティブウィンドウの中央へ半透明の
   <strong>「あ」</strong>パネルを一瞬表示できます。入力を始める前にモードが分かります。
   表示のみで、WinRemap が IME を切り替えることはありません。</p>
-<pre><code>[ime_indicator]
+<pre class="bg-body-tertiary border rounded p-3"><code>[ime_indicator]
 enabled = true                # 既定: false
 # trigger_keys = ["C-Space"]  # Ctrl+Space で IME を切り替えている場合
 # duration_ms = 800           # 100〜5000
@@ -234,86 +249,120 @@ enabled = true                # 既定: false
   インジケーター側の問題がリマップ動作に影響することはありません。</p>
 </section>
 
-<section id="faq">
-  <h2>FAQ・トラブルシューティング</h2>
+<section id="faq" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-question-circle text-primary me-2"></i>FAQ・トラブルシューティング</h2>
 
-  <details>
-    <summary>特定のウィンドウでだけリマップが効かない</summary>
-    <p>そのウィンドウが<strong>管理者として実行</strong>されている場合、Windows の保護機構
-    (UIPI)により通常権限のプログラムからの入力が届きません。どうしても必要なら
-    WinRemap も管理者として実行してください。アンチチート付きゲームや一部の仮想化ソフトも
-    注入入力を無視することがあります。</p>
-  </details>
-
-  <details>
-    <summary>今どの設定が効いているか確認したい</summary>
-    <p>トレイアイコンを右クリックして<em>設定</em>を選んでください。WinRemap が現在参照して
-    いる設定が表示されます。キーマップごとの対象アプリ・除外アプリ・リマップ規則が、設定
-    ファイルの同じ行に書いたコメント付きで並びます。同じ入力を複数のキーマップが束縛して
-    いる場合は、相手のキーマップ名を示す列が出ます(実際に効くのは 1 つだけのためです)。</p>
-    <p><strong>本バージョンでは閲覧のみです。</strong>ファイルを編集して<em>設定を再読み込み</em>
-    を押すと表示が追従します。ファイルの更新日時と読み込み日時を並べて表示するので、保存
-    したのに再読み込みしていない状態がひと目で分かります。</p>
-  </details>
-
-  <details>
-    <summary>ルールがマッチしない — どうやって調べる?</summary>
-    <p>トレイアイコンを右クリックして<em>ログを表示</em>を選んでください。前面ウィンドウごとの
-    正確な <code>application</code> 値と、キーごとの判定 (素通し / リマップ / マクロ /
-    プレフィックス)がキー名レベルで、打つそばから表示されます。ターミナル派の方は
-    <code>winremap.exe --debug</code> で起動すれば同じ内容がそちらに出ます。入力した文章
-    そのものがログに出ることはなく、ログがディスクに保存されることもありません。</p>
-  </details>
-
-  <details>
-    <summary>Keyhac や AutoHotkey と併用できる?</summary>
-    <p>同じキーに対しては非推奨です。低レベルフックが重なると処理順が不定になり、
-    挙動が予測できなくなります。検証時はどちらか一方を OFF にしてください。</p>
-  </details>
-
-  <details>
-    <summary>コンソールウィンドウはどこへ?</summary>
-    <p>表示しなくなりました。エクスプローラー・スタートメニュー・サインイン時の自動起動は
-    すべて無音で起動し、利用者が知るべきこと(起動時エラー、リロード失敗)はダイアログで
-    表示されます。ターミナルから起動した場合は従来どおりそのターミナルに出力しますが、
-    プロンプトがすぐ戻るため出力が混ざって見えます。読みやすいログが必要なときは
-    トレイの<em>ログを表示</em>をお使いください。</p>
-  </details>
-
-  <details>
-    <summary>インストール後に自動起動を ON/OFF したい</summary>
-    <p><kbd>Win</kbd>+<kbd>R</kbd> → <code>shell:startup</code> を実行し、開いたフォルダで
-    <em>WinRemap</em> のショートカットを追加・削除してください(インストーラーを再実行して
-    選び直すこともできます)。</p>
-  </details>
-
-  <details>
-    <summary>マクロが速すぎて対象アプリが取りこぼす</summary>
-    <p><code>[macro]</code> セクションに <code>delay_ms = 8</code>(0〜15)を設定してください。
-    入力を非同期に処理するアプリでは、一括注入されたストロークの一部が落ちることがあります。</p>
-  </details>
-
-  <details>
-    <summary>WinRemap はどこに何を保存する?</summary>
-    <p>プログラム本体: <code>%LOCALAPPDATA%\Programs\WinRemap</code>(インストーラー利用時)
-    またはポータブル exe を置いた場所。設定: <code>%APPDATA%\winremap\config.toml</code>。
-    それだけです — サービスもドライバーもレジストリ設定もありません。</p>
-  </details>
-
-  <details>
-    <summary>ダウンロードが本物か検証するには?</summary>
-    <p>リリース添付の <code>SHA256SUMS</code> とハッシュを比較し、GitHub CLI で
-    ビルド来歴の attestation を確認します:</p>
-<pre><code>(Get-FileHash .\winremap-setup.exe -Algorithm SHA256).Hash.ToLower()
+  <div class="accordion" id="faqAccordion">
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">特定のウィンドウでだけリマップが効かない</button>
+      </h3>
+      <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">そのウィンドウが<strong>管理者として実行</strong>されている場合、Windows の保護機構
+        (UIPI)により通常権限のプログラムからの入力が届きません。どうしても必要なら
+        WinRemap も管理者として実行してください。アンチチート付きゲームや一部の仮想化ソフトも
+        注入入力を無視することがあります。</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">今どの設定が効いているか確認したい</button>
+      </h3>
+      <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          <p>トレイアイコンを右クリックして<em>設定</em>を選んでください。WinRemap が現在参照して
+          いる設定が表示されます。キーマップごとの対象アプリ・除外アプリ・リマップ規則が、設定
+          ファイルの同じ行に書いたコメント付きで並びます。同じ入力を複数のキーマップが束縛して
+          いる場合は、相手のキーマップ名を示す列が出ます(実際に効くのは 1 つだけのためです)。</p>
+          <p class="mb-0"><strong>本バージョンでは閲覧のみです。</strong>ファイルを編集して<em>設定を再読み込み</em>
+          を押すと表示が追従します。ファイルの更新日時と読み込み日時を並べて表示するので、保存
+          したのに再読み込みしていない状態がひと目で分かります。</p>
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">ルールがマッチしない — どうやって調べる?</button>
+      </h3>
+      <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">トレイアイコンを右クリックして<em>ログを表示</em>を選んでください。前面ウィンドウごとの
+        正確な <code>application</code> 値と、キーごとの判定 (素通し / リマップ / マクロ /
+        プレフィックス)がキー名レベルで、打つそばから表示されます。ターミナル派の方は
+        <code>winremap.exe --debug</code> で起動すれば同じ内容がそちらに出ます。入力した文章
+        そのものがログに出ることはなく、ログがディスクに保存されることもありません。</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">Keyhac や AutoHotkey と併用できる?</button>
+      </h3>
+      <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">同じキーに対しては非推奨です。低レベルフックが重なると処理順が不定になり、
+        挙動が予測できなくなります。検証時はどちらか一方を OFF にしてください。</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">コンソールウィンドウはどこへ?</button>
+      </h3>
+      <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">表示しなくなりました。エクスプローラー・スタートメニュー・サインイン時の自動起動は
+        すべて無音で起動し、利用者が知るべきこと(起動時エラー、リロード失敗)はダイアログで
+        表示されます。ターミナルから起動した場合は従来どおりそのターミナルに出力しますが、
+        プロンプトがすぐ戻るため出力が混ざって見えます。読みやすいログが必要なときは
+        トレイの<em>ログを表示</em>をお使いください。</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq6">インストール後に自動起動を ON/OFF したい</button>
+      </h3>
+      <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body"><kbd>Win</kbd>+<kbd>R</kbd> → <code>shell:startup</code> を実行し、開いたフォルダで
+        <em>WinRemap</em> のショートカットを追加・削除してください(インストーラーを再実行して
+        選び直すこともできます)。</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq7">マクロが速すぎて対象アプリが取りこぼす</button>
+      </h3>
+      <div id="faq7" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body"><code>[macro]</code> セクションに <code>delay_ms = 8</code>(0〜15)を設定してください。
+        入力を非同期に処理するアプリでは、一括注入されたストロークの一部が落ちることがあります。</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq8">WinRemap はどこに何を保存する?</button>
+      </h3>
+      <div id="faq8" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">プログラム本体: <code>%LOCALAPPDATA%\Programs\WinRemap</code>(インストーラー利用時)
+        またはポータブル exe を置いた場所。設定: <code>%APPDATA%\winremap\config.toml</code>。
+        それだけです — サービスもドライバーもレジストリ設定もありません。</div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq9">ダウンロードが本物か検証するには?</button>
+      </h3>
+      <div id="faq9" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          <p>リリース添付の <code>SHA256SUMS</code> とハッシュを比較し、GitHub CLI で
+          ビルド来歴の attestation を確認します:</p>
+<pre class="bg-body-tertiary border rounded p-3 mb-2"><code>(Get-FileHash .\winremap-setup.exe -Algorithm SHA256).Hash.ToLower()
 gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
 </code></pre>
-    <p>詳細は <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>
-    を参照。GitHub Releases 以外で配布されているバイナリは非公式です。</p>
-  </details>
+          <p class="mb-0">詳細は <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>
+          を参照。GitHub Releases 以外で配布されているバイナリは非公式です。</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
-<section id="about">
-  <h2>セキュリティと設計方針</h2>
+<section id="about" class="container py-4">
+  <h2 class="mb-3"><i class="bi bi-shield-check text-primary me-2"></i>セキュリティと設計方針</h2>
   <ul>
     <li>WinRemap は<strong>キー入力を記録・保存しません</strong> — 単なる方針ではなく
       リポジトリ規約として強制されています。</li>
@@ -328,8 +377,8 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
 
 </main>
 
-<footer>
-  <div class="container">
+<footer class="border-top py-4 text-body-secondary">
+  <div class="container small d-grid gap-2">
     <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
     <span><a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.ja.md">README (日本語)</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
@@ -337,7 +386,7 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
       <a href="../" lang="en">English help</a></span>
     <span>トレイメニューのアイコンは <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>(MIT)を使用しています —
       <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">ライセンス表示</a>。
-      本サイトのスタイルには <a href="https://getbootstrap.com/">Bootstrap</a>(MIT)を使用しています。</span>
+      本サイトは <a href="https://getbootstrap.com/">Bootstrap</a>(MIT)で構築しています。</span>
     <span><a href="https://github.com/xremap/xremap">xremap</a> と
       <a href="https://sites.google.com/site/craftware/keyhac-ja">Keyhac</a> /
       <a href="https://github.com/smzht/fakeymacs">fakeymacs</a> に影響を受けた
@@ -345,5 +394,8 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
 </body>
 </html>

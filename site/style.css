@@ -1,249 +1,42 @@
-/* WinRemap help site — a thin layer over Bootstrap 5.3 (ADR 0028, ADR 0047).
+/* WinRemap help site — Bootstrap 5.3 does the work (ADR 0028, ADR 0047).
  *
- * Bootstrap supplies the reset, type scale, tables, buttons, code/kbd and the
- * light/dark colour modes (switched by data-bs-theme, set from the OS by a
- * small inline script in each page's <head>). Everything here is what
- * Bootstrap has no opinion about — the narrow reading column, the accent
- * colour, the sticky nav, the hero band and the two callout styles — plus a
- * few places where a page of key names wants tighter spacing than prose does.
+ * Only two things are ours here. Everything else is stock Bootstrap
+ * components and utility classes, at Bootstrap's own widths.
  *
- * Colours are Bootstrap's own --bs-* custom properties throughout, so both
- * themes come from Bootstrap rather than being re-declared here. */
+ *   1. The brand colour — WinRemap's icon blue (#0078D4) — mapped onto
+ *      Bootstrap's primary and link colours for both themes.
+ *   2. The hero band.
+ *
+ * Colours reference Bootstrap's --bs-* custom properties, so dark mode comes
+ * from Bootstrap (switched by data-bs-theme, set from the OS by a small inline
+ * script in each page's <head>). */
 
-/* --- reading column & accent ---------------------------------------- */
+/* --- 1. brand colour: WinRemap's icon blue --------------------------- */
 
-/* Bootstrap's .container grows to 1140px on large screens; the old design
-   read better at 860px, so keep it there. */
-.container {
-  max-width: 860px;
-}
-
-/* Restore the previous design's GitHub-blue links and primary button over
-   Bootstrap's default indigo. */
 :root {
-  --bs-link-color-rgb: 9, 105, 218;
-  --bs-link-hover-color-rgb: 8, 87, 182;
+  --bs-primary: #0078d4;
+  --bs-primary-rgb: 0, 120, 212;
+  --bs-link-color-rgb: 0, 120, 212;
+  --bs-link-hover-color-rgb: 0, 90, 158;
 }
 
 [data-bs-theme="dark"] {
-  --bs-link-color-rgb: 68, 147, 248;
-  --bs-link-hover-color-rgb: 106, 168, 250;
+  --bs-link-color-rgb: 77, 171, 247;
+  --bs-link-hover-color-rgb: 121, 192, 255;
 }
 
 .btn-primary {
-  --bs-btn-bg: #0969da;
-  --bs-btn-border-color: #0969da;
-  --bs-btn-hover-bg: #0857b6;
-  --bs-btn-hover-border-color: #0857b6;
-  --bs-btn-active-bg: #0857b6;
-  --bs-btn-active-border-color: #0857b6;
+  --bs-btn-bg: #0078d4;
+  --bs-btn-border-color: #0078d4;
+  --bs-btn-hover-bg: #106ebe;
+  --bs-btn-hover-border-color: #106ebe;
+  --bs-btn-active-bg: #005a9e;
+  --bs-btn-active-border-color: #005a9e;
 }
 
-/* Links in a row of buttons should size to their labels. */
-.hero .buttons > a,
-p > a.btn {
-  margin: 0;
-}
-
-/* --- sticky top nav -------------------------------------------------- */
-
-body > header.topnav {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: var(--bs-body-bg);
-  border-bottom: 1px solid var(--bs-border-color);
-}
-
-.topnav nav {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  padding-block: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.topnav ul {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.9rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.topnav a {
-  text-decoration: none;
-}
-
-.topnav .brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-weight: 700;
-}
-
-.topnav .brand img {
-  width: 24px;
-  height: 24px;
-}
-
-/* The language switch is the last group and belongs at the far end. */
-.topnav nav > ul:last-child {
-  margin-inline-start: auto;
-}
-
-/* --- hero ------------------------------------------------------------ */
+/* --- 2. hero band ---------------------------------------------------- */
 
 .hero {
-  text-align: center;
-  padding-block: 2.5rem 2rem;
   background: var(--bs-tertiary-bg);
   border-bottom: 1px solid var(--bs-border-color);
-}
-
-.hero img.logo {
-  width: 96px;
-  height: 96px;
-}
-
-.hero h1 {
-  margin-block: 0.5rem 0.25rem;
-}
-
-.hero .tagline {
-  margin-inline: auto;
-  max-width: 42em;
-  color: var(--bs-secondary-color);
-}
-
-.hero .buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  justify-content: center;
-  margin-block: 1.25rem;
-}
-
-.hero .sub {
-  font-size: 0.9rem;
-  color: var(--bs-secondary-color);
-  margin-bottom: 0;
-}
-
-/* --- sections -------------------------------------------------------- */
-
-main > section {
-  border-bottom: 1px solid var(--bs-border-color);
-  padding-block: 1.5rem;
-}
-
-main > section:last-of-type {
-  border-bottom: 0;
-}
-
-/* Bootstrap's heading margins assume prose; these pages stack a heading
-   straight onto a table or a code block. */
-main > section > h2 {
-  margin-bottom: 0.75rem;
-}
-
-main > section h3 {
-  margin-block: 1.75rem 0.6rem;
-  font-size: 1.15rem;
-}
-
-/* --- callouts -------------------------------------------------------- */
-
-.note,
-.warn {
-  border: 1px solid var(--bs-border-color);
-  border-inline-start: 4px solid var(--bs-primary);
-  border-radius: var(--bs-border-radius);
-  background: var(--bs-tertiary-bg);
-  padding: 0.75rem 1rem;
-  margin-block: 1rem;
-}
-
-.warn {
-  border-inline-start-color: var(--bs-danger);
-}
-
-/* --- code, keys, tables ---------------------------------------------- */
-
-/* Config snippets are the substance of these pages. Bootstrap leaves <pre>
-   unstyled, so give it the soft block the old design had. */
-pre {
-  margin-block: 1rem;
-  padding: 0.9rem 1rem;
-  background: var(--bs-tertiary-bg);
-  border-radius: var(--bs-border-radius);
-  overflow-x: auto;
-}
-
-pre code {
-  padding: 0;
-  background: none;
-  color: inherit;
-}
-
-/* Inline code reads as part of the prose, not Bootstrap's pink. */
-:not(pre) > code {
-  padding: 0.1em 0.35em;
-  background: var(--bs-tertiary-bg);
-  border-radius: 0.25rem;
-  color: inherit;
-}
-
-code,
-kbd {
-  font-size: 0.9em;
-}
-
-kbd {
-  white-space: nowrap;
-}
-
-/* Reference tables are dense and mostly short cells, and the config guide
-   has several in a row. */
-.table-wrap {
-  overflow-x: auto;
-  margin-block: 1rem;
-}
-
-.table-wrap table {
-  margin-bottom: 0;
-}
-
-.table-wrap :is(th, td) {
-  vertical-align: top;
-}
-
-/* --- FAQ ------------------------------------------------------------- */
-
-details summary {
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* --- footer ---------------------------------------------------------- */
-
-body > footer {
-  border-top: 1px solid var(--bs-border-color);
-  color: var(--bs-secondary-color);
-  font-size: 0.88rem;
-  padding-block: 1.5rem;
-}
-
-body > footer .container {
-  display: grid;
-  gap: 0.4rem;
-}
-
-@media (max-width: 600px) {
-  .topnav nav {
-    font-size: 0.82rem;
-  }
 }
