@@ -309,17 +309,30 @@ pub fn drain_record_events() {
         };
         match event {
             RecordEvent::Started => {
+                crate::macro_record::banner_show(i18n::macro_record_banner_recording(
+                    0,
+                    MAX_RECORDED_LEN,
+                ));
                 crate::gui::log::action(&i18n::macro_record_started(MAX_RECORDED_LEN));
             }
-            // The banner (M4) is what shows progress; the log would only
-            // repeat what the key lines already say.
-            RecordEvent::Recorded { .. } => {}
+            // The banner carries the progress; a log line per command would
+            // only repeat what the key lines already say.
+            RecordEvent::Recorded { len } => {
+                crate::macro_record::banner_show(i18n::macro_record_banner_recording(
+                    len,
+                    MAX_RECORDED_LEN,
+                ));
+            }
             RecordEvent::Stopped { len } => {
                 publish_recording();
+                crate::macro_record::banner_hide();
                 crate::gui::log::action(&i18n::macro_record_stopped(len));
             }
             RecordEvent::Truncated { .. } => {
                 publish_recording();
+                crate::macro_record::banner_notice(i18n::macro_record_banner_limit(
+                    MAX_RECORDED_LEN,
+                ));
                 crate::gui::log::action(&i18n::macro_record_truncated(MAX_RECORDED_LEN));
             }
             RecordEvent::Play => {}
@@ -348,6 +361,7 @@ pub fn abort_recording(reason: &str) {
         active
     });
     if was_recording {
+        crate::macro_record::banner_notice(i18n::macro_record_aborted(reason));
         crate::gui::log::action(&i18n::macro_record_aborted(reason));
     }
 }

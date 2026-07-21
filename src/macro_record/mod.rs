@@ -18,6 +18,7 @@
 
 mod banner;
 
+use std::collections::VecDeque;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -35,6 +36,27 @@ use winremap::recorder::RecordKeys;
 /// Replay the stored macro. wParam carries the side-modifier state observed
 /// at the moment the key was pressed.
 const MSG_PLAY: u32 = WM_APP + 0x31;
+/// Banner commands are waiting in [`BANNER_COMMANDS`].
+const MSG_BANNER: u32 = WM_APP + 0x32;
+
+/// How long a one-off notice (limit reached, recording cancelled) stays up.
+/// Recording progress has no timer: it must not disappear while recording
+/// (ADR 0043 decision 3).
+const NOTICE_MS: u32 = 2500;
+
+/// What the banner should display next. Queued rather than latest-wins so a
+/// "limit reached" notice cannot be swallowed by the hide that follows it.
+enum BannerCommand {
+    Show {
+        text: String,
+        auto_hide_ms: Option<u32>,
+    },
+    Hide,
+}
+
+/// Filled on the message loop, drained on the macro-record thread. Never
+/// touched from the hook callback, so locking it is fine.
+static BANNER_COMMANDS: Mutex<VecDeque<BannerCommand>> = Mutex::new(VecDeque::new());
 
 /// Macro-record thread id; 0 while not running. Written by the main thread
 /// and the dying thread itself, read (wait-free) from the hook callback.
@@ -65,6 +87,39 @@ pub fn is_replaying() -> bool {
 /// "no macro yet" apart from "a replay is already running".
 pub fn has_recording() -> bool {
     RECORDED.load().is_some()
+}
+
+/// Puts a line on the banner and leaves it there. Called from the message
+/// loop with the text already formatted.
+pub fn banner_show(text: String) {
+    queue_banner(BannerCommand::Show {
+        text,
+        auto_hide_ms: None,
+    });
+}
+
+/// Shows a line that is a notice rather than a state, so it takes itself
+/// down again.
+pub fn banner_notice(text: String) {
+    queue_banner(BannerCommand::Show {
+        text,
+        auto_hide_ms: Some(NOTICE_MS),
+    });
+}
+
+pub fn banner_hide() {
+    queue_banner(BannerCommand::Hide);
+}
+
+fn queue_banner(command: BannerCommand) {
+    let tid = THREAD_ID.load(Ordering::Relaxed);
+    if tid == 0 {
+        return;
+    }
+    if let Ok(mut queue) = BANNER_COMMANDS.lock() {
+        queue.push_back(command);
+    }
+    banner::post_to_thread(tid, MSG_BANNER, 0);
 }
 
 /// Stores a finished recording. Runs on the message loop, outside the hook
@@ -147,9 +202,16 @@ fn start_thread() {
 }
 
 fn thread_main(ready: &mpsc::Sender<u32>) {
+    let banner = match banner::Banner::create() {
+        Ok(banner) => banner,
+        Err(e) => {
+            crate::notify::error(&i18n::macro_record_failed(&e.to_string()));
+            return; // ready is dropped unsent; start_thread sees the Err
+        }
+    };
     let _ = ready.send(banner::current_thread_id());
     // A panic must stay inside this feature: the remap hook keeps running.
-    let outcome = catch_unwind(AssertUnwindSafe(run));
+    let outcome = catch_unwind(AssertUnwindSafe(|| run(&banner)));
     THREAD_ID.store(0, Ordering::Release);
     REPLAYING.store(false, Ordering::Relaxed);
     if outcome.is_err() {
@@ -157,25 +219,44 @@ fn thread_main(ready: &mpsc::Sender<u32>) {
     }
 }
 
-fn run() {
+fn run(banner: &banner::Banner) {
     while let Some((message, wparam)) = banner::next_thread_message() {
-        if message == MSG_PLAY {
-            replay(wparam as SideMods);
+        match message {
+            MSG_PLAY => replay(banner, wparam as SideMods),
+            MSG_BANNER => {
+                while let Some(command) = next_banner_command() {
+                    match command {
+                        BannerCommand::Show { text, auto_hide_ms } => {
+                            banner.show(&text, auto_hide_ms);
+                        }
+                        BannerCommand::Hide => banner.hide(),
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }
 
-fn replay(held: SideMods) {
+fn next_banner_command() -> Option<BannerCommand> {
+    BANNER_COMMANDS.lock().ok()?.pop_front()
+}
+
+fn replay(banner: &banner::Banner, held: SideMods) {
     let Some(commands) = RECORDED.load_full() else {
         return;
     };
     // Set before sending and cleared after, so a play key pressed while the
     // paced replay is still running is ignored by the hook.
     REPLAYING.store(true, Ordering::Relaxed);
+    // Painted synchronously by show(), because a paced replay stops this
+    // thread from pumping messages for as long as it runs (design doc §6.4).
+    banner.show(&i18n::macro_record_banner_replaying(&commands), None);
     if crate::hook::debug_enabled() {
         // This thread is not the hook: logging here is fine.
         crate::gui::log::emit(&i18n::macro_record_replaying(&commands));
     }
     crate::sender::send_recorded(&commands, held);
+    banner.hide();
     REPLAYING.store(false, Ordering::Relaxed);
 }

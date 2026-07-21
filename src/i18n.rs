@@ -719,3 +719,34 @@ pub fn macro_record_failed(error: &str) -> String {
         }
     }
 }
+
+/// Banner line while recording. The count is what makes the limit visible,
+/// so hitting it is never a surprise (design doc §6.3).
+pub fn macro_record_banner_recording(len: usize, limit: usize) -> String {
+    match lang() {
+        Lang::En => format!("Recording macro  {len}/{limit}"),
+        Lang::Ja => format!("マクロ記憶中  {len}/{limit}"),
+    }
+}
+
+/// Banner line when the limit ended the recording.
+pub fn macro_record_banner_limit(limit: usize) -> String {
+    match lang() {
+        Lang::En => format!("Recording stopped — {limit}-command limit reached"),
+        Lang::Ja => format!("上限 {limit} コマンドに達したため記憶を終了しました"),
+    }
+}
+
+/// Banner line during replay: the commands themselves, joined the way the
+/// settings window joins a macro's chords.
+pub fn macro_record_banner_replaying(commands: &[KeyCombo]) -> String {
+    let steps = commands
+        .iter()
+        .map(|combo| combo.to_string())
+        .collect::<Vec<_>>()
+        .join(" → ");
+    match lang() {
+        Lang::En => format!("Replaying:  {steps}"),
+        Lang::Ja => format!("再生中:  {steps}"),
+    }
+}

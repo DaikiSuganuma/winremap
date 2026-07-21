@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Macro recording**: press the recording key, do the work, press it again,
+  and the replay key repeats it (ADR 0043). What gets recorded is what
+  WinRemap *emitted* — a remapped chord, each command of a macro, the key
+  itself where no rule matched — so a replay is indistinguishable from
+  having typed it. Configured under `[macro]` as `record_start`,
+  `record_stop` (omit it and the start key toggles) and `record_play`, and
+  off entirely until you name those keys. A recording holds 20 commands and
+  says so on screen while it runs; reaching the limit ends the recording and
+  tells you rather than dropping commands quietly. **Nothing is written to
+  disk**: the recording lives in memory and is gone when WinRemap exits.
+  Replay runs on its own thread, never in the keyboard hook, because 20
+  commands at the maximum pacing would reach the timeout Windows applies to
+  low-level hooks and cost you the hook itself (ADR 0044).
+
 ## [0.2.0] - 2026-07-21
 
 The theme of this release is **seeing what WinRemap is doing**. Launching no
