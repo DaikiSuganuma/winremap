@@ -102,14 +102,27 @@ fn set_icon(hwnd: HWND, which: u32, icon: HICON) {
 /// the settings window's "open in text editor" did nothing (ADR 0038).
 /// Returns whether the shell accepted the request.
 pub fn open_in_default_editor(path: &Path) -> bool {
-    let path = HSTRING::from(path.as_os_str());
+    shell_open(&HSTRING::from(path.as_os_str()))
+}
+
+/// Opens a URL in the default browser.
+///
+/// eframe only follows `ui.hyperlink_to` when built with its `webbrowser`
+/// feature, which this build does not enable, so the link would silently do
+/// nothing. The shell already knows how to do this.
+pub fn open_url(url: &str) -> bool {
+    shell_open(&HSTRING::from(url))
+}
+
+/// The shell's "open" verb on a file path or a URL.
+fn shell_open(target: &HSTRING) -> bool {
     // SAFETY: both strings outlive the call; a null owner window is valid and
     // gives a top-level shell action, which is what a tray app wants.
     let result = unsafe {
         ShellExecuteW(
             None,
             w!("open"),
-            PCWSTR(path.as_ptr()),
+            PCWSTR(target.as_ptr()),
             PCWSTR::null(),
             PCWSTR::null(),
             SW_SHOWNORMAL,

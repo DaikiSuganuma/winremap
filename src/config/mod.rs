@@ -7,6 +7,7 @@
 //! Submodules: `raw` (serde-facing structures), `compile` (validation and
 //! compilation into runtime structures).
 
+pub mod comments;
 mod compile;
 mod raw;
 #[cfg(test)]
