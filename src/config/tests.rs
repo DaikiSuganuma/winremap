@@ -294,3 +294,112 @@ fn suganuma_example_uses_the_macro_table() {
     let first = comments.keymap(0).expect("first keymap");
     assert_eq!(first.exclude("photoshop.exe"), Some("アドビフォトショップ"));
 }
+
+// ---- macro recording keys (ADR 0043, design doc §4) -----------------------
+
+#[test]
+fn omitted_record_stop_defaults_to_the_start_key() {
+    let table = parse_str(
+        "[macro]\nrecord_start = \"S-F10\"\nrecord_play = \"F10\"\n\n[[keymap]]\napplication = [\"*\"]\n[keymap.remap]\n\"C-h\" = \"Back\"\n",
+    )
+    .unwrap();
+    let keys = table.macro_record.expect("recording should be configured");
+    assert_eq!(keys.start, combo("S-F10"));
+    // One key toggles: pressing it again is what ends the recording.
+    assert_eq!(keys.stop, keys.start);
+    assert_eq!(keys.play, combo("F10"));
+}
+
+#[test]
+fn separate_record_stop_is_kept() {
+    let table = parse_str(
+        "[macro]\nrecord_start = \"S-F10\"\nrecord_stop = \"S-F11\"\nrecord_play = \"F10\"\n",
+    )
+    .unwrap();
+    let keys = table.macro_record.unwrap();
+    assert_eq!(keys.stop, combo("S-F11"));
+}
+
+#[test]
+fn recording_is_off_when_no_keys_are_configured() {
+    let table = parse_str("[macro]\ndelay_ms = 8\n").unwrap();
+    assert!(table.macro_record.is_none());
+}
+
+#[test]
+fn rejects_record_keys_configured_by_halves() {
+    let found = issues("[macro]\nrecord_start = \"S-F10\"\n");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(found[0].message.contains("must both be set"));
+
+    let found = issues("[macro]\nrecord_play = \"F10\"\n");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(found[0].message.contains("must both be set"));
+}
+
+#[test]
+fn rejects_bad_record_key_notation() {
+    let found = issues("[macro]\nrecord_start = \"S-Nope\"\nrecord_play = \"F10\"\n");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(
+        found[0].message.contains("macro.record_start"),
+        "message should name the field: {}",
+        found[0].message
+    );
+    assert_eq!(found[0].line, 2);
+}
+
+#[test]
+fn rejects_modifier_only_record_key() {
+    let found = issues("[macro]\nrecord_start = \"LCtrl\"\nrecord_play = \"F10\"\n");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(found[0].message.contains("modifier key"));
+}
+
+#[test]
+fn rejects_a_play_key_that_also_records() {
+    // One key cannot mean both "end this recording" and "replay it" — the
+    // press that ends a recording would immediately replay it.
+    let found = issues("[macro]\nrecord_start = \"F10\"\nrecord_play = \"F10\"\n");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(found[0].message.contains("must differ"));
+
+    let found =
+        issues("[macro]\nrecord_start = \"S-F10\"\nrecord_stop = \"F10\"\nrecord_play = \"F10\"\n");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(found[0].message.contains("must differ"));
+}
+
+#[test]
+fn rejects_a_record_key_that_a_keymap_also_remaps() {
+    let found = issues(
+        "[macro]\nrecord_start = \"S-F10\"\nrecord_play = \"F10\"\n\n[[keymap]]\nname = \"global\"\napplication = [\"*\"]\n[keymap.remap]\n\"S-F10\" = \"Home\"\n",
+    );
+    assert_eq!(found.len(), 1, "{found:?}");
+    let message = &found[0].message;
+    assert!(message.contains("record_start"), "{message}");
+    assert!(message.contains("global"), "{message}");
+    assert!(message.contains("never fire"), "{message}");
+    // Positioned at the [macro] line, which is what the user must change.
+    assert_eq!(found[0].line, 2);
+}
+
+#[test]
+fn a_bare_rule_shadows_every_chord_on_that_key() {
+    // `F10 = "Home"` matches on the VK alone, so it would swallow S-F10 too.
+    let found = issues(
+        "[macro]\nrecord_start = \"S-F10\"\nrecord_play = \"F10\"\n\n[[keymap]]\napplication = [\"*\"]\n[keymap.remap]\n\"F10\" = \"Home\"\n",
+    );
+    assert_eq!(found.len(), 2, "{found:?}");
+    assert!(found.iter().any(|i| i.message.contains("record_start")));
+    assert!(found.iter().any(|i| i.message.contains("record_play")));
+}
+
+#[test]
+fn a_toggle_key_collision_is_reported_once() {
+    // start and stop are the same key here; one rule, one issue.
+    let found = issues(
+        "[macro]\nrecord_start = \"S-F10\"\nrecord_play = \"F10\"\n\n[[keymap]]\napplication = [\"*\"]\n[keymap.remap]\n\"S-F10\" = \"Home\"\n",
+    );
+    assert_eq!(found.len(), 1, "{found:?}");
+}
