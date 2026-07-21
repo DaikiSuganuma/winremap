@@ -186,7 +186,7 @@ static EN: Texts = Texts {
     config_notation_win: "Windows key",
     config_notation_sequence: "A space means two strokes: \"A-x h\" is Alt+X, then H.",
     config_notation_macro: "Arrows mean a macro: each chord is tapped in order, one key press.",
-    config_help_link: "Open the help page",
+    config_help_link: "Open the configuration guide",
     config_macro_delay: "Macro delay (ms)",
     config_macro_record_start: "Start recording",
     config_macro_record_stop: "Stop recording",
@@ -270,7 +270,7 @@ static JA: Texts = Texts {
     config_notation_win: "Windows キー",
     config_notation_sequence: "空白は 2 ストロークです。\"A-x h\" は Alt+X を押してから H を押します。",
     config_notation_macro: "矢印はマクロです。1 回のキー入力で、各コマンドを順にタップします。",
-    config_help_link: "ヘルプページを開く",
+    config_help_link: "設定ガイドを開く",
     config_macro_delay: "マクロ間隔（ミリ秒）",
     config_macro_record_start: "記憶開始",
     config_macro_record_stop: "記憶終了",
@@ -416,10 +416,13 @@ pub fn open_editor_failed(path: &str) -> String {
 }
 
 /// Help site URL for the current UI language.
+/// The link sits beside the key-notation legend in the settings window, so
+/// it goes to the configuration guide rather than the help site's front
+/// page — that is where the notation table and the worked examples live.
 pub fn help_url() -> &'static str {
     match lang() {
-        Lang::En => "https://daikisuganuma.github.io/winremap/",
-        Lang::Ja => "https://daikisuganuma.github.io/winremap/ja/",
+        Lang::En => "https://daikisuganuma.github.io/winremap/config.html",
+        Lang::Ja => "https://daikisuganuma.github.io/winremap/ja/config.html",
     }
 }
 

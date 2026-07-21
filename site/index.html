@@ -21,8 +21,7 @@
     <nav>
       <a href="#install">Install</a>
       <a href="#quickstart">Quick start</a>
-      <a href="#config">Configuration</a>
-      <a href="#keys">Key notation</a>
+      <a href="config.html">Configuration</a>
       <a href="#record">Macro recording</a>
       <a href="#ime">IME indicator</a>
       <a href="#faq">FAQ</a>
@@ -118,10 +117,9 @@ application = ["notepad.exe"]
 
 <section id="config">
   <h2>Configuration</h2>
-  <p>The config is a list of <code>[[keymap]]</code> sections. Each names the applications
-  it applies to and the key rules for them.</p>
+  <p>The config is a list of <code>[[keymap]]</code> blocks. Each names the applications it
+  applies to and the key rules for them.</p>
 
-  <h3>Targeting applications</h3>
 <pre><code># Applies everywhere except the listed apps
 [[keymap]]
 name = "global-emacs"
@@ -133,86 +131,25 @@ exclude = ["windowsterminal.exe", "mintty.exe"]
 
 # Applies only to these two apps — app rules always win over "*" rules
 [[keymap]]
-name = "jetbrains"
 application = ["phpstorm64.exe", "idea64.exe"]
 
 [keymap.remap]
 "C-h" = "Back"
 </code></pre>
-  <ul>
-    <li><code>application</code> lists exe names (case-insensitive, full name with <code>.exe</code>),
-      or <code>["*"]</code> for all apps. Mixing <code>"*"</code> with concrete names is an error.</li>
-    <li><code>exclude</code> is allowed only together with <code>["*"]</code>.</li>
-    <li>App-specific keymaps always take priority over global ones; within the same group,
-      the first matching rule wins.</li>
-  </ul>
 
-  <h3>Two kinds of rules</h3>
-  <div class="table-wrap"><table>
-    <tr><th>Rule</th><th>Example</th><th>Behavior</th></tr>
-    <tr>
-      <td>Chord rule (has modifiers)</td>
-      <td><code>"C-h" = "Back"</code></td>
-      <td>Matches that exact chord only (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> won't trigger it)
-        and replaces the modifier state too — the app receives a plain Backspace even though
-        Ctrl is physically held. The output may have its own modifiers: <code>"C-i" = "S-Tab"</code>.</td>
-    </tr>
-    <tr>
-      <td>Bare-key rule</td>
-      <td><code>"CapsLock" = "LCtrl"</code></td>
-      <td>Swaps the key itself regardless of held modifiers — ideal for CapsLock→Ctrl.
-        The output must be a single key without modifiers.</td>
-    </tr>
-  </table></div>
+  <p>A rule's left side is what you press, its right side is what the app receives.
+  <code>"C-h" = "Back"</code> matches that exact chord and replaces the modifiers too;
+  <code>"CapsLock" = "LCtrl"</code> swaps the key whatever else is held. Two-stroke
+  prefixes (<code>"A-x u"</code>) and macros
+  (<code>["C-Right", "C-Left", "C-S-Right"]</code>) go in the same place.</p>
 
-  <h3>Prefix keys (two-stroke sequences)</h3>
-<pre><code>"A-x u" = "C-z"      # Alt+X, then U  →  undo
-"A-x C-s" = "C-s"    # Alt+X, then Ctrl+S  →  save
-</code></pre>
-  <p>The first chord is swallowed and waits (no timeout, like Emacs); the next keystroke
-  completes the binding. An undefined second stroke is discarded, so typos never leak
-  into the app. The prefix must be a chord with modifiers.</p>
-
-  <h3>Macros</h3>
-<pre><code>"C-t" = ["C-Right", "C-Left", "C-S-Right"]   # up to 8 chords
-</code></pre>
-  <p>An array output taps each chord once, in order, injected as a single batch so your
-  typing can't interleave. A macro fires once per press — holding the key does not repeat it.</p>
-  <p>If an app drops some strokes of a macro (the WinUI Notepad does), add a top-level
-  <code>[macro]</code> <code>delay_ms = 8</code> (0–15) to pace the strokes.</p>
-
-  <h3>When something is wrong</h3>
   <p>Config errors are reported all at once, with line numbers. If a reload fails, the
   previous working config stays active — a typo never disables your keyboard setup.</p>
-</section>
 
-<section id="keys">
-  <h2>Key notation</h2>
-  <p>Rules use the Emacs-style notation familiar from Keyhac/fakeymacs:
-  modifier prefixes plus a key name, e.g. <code>C-h</code>, <code>A-S-F5</code>,
-  <code>W-Space</code>. Everything is case-insensitive.</p>
-
-  <div class="table-wrap"><table>
-    <tr><th>Prefix</th><th>Modifier</th></tr>
-    <tr><td><code>C-</code></td><td>Ctrl (either side)</td></tr>
-    <tr><td><code>A-</code></td><td>Alt (either side)</td></tr>
-    <tr><td><code>S-</code></td><td>Shift (either side)</td></tr>
-    <tr><td><code>W-</code></td><td>Win (either side)</td></tr>
-  </table></div>
-
-  <div class="table-wrap"><table>
-    <tr><th>Group</th><th>Key names</th></tr>
-    <tr><td>Letters / digits</td><td><code>a</code>–<code>z</code>, <code>0</code>–<code>9</code></td></tr>
-    <tr><td>Function</td><td><code>F1</code>–<code>F24</code></td></tr>
-    <tr><td>Editing</td><td><code>Back</code> (<code>Backspace</code>, <code>BS</code>), <code>Tab</code>, <code>Enter</code> (<code>Return</code>), <code>Esc</code> (<code>Escape</code>), <code>Space</code>, <code>Insert</code> (<code>Ins</code>), <code>Delete</code> (<code>Del</code>)</td></tr>
-    <tr><td>Navigation</td><td><code>PageUp</code> (<code>PgUp</code>), <code>PageDown</code> (<code>PgDn</code>), <code>Home</code>, <code>End</code>, <code>Left</code>, <code>Up</code>, <code>Right</code>, <code>Down</code></td></tr>
-    <tr><td>Lock</td><td><code>CapsLock</code></td></tr>
-    <tr><td>Modifiers as output keys</td><td><code>LCtrl</code>, <code>RCtrl</code>, <code>LShift</code>, <code>RShift</code>, <code>LAlt</code>, <code>RAlt</code>, <code>LWin</code>, <code>RWin</code>, <code>Apps</code> (<code>Menu</code>) — output side only</td></tr>
-  </table></div>
-
-  <p>Not supported in v0.1: punctuation/OEM keys (<code>;</code>, <code>,</code>, …
-  their key codes depend on the keyboard layout) and modifier keys on the
-  <em>input</em> side of a rule.</p>
+  <p><a class="btn primary" href="config.html">Configuration guide →</a></p>
+  <p class="note">Every option explained, the full key-notation table, worked examples for
+  CapsLock, Emacs bindings, per-app exceptions and macros, and what each error message
+  means.</p>
 </section>
 
 <section id="record">

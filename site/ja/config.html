@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<!-- Created: 2026-07-21 by Claude Code (model: claude-opus-4-8). Japanese
+     translation of site/config.html — keep in sync with the English original. -->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WinRemap — 設定ガイド</title>
+<meta name="description" content="WinRemap 設定ガイド: config.toml の全項目の説明と、CapsLock・Emacs 風キーバインド・アプリ別ルール・マクロの記述例。">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/kbd-enabled-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../assets/kbd-enabled-16.png">
+<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/config.html">
+<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/config.html">
+</head>
+<body>
+
+<header class="topnav">
+  <div class="container">
+    <a class="brand" href="index.html"><img src="../assets/kbd-enabled-32.png" alt="">WinRemap</a>
+    <nav>
+      <a href="index.html">ヘルプ</a>
+      <a href="#shape">ファイルの形</a>
+      <a href="#apps">アプリの指定</a>
+      <a href="#rules">ルール</a>
+      <a href="#sections">設定セクション</a>
+      <a href="#keys">キー記法</a>
+      <a href="#recipes">記述例</a>
+      <a href="#errors">エラー</a>
+    </nav>
+    <span class="lang"><a href="../config.html" lang="en">English</a></span>
+  </div>
+</header>
+
+<div class="hero" id="top">
+  <div class="container">
+    <h1>設定ガイド</h1>
+    <p class="tagline"><code>config.toml</code> に書けることのすべてと、その記述例。
+    インストールと使い方は<a href="index.html">ヘルプページ</a>をご覧ください。</p>
+  </div>
+</div>
+
+<main class="container">
+
+<section id="shape">
+  <h2>設定ファイルの形</h2>
+  <p>ファイルの場所は <code>%APPDATA%\winremap\config.toml</code> です
+  （<code>--config &lt;パス&gt;</code> で変更できます）。形式は
+  <a href="https://toml.io/ja/">TOML</a> で、内容は 2 種類しかありません。任意の設定
+  セクションと、いくつでも書ける <code>[[keymap]]</code> ブロックです。</p>
+
+<pre><code># ---- 設定（すべて任意） ----
+[macro]
+delay_ms = 8
+
+[ime_indicator]
+enabled = true
+
+# ---- キーマップ: いくつでも ----
+[[keymap]]
+name = "global-emacs"          # 自分と設定ウィンドウのための名札
+application = ["*"]            # このブロックを適用するアプリ
+exclude = ["windowsterminal.exe"]
+
+[keymap.remap]                 # ルール本体
+"C-p" = "Up"
+"C-n" = "Down"
+
+[[keymap]]
+name = "jetbrains"
+application = ["phpstorm64.exe", "idea64.exe"]
+
+[keymap.remap]
+"C-h" = "Back"
+</code></pre>
+
+  <p>TOML の書き方で間違えやすい点が 2 つあります。</p>
+  <ul>
+    <li><code>[[keymap]]</code> の角かっこが二重なのは、これが<em>リスト</em>だからです。
+      1 つ書くたびに新しいブロックが始まります。<code>[keymap.remap]</code> が一重なのは、
+      その上のブロックに属するテーブルだからです。</li>
+    <li>ルールの左辺は必ず<strong>引用符で囲みます</strong>。<code>"C-h" = "Back"</code>
+      であって <code>C-h = "Back"</code> ではありません。ハイフンを含む文字列は、
+      裸のキー名としては書けないためです。</li>
+  </ul>
+
+  <div class="note">コメントはそのまま活きます。ルールの横に書いたコメントを WinRemap が
+  読み取り、設定ウィンドウでそのルールの隣に表示します。自分あてのメモが、見える場所に
+  残ります。</div>
+
+  <p>編集したら、トレイアイコンを右クリックして<strong>設定を再読み込み</strong>を
+  選んでください。間違いがあれば内容を報告したうえで、<em>直前の設定のまま動き続けます</em>。
+  書き間違いでキーボード環境が止まることはありません。</p>
+</section>
+
+<section id="apps">
+  <h2>アプリの指定</h2>
+  <p><code>[[keymap]]</code> は必ず「どのアプリに適用するか」から始めます。</p>
+
+  <div class="table-wrap"><table>
+    <tr><th>キー</th><th>意味</th></tr>
+    <tr>
+      <td><code>application</code></td>
+      <td>exe 名のリスト。前面アプリと大文字小文字を区別せず照合します
+        （<code>["notepad.exe", "chrome.exe"]</code>）。<code>["*"]</code> で全アプリ。
+        <code>"*"</code> と個別名の混在は、推測せずエラーにします。</td>
+    </tr>
+    <tr>
+      <td><code>exclude</code></td>
+      <td>このブロックを<em>適用しない</em> exe 名。<code>["*"]</code> と一緒のときだけ
+        書けます。自分で書いたリストから除外するのは、短いリストを書くのと同じだからです。</td>
+    </tr>
+    <tr>
+      <td><code>name</code></td>
+      <td>任意の名札。設定ウィンドウとエラーメッセージに出るので、ブロックが 3 つを
+        超えたあたりから効いてきます。</td>
+    </tr>
+  </table></div>
+
+  <h3>どのブロックが勝つか</h3>
+  <p>複数のブロックが当てはまる場合、<strong>アプリ別のブロックが <code>"*"</code> の
+  ブロックに勝ちます</strong>。ファイルに書いた順序は関係ありません。同じ区分の中では、
+  先に一致したものが勝ちます。</p>
+
+<pre><code>[[keymap]]
+application = ["*"]
+[keymap.remap]
+"C-h" = "Back"          # どのアプリでも…
+
+[[keymap]]
+application = ["code.exe"]
+[keymap.remap]
+"C-h" = "C-h"           # …ただし VS Code では C-h のまま
+</code></pre>
+
+  <p>実際に効くのは常に 1 つのルールだけです。両方当てはまるブロックで同じ入力を
+  束縛した場合、設定ウィンドウが相手のブロック名を示す列を出します。どちらか一方だけを
+  読んでいても気づけない衝突だからです。</p>
+
+  <h3>exe 名の調べ方</h3>
+  <p>トレイアイコンを右クリックして<strong>ログを表示</strong>を選び、対象のアプリへ
+  切り替えてください。そのアプリのフルパスと、<code>application</code> に書くべき文字列が
+  そのまま表示されます。書くのは常にファイル名だけで、パスは一致しません。</p>
+</section>
+
+<section id="rules">
+  <h2>ルール</h2>
+  <p><code>[keymap.remap]</code> の中では、左辺が「押すキー」、右辺が「アプリが受け取る
+  キー」です。</p>
+
+  <h3>コマンドルールと単キールール</h3>
+  <p>どちらになるかは、左辺に修飾キーが付いているかで決まります。この違いは見た目以上に
+  重要です。</p>
+
+  <div class="table-wrap"><table>
+    <tr><th></th><th>コマンドルール</th><th>単キールール</th></tr>
+    <tr>
+      <td>書き方</td>
+      <td><code>"C-h" = "Back"</code></td>
+      <td><code>"CapsLock" = "LCtrl"</code></td>
+    </tr>
+    <tr>
+      <td>一致する条件</td>
+      <td>修飾キーの組み合わせが<em>完全に一致</em>したときだけ。
+        <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> は <code>C-h</code> のルールを
+        <strong>発火させません</strong>。</td>
+      <td>キー単体。どの修飾キーを押していても一致します。
+        <kbd>Ctrl</kbd>+<kbd>CapsLock</kbd> は <kbd>Ctrl</kbd>+<kbd>Ctrl</kbd> になります。</td>
+    </tr>
+    <tr>
+      <td>修飾キーの扱い</td>
+      <td>出力に合わせて置き換えます。Ctrl を物理的に押していても、アプリには素の
+        Backspace が届きます。出力側が独自の修飾キーを持つこともできます:
+        <code>"C-i" = "S-Tab"</code>。</td>
+      <td>触りません。そのため出力は修飾キーの無い単一キーに限られます。</td>
+    </tr>
+    <tr>
+      <td>向いている用途</td>
+      <td>Emacs 風キーバインド、アプリ別の手当て。修飾キーも「押したもの」の一部である場合。</td>
+      <td>物理キーの入れ替え。CapsLock→Ctrl、無変換キーを別の役に、など。</td>
+    </tr>
+  </table></div>
+
+  <p>両者は共存できます。<code>CapsLock</code> を <code>LCtrl</code> に差し替えつつ、
+  <code>C-CapsLock</code> だけ特別扱いすることもできます。コマンドルールが先に
+  照合されるためです。</p>
+
+  <div class="warn">修飾キーはルールの<em>入力</em>にできません
+  （<code>"LCtrl" = ...</code> は拒否されます）。修飾キーはコマンドを組み立てる材料であり、
+  照合が始まる前に消費されるためです。出力側なら問題ありません。</div>
+
+  <h3>プレフィックスキー（2 ストローク）</h3>
+<pre><code>"A-x u" = "C-z"      # Alt+X → U       →  元に戻す
+"A-x C-s" = "C-s"    # Alt+X → Ctrl+S  →  保存
+</code></pre>
+  <p>2 つのコマンドを空白で区切って書きます。1 打鍵目は抑止され、WinRemap が待機します。
+  <strong>タイムアウトはありません</strong>。Emacs と同じ挙動です。次の打鍵で確定します。</p>
+  <p>2 打鍵目が定義されていないものだった場合、素通しではなく<strong>破棄</strong>されます。
+  打ち間違えても、文書に余計な文字が漏れることはありません。1 打鍵目には修飾キーが必須です。
+  裸のキーをプレフィックスにすると、通常の入力まで飲み込んでしまうためです。</p>
+
+  <h3>マクロ</h3>
+<pre><code>"C-t" = ["C-Right", "C-Left", "C-S-Right"]   # 最大 8 コマンド
+</code></pre>
+  <p>出力を配列にすると、各コマンドを順に 1 回ずつタップします。全体が 1 バッチで注入
+  されるため、自分のタイピングが割り込むことはありません。マクロは押下のたびに 1 回だけ
+  実行され、押しっぱなしでも連射されません。</p>
+  <p>一部のストロークが抜けるアプリ（WinUI 版メモ帳など）では、下の
+  <code>[macro] delay_ms</code> を使ってください。</p>
+</section>
+
+<section id="sections">
+  <h2>設定セクション</h2>
+
+  <h3><code>[macro]</code></h3>
+<pre><code>[macro]
+delay_ms = 8            # 0〜15、既定 0
+
+record_start = "S-F10"  # マクロ記憶。詳細はヘルプページ
+# record_stop = "S-F11" # 省略すると開始キーが終了も兼ねます
+record_play  = "F10"
+</code></pre>
+  <div class="table-wrap"><table>
+    <tr><th>キー</th><th>意味</th></tr>
+    <tr>
+      <td><code>delay_ms</code></td>
+      <td>マクロの各コマンドの間に入れる待ち時間（ミリ秒、0〜15）。ストロークが抜ける
+        アプリが無ければ 0 のままで構いません。WinUI 版メモ帳には 8 で足ります。
+        記憶したマクロの再生にも同じ値が使われます。コマンドラインの
+        <code>--macro-delay</code> は実験用にこれを上書きします。</td>
+    </tr>
+    <tr>
+      <td><code>record_start</code><br><code>record_stop</code><br><code>record_play</code></td>
+      <td><a href="index.html#record">マクロ記憶</a>のキー。<code>record_start</code> と
+        <code>record_play</code> を書くまで機能は動きません。<code>record_stop</code> を
+        省略すると開始キーと同じになり、押すたびに開始・終了が切り替わります。これらの
+        キーはキーマップ照合より前に横取りされるため、同じキーを
+        <code>[keymap.remap]</code> にも書くとエラーになります。</td>
+    </tr>
+  </table></div>
+  <div class="note">v0.1 の書き方（トップレベルの <code>macro_delay_ms</code>）も引き続き
+  使えます。両方書いた場合は、どちらかが黙って勝つのではなくエラーになります。どちらが
+  効いているのか分からない状態を作らないためです。</div>
+
+  <h3><code>[ime_indicator]</code></h3>
+<pre><code>[ime_indicator]
+enabled = true                # 既定: false
+# trigger_keys = ["C-Space"]  # Ctrl+Space で IME を切り替えている場合
+# duration_ms = 800           # 100〜5000
+# size = 96                   # 32〜256
+# opacity = 200               # 0〜255
+# show_app_name = true        # 「あ」の下に exe 名を出す
+</code></pre>
+  <p>IME がオンになった瞬間、アクティブウィンドウの中央に半透明の
+  <strong>「あ」</strong>パネルを一瞬表示します。標準の IME キーは最初から検知します。
+  Windows 11 の IME の Ctrl+Space のような独自の切り替えキーを使っている場合は
+  <code>trigger_keys</code> を足してください。表示のみで、WinRemap が IME を切り替える
+  ことはありません。</p>
+</section>
+
+<section id="keys">
+  <h2>キー記法</h2>
+  <p>ルールでは Keyhac / fakeymacs でおなじみの Emacs 風記法を使います。修飾キーの
+  プレフィックス＋キー名で、<code>C-h</code>、<code>A-S-F5</code>、<code>W-Space</code>
+  のように書きます。大文字小文字は区別せず、プレフィックスの順序も問いません
+  （<code>C-S-h</code> と <code>S-C-h</code> は同じコマンドです）。</p>
+
+  <div class="table-wrap"><table>
+    <tr><th>プレフィックス</th><th>修飾キー</th></tr>
+    <tr><td><code>C-</code></td><td>Ctrl（左右どちらでも）</td></tr>
+    <tr><td><code>A-</code></td><td>Alt（左右どちらでも）</td></tr>
+    <tr><td><code>S-</code></td><td>Shift（左右どちらでも）</td></tr>
+    <tr><td><code>W-</code></td><td>Win（左右どちらでも）</td></tr>
+  </table></div>
+
+  <div class="table-wrap"><table>
+    <tr><th>種類</th><th>キー名</th></tr>
+    <tr><td>英字・数字</td><td><code>a</code>〜<code>z</code>、<code>0</code>〜<code>9</code></td></tr>
+    <tr><td>ファンクション</td><td><code>F1</code>〜<code>F24</code></td></tr>
+    <tr><td>編集</td><td><code>Back</code>（<code>Backspace</code>、<code>BS</code>）、<code>Tab</code>、<code>Enter</code>（<code>Return</code>）、<code>Esc</code>（<code>Escape</code>）、<code>Space</code>、<code>Insert</code>（<code>Ins</code>）、<code>Delete</code>（<code>Del</code>）</td></tr>
+    <tr><td>移動</td><td><code>PageUp</code>（<code>PgUp</code>）、<code>PageDown</code>（<code>PgDn</code>）、<code>Home</code>、<code>End</code>、<code>Left</code>、<code>Up</code>、<code>Right</code>、<code>Down</code></td></tr>
+    <tr><td>ロック</td><td><code>CapsLock</code></td></tr>
+    <tr><td>出力用の修飾キー</td><td><code>LCtrl</code>、<code>RCtrl</code>、<code>LShift</code>、<code>RShift</code>、<code>LAlt</code>、<code>RAlt</code>、<code>LWin</code>、<code>RWin</code>、<code>Apps</code>（<code>Menu</code>）— 出力側のみ</td></tr>
+  </table></div>
+
+  <p>未対応: 記号・OEM キー（<code>;</code>、<code>,</code> など。キーコードがキーボード
+  レイアウトに依存するため）と、ルールの入力側に置く修飾キー。</p>
+</section>
+
+<section id="recipes">
+  <h2>記述例</h2>
+  <p>いずれもそのまま設定ファイルに貼れる、完結したブロックです。</p>
+
+  <h3>CapsLock をもう一つの Ctrl にする</h3>
+<pre><code>[[keymap]]
+name = "capslock"
+application = ["*"]
+
+[keymap.remap]
+"CapsLock" = "LCtrl"
+</code></pre>
+  <p>単キールールなので、他に何を押していても効きます。CapsLock は大文字ロックの切り替えを
+  一切しなくなり、コマンドのために押しっぱなしにしたときも含めて <em>Ctrl そのもの</em>に
+  なります。</p>
+
+  <h3>Ctrl+H を Backspace に。ただしターミナルは除く</h3>
+<pre><code>[[keymap]]
+name = "backspace"
+application = ["*"]
+exclude = ["windowsterminal.exe", "mintty.exe"]  # 自前で 0x08 を送るため
+
+[keymap.remap]
+"C-h" = "Back"
+</code></pre>
+  <p>WinRemap が生まれるきっかけになった設定です。エディタで
+  <kbd>Ctrl</kbd>+<kbd>H</kbd> はたいてい置換ダイアログを開きますが、これで 1 文字削除に
+  なります。ターミナルは既に正しく動くので除外します。</p>
+
+  <h3>Emacs 風のカーソル移動をすべてのアプリで</h3>
+<pre><code>[[keymap]]
+name = "emacs-motion"
+application = ["*"]
+exclude = ["windowsterminal.exe", "emacs.exe"]
+
+[keymap.remap]
+"C-p" = "Up"
+"C-n" = "Down"
+"C-b" = "Left"
+"C-f" = "Right"
+"C-a" = "Home"
+"C-e" = "End"
+"C-d" = "Delete"
+"C-k" = ["S-End", "C-x"]     # 行末まで選択して切り取り
+"C-y" = "C-v"                # ヤンク
+</code></pre>
+  <p><code>C-k</code> がマクロになっている点に注目してください。「行末まで削除」は
+  「行末まで選択する」「切り取る」の 2 操作だからです。もともと Emacs キーバインドを
+  持つアプリは除外しないと、互いに衝突します。</p>
+
+  <h3>1 つのアプリだけ逆にしたい</h3>
+<pre><code>[[keymap]]
+name = "vscode"
+application = ["code.exe"]
+
+[keymap.remap]
+"C-p" = "C-p"     # VS Code のクイックオープンはそのまま渡す
+</code></pre>
+  <p>アプリ別のブロックは、上の <code>"*"</code> ブロックより後に書かなくても勝ちます。
+  コマンドを自分自身に対応させるのが「このアプリは例外」を表す書き方です。</p>
+
+  <h3>Emacs 風のプレフィックスコマンド</h3>
+<pre><code>[[keymap]]
+name = "prefix"
+application = ["*"]
+
+[keymap.remap]
+"A-x u" = "C-z"        # Alt+X → U       →  元に戻す
+"A-x s" = "C-s"        # Alt+X → S       →  保存
+"A-x C-c" = "A-F4"     # Alt+X → Ctrl+C  →  ウィンドウを閉じる
+</code></pre>
+  <p><kbd>Alt</kbd>+<kbd>X</kbd> のあとに定義していないキーを押しても破棄されるので、
+  打ち間違えて文書に文字が入ることはありません。</p>
+
+  <h3>1 キーで単語を選択する</h3>
+<pre><code>[[keymap]]
+name = "select-word"
+application = ["*"]
+
+[keymap.remap]
+"C-t" = ["C-Right", "C-Left", "C-S-Right"]
+</code></pre>
+  <p>単語の先を通り過ぎ、その先頭へ戻り、末尾まで選択します。単語のどこにカーソルが
+  あっても、単語まるごとを選択できます。1 マクロあたり最大 8 コマンドです。</p>
+
+  <h3>その場かぎりの繰り返し作業を記憶する</h3>
+<pre><code>[macro]
+delay_ms = 8
+record_start = "S-F10"   # Shift+F10 で開始、もう一度押して終了
+record_play  = "F10"     # F10 で再生
+</code></pre>
+  <p>恒久的なルールにするほどでもない編集向けです。<kbd>Shift</kbd>+<kbd>F10</kbd> を
+  押して一度だけ作業し、もう一度押して終了。あとはファイルの残りで <kbd>F10</kbd> を
+  押していきます。記憶できるのは 20 コマンド、内容はメモリ上だけにあり、WinRemap を
+  終了すると消えます。何が記録され何が記録されないかは
+  <a href="index.html#record">マクロ記憶</a>をご覧ください。</p>
+
+  <h3>出発点にする設定ファイル</h3>
+  <p>WinRemap には 2 つの設定例が同梱されています。どちらも通して読む価値があります:
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/minimal.toml">minimal.toml</a>
+  （ルール 1 つだけ。WinRemap が動いているかの確認用）と
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/emacs.toml">emacs.toml</a>
+  （fakeymacs 相当の一式）です。</p>
+</section>
+
+<section id="errors">
+  <h2>設定を間違えたとき</h2>
+  <p>問題は行番号付きで全件まとめて報告されます。ファイルを 1 回見直すだけで全部直せます。
+  リロードに失敗した場合は、直前の有効な設定がそのまま動き続けます。</p>
+
+  <div class="table-wrap"><table>
+    <tr><th>メッセージ</th><th>意味</th></tr>
+    <tr>
+      <td><code>unknown key `Bogus`</code></td>
+      <td>その名前が<a href="#keys">キー記法</a>の表にありません。記号キーを書いた場合が
+        大半です（未対応です）。</td>
+    </tr>
+    <tr>
+      <td><code>modifier key `LCtrl` cannot be a remap input</code></td>
+      <td>修飾キー単体はルールの左辺にできません。出力側なら書けます。</td>
+    </tr>
+    <tr>
+      <td><code>a bare-key rule's target may not have modifiers</code></td>
+      <td>左辺に修飾キーが無いので単キールールになりますが、単キールールは修飾状態に
+        手を触れません。左辺に修飾キーを足してコマンドルールにしてください。</td>
+    </tr>
+    <tr>
+      <td><code>duplicates an earlier rule for the same key</code></td>
+      <td>同じブロック内の 2 つのルールが同じコマンドに解決されています
+        （<code>"C-h"</code> と <code>"c-H"</code> は同じものです）。</td>
+    </tr>
+    <tr>
+      <td><code>is already used as a sequence prefix</code></td>
+      <td>同じコマンドが、単独のルールとシーケンスの 1 打鍵目の両方になっています。
+        発火すべきか次のキーを待つべきか決められません。</td>
+    </tr>
+    <tr>
+      <td><code>`exclude` requires application = ["*"]</code></td>
+      <td>アプリを列挙したうえで一部を除外しています。短いリストを書いてください。</td>
+    </tr>
+    <tr>
+      <td><code>is also remapped in `…`; recording keys are always taken first</code></td>
+      <td>マクロ記憶のキーがキーマップにも束縛されています。そのルールは決して発火せず、
+        しかも設定ファイルを読んでもそうとは分からないため、書いた時点で拒否します。</td>
+    </tr>
+  </table></div>
+
+  <p>それでも解決しない場合は、トレイの<strong>ログを表示</strong>でキーごとの処理内容が
+  見られます。<strong>設定</strong>ウィンドウには今実際に効いている設定が出るので、
+  リロードできていないことに気づく最短の方法でもあります。</p>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
+    <span><a href="index.html">ヘルプ</a> ·
+      <a href="https://github.com/DaikiSuganuma/winremap">ソース</a> ·
+      <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
+      <a href="../config.html" lang="en">English</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

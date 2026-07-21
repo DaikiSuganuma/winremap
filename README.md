@@ -197,7 +197,9 @@ app's exe name under the glyph (never the window title). The panel never
 takes focus or input, taskbar/desktop clicks are ignored, and a problem in
 the indicator never affects remapping.
 
-The full specification lives in
+Every option, the full key-notation table and worked examples live in the
+[configuration guide](https://daikisuganuma.github.io/winremap/config.html);
+the developer-facing specification is
 [docs/v0.1/02_config-spec.md](docs/v0.1/02_config-spec.md) (Japanese).
 
 ### Seeing what is in effect
