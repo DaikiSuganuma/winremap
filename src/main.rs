@@ -11,6 +11,7 @@
 // (ADR 0029).
 #![windows_subsystem = "windows"]
 
+mod clock;
 mod gui;
 mod hook;
 mod i18n;
@@ -55,6 +56,13 @@ fn run() -> anyhow::Result<()> {
         bail!("{}", i18n::t().already_running);
     };
 
+    // The session's first line, before anything that can fail from here on.
+    // The log window is usually opened long after launch, so it is seeded with
+    // this rather than starting mid-session with no idea when "now" began.
+    let started = i18n::session_started(&clock::local_now());
+    notify::console_line(&started);
+    gui::log::set_session_start(&started);
+
     // A startup config error aborts: better to not run at all than to sit in
     // the tray silently doing nothing the user asked for (config-spec §4).
     let table = config::load(&config_path)
@@ -91,6 +99,9 @@ fn run() -> anyhow::Result<()> {
     hook::uninstall(keyboard_hook);
     window::uninstall_foreground_watch(event_hook);
     ime_indicator::stop();
+    // Closes the session the startup banner opened, so a terminal transcript
+    // says how long WinRemap was actually up.
+    gui::log::emit(&i18n::session_ended(&clock::local_now()));
     Ok(())
 }
 

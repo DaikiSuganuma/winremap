@@ -269,6 +269,26 @@ pub fn startup_loaded(count: usize, path: &Path) -> String {
     }
 }
 
+/// Opens the log: when this run of WinRemap started, and which build it is.
+/// The version is repeated here (rather than only in `startup_loaded`) because
+/// this is the line a pasted log is read from.
+pub fn session_started(now: &str) -> String {
+    let version = env!("CARGO_PKG_VERSION");
+    match lang() {
+        Lang::En => format!("{now}  WinRemap v{version} started"),
+        Lang::Ja => format!("{now}  WinRemap v{version} を起動しました"),
+    }
+}
+
+/// Closes it, on the way out of `run`.
+pub fn session_ended(now: &str) -> String {
+    let version = env!("CARGO_PKG_VERSION");
+    match lang() {
+        Lang::En => format!("{now}  WinRemap v{version} exited"),
+        Lang::Ja => format!("{now}  WinRemap v{version} を終了しました"),
+    }
+}
+
 pub fn tooltip_status(count: usize) -> String {
     match lang() {
         Lang::En => format!("WinRemap — {count} keymap(s)"),
@@ -350,10 +370,10 @@ pub fn help_url() -> &'static str {
 /// order, and where the pacing between them comes from.
 pub fn macro_note(delay_ms: u32) -> String {
     match (lang(), delay_ms) {
-        (Lang::En, 0) => "→ marks a macro: the chords are tapped in order, as fast as possible. Add macro_delay_ms in General to pace them.".to_owned(),
-        (Lang::En, delay) => format!("→ marks a macro: the chords are tapped in order, {delay} ms apart (macro_delay_ms in General)."),
-        (Lang::Ja, 0) => "→ はマクロです。各コマンドを順にタップします。間隔は空けません（全体設定の macro_delay_ms で調整できます）。".to_owned(),
-        (Lang::Ja, delay) => format!("→ はマクロです。各コマンドを {delay} ミリ秒間隔で順にタップします（全体設定の macro_delay_ms）。"),
+        (Lang::En, 0) => "→ marks a macro: the chords are tapped in order, as fast as possible. Add [macro] delay_ms in General to pace them.".to_owned(),
+        (Lang::En, delay) => format!("→ marks a macro: the chords are tapped in order, {delay} ms apart ([macro] delay_ms in General)."),
+        (Lang::Ja, 0) => "→ はマクロです。各コマンドを順にタップします。間隔は空けません（全体設定の [macro] delay_ms で調整できます）。".to_owned(),
+        (Lang::Ja, delay) => format!("→ はマクロです。各コマンドを {delay} ミリ秒間隔で順にタップします（全体設定の [macro] delay_ms）。"),
     }
 }
 

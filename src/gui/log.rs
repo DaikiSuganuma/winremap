@@ -37,9 +37,18 @@ static CLI_DEBUG: AtomicBool = AtomicBool::new(false);
 /// outside the app struct because the viewport callback must be `Fn`.
 static FOLLOW_TAIL: AtomicBool = AtomicBool::new(true);
 
+/// The startup banner. Kept because the buffer is emptied every time the
+/// window closes, and "when did this session start" has to survive that.
+static SESSION_START: OnceLock<String> = OnceLock::new();
+
 fn buffer() -> &'static Mutex<VecDeque<String>> {
     static BUFFER: OnceLock<Mutex<VecDeque<String>>> = OnceLock::new();
     BUFFER.get_or_init(|| Mutex::new(VecDeque::new()))
+}
+
+/// Records the line the window opens with. Called once, at startup.
+pub fn set_session_start(line: &str) {
+    let _ = SESSION_START.set(line.to_owned());
 }
 
 /// Records the startup `--debug` value so the window can restore it on close.
@@ -89,6 +98,9 @@ pub fn request_open() {
     if !OPEN.swap(true, Ordering::SeqCst) {
         if let Ok(mut lines) = buffer().lock() {
             lines.clear();
+            if let Some(start) = SESSION_START.get() {
+                lines.push_back(start.clone());
+            }
             lines.push_back(i18n::t().log_window_hint.to_owned());
         }
         hook::set_debug(true);

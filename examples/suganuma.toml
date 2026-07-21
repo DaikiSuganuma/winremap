@@ -1,12 +1,4 @@
 # 個人設定: Keyhac + fakeymacs から移植した Emacs 風キーバインド。
-#
-# 移植メモ:
-# - IME 制御（無変換/変換、A-BackQuote、C-Space、Emacs 日本語入力モード）は
-#   WinRemap のスコープ外。Windows 11 の IME 設定で「無変換 = IME オフ /
-#   変換 = IME オン」を割り当てて代替する。
-# - C-s は元設定（skip_settings_key）どおり意図的にリマップしない
-#   （ネイティブの保存のまま）。
-# - C-k（kill-line）は単一コマンドで表現できないため未移植。
 
 # --- マクロ機能設定 ---
 [macro]
@@ -28,7 +20,7 @@ show_app_name = true # パネルの下に対象アプリの exe 名を表示（A
 
 # --- 全アプリに Emacs バインドを適用（独自のキー処理を持つアプリは除外） ---
 [[keymap]]
-name = "Windows Emacs"
+name = "菅沼用Emacs風"
 application = [
     "*" # 全アプリ。ここから除外するアプリはexclude で指定
 ]

@@ -88,6 +88,19 @@ impl ConfigWindow {
                 egui::ScrollArea::vertical().show(ui, |ui| self.list_ui(ui, &table));
             });
 
+        // Only alongside a rule list, the one thing it explains — on the
+        // general page it would be a legend for nothing. Explorer's details
+        // pane behaves the same way.
+        if self.shows_rules(&table) {
+            egui::Panel::right("config-notation")
+                .default_size(240.0)
+                .show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, notation_help_ui);
+                });
+        }
+
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
@@ -101,6 +114,12 @@ impl ConfigWindow {
                     },
                 });
         });
+    }
+
+    /// Whether the detail pane is currently showing a keymap. Mirrors the
+    /// fallback in `ui`: an index the reload left dangling shows General.
+    fn shows_rules(&self, table: &RemapTable) -> bool {
+        matches!(self.selection, Selection::Keymap(index) if table.keymaps.get(index).is_some())
     }
 
     fn sync_comments(&mut self, table: Option<&Arc<RemapTable>>, path: &Path) {
@@ -189,9 +208,6 @@ fn keymap_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComment
     section(ui, texts.config_rules, "[keymap.remap]");
     rules_ui(ui, keymap, comments);
     macro_note_ui(ui, keymap);
-
-    section(ui, texts.config_notation_title, "");
-    notation_help_ui(ui);
 }
 
 /// Section titles are bigger than body text and sit under a rule, so a long
@@ -199,6 +215,54 @@ fn keymap_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComment
 const SECTION_TEXT: f32 = 17.0;
 /// The keymap's own name, one step above its sections.
 const TITLE_TEXT: f32 = 21.0;
+/// Room around cell text, and the gap that keeps a note off the table it
+/// belongs to. Applied as grid spacing, so half of it lands on each side of
+/// the gap between two cells.
+const CELL_PAD: f32 = 4.0;
+/// A note reads as belonging to the table it sits under only if there is a
+/// clear break between them.
+const NOTE_GAP: f32 = 8.0;
+
+/// The shared look for every table in this window: a hairline border, a
+/// reverse-coloured header row, and room around the text.
+///
+/// egui's `Grid` has no notion of a header, so row 0 is coloured through
+/// `with_row_color` — the same hook the zebra striping uses, which is why the
+/// stripes are spelled out here rather than left to `striped`. Colouring that
+/// way rather than per cell is what makes the header a full-width band.
+fn table(
+    ui: &mut egui::Ui,
+    id: &str,
+    columns: &[&str],
+    min_col_width: f32,
+    rows: impl FnOnce(&mut egui::Ui),
+) {
+    let border = ui.visuals().widgets.noninteractive.bg_stroke;
+    // The header's text takes the window's background colour, which is what
+    // "reversed" means here — and it follows the light/dark theme for free.
+    let header_text = ui.visuals().extreme_bg_color;
+    egui::Frame::new()
+        .stroke(border)
+        .inner_margin(CELL_PAD)
+        .show(ui, |ui| {
+            egui::Grid::new(id)
+                .num_columns(columns.len())
+                .min_col_width(min_col_width)
+                .spacing([CELL_PAD * 4.0, CELL_PAD * 2.0])
+                .with_row_color(|row, style| match row {
+                    0 => Some(style.visuals.text_color()),
+                    row if row % 2 == 1 => Some(style.visuals.faint_bg_color),
+                    _ => None,
+                })
+                .show(ui, |ui| {
+                    for column in columns {
+                        ui.label(egui::RichText::new(*column).strong().color(header_text));
+                    }
+                    ui.end_row();
+                    rows(ui);
+                });
+        });
+}
 
 fn section(ui: &mut egui::Ui, title: &str, key: &str) {
     ui.add_space(14.0);
@@ -210,7 +274,7 @@ fn section(ui: &mut egui::Ui, title: &str, key: &str) {
             ui.label(egui::RichText::new(key).monospace().weak());
         }
     });
-    ui.add_space(4.0);
+    ui.add_space(CELL_PAD);
 }
 
 /// Exe names one per row, each with whatever the user wrote next to it in
@@ -228,22 +292,16 @@ fn app_table<'a>(
     if names.is_empty() {
         ui.label(egui::RichText::new(texts.config_none).weak());
     } else {
-        egui::Grid::new(id)
-            .striped(true)
-            .num_columns(2)
-            .min_col_width(180.0)
-            .show(ui, |ui| {
-                ui.label(egui::RichText::new(texts.config_column_app).strong());
-                ui.label(egui::RichText::new(texts.config_rule_comment).strong());
+        let columns = [texts.config_column_app, texts.config_rule_comment];
+        table(ui, id, &columns, 180.0, |ui| {
+            for name in names {
+                ui.label(egui::RichText::new(name).monospace());
+                ui.label(comment_of(name).unwrap_or_default());
                 ui.end_row();
-                for name in names {
-                    ui.label(egui::RichText::new(name).monospace());
-                    ui.label(comment_of(name).unwrap_or_default());
-                    ui.end_row();
-                }
-            });
+            }
+        });
     }
-    ui.add_space(4.0);
+    ui.add_space(NOTE_GAP);
     own_note(ui, texts.config_apps_case_note);
 }
 
@@ -275,23 +333,20 @@ fn rules_ui(ui: &mut egui::Ui, keymap: &Keymap, comments: Option<&KeymapComments
         ui.label(egui::RichText::new(texts.config_no_rules).weak());
         return;
     }
-    egui::Grid::new("rules")
-        .striped(true)
-        .num_columns(3)
-        .min_col_width(120.0)
-        .show(ui, |ui| {
-            ui.label(egui::RichText::new(texts.config_rule_input).strong());
-            ui.label(egui::RichText::new(texts.config_rule_output).strong());
-            ui.label(egui::RichText::new(texts.config_rule_comment).strong());
+    let columns = [
+        texts.config_rule_input,
+        texts.config_rule_output,
+        texts.config_rule_comment,
+    ];
+    table(ui, "rules", &columns, 120.0, |ui| {
+        for (input, output) in &rules {
+            ui.label(egui::RichText::new(input).monospace());
+            ui.label(egui::RichText::new(output).monospace());
+            let comment = comments.and_then(|c| c.rule(input)).unwrap_or_default();
+            ui.label(comment);
             ui.end_row();
-            for (input, output) in &rules {
-                ui.label(egui::RichText::new(input).monospace());
-                ui.label(egui::RichText::new(output).monospace());
-                let comment = comments.and_then(|c| c.rule(input)).unwrap_or_default();
-                ui.label(egui::RichText::new(comment).weak());
-                ui.end_row();
-            }
-        });
+        }
+    });
 }
 
 /// Explains the arrows, and where the pacing between them comes from — only
@@ -309,17 +364,29 @@ fn macro_note_ui(ui: &mut egui::Ui, keymap: &Keymap) {
         .load()
         .as_ref()
         .map_or(0, |table| table.macro_delay_ms);
-    ui.add_space(6.0);
+    ui.add_space(NOTE_GAP);
     own_note(ui, &i18n::macro_note(delay));
 }
 
-/// What `C-` and friends mean. Always open: the rules right above it are
-/// unreadable without it for anyone who did not write them.
+/// What `C-` and friends mean. Lives in its own pane beside the rules, which
+/// are unreadable without it for anyone who did not write them, and always
+/// open — a legend behind a disclosure triangle helps nobody.
+///
+/// No border or header here: it is a legend, not data, and giving it the same
+/// weight as the rule table would make the pane compete with it.
 fn notation_help_ui(ui: &mut egui::Ui) {
     let texts = i18n::t();
+    ui.add_space(8.0);
+    ui.label(
+        egui::RichText::new(texts.config_notation_title)
+            .size(SECTION_TEXT)
+            .strong(),
+    );
+    ui.add_space(NOTE_GAP);
     egui::Grid::new("notation")
         .num_columns(2)
         .min_col_width(60.0)
+        .spacing([CELL_PAD * 4.0, CELL_PAD * 2.0])
         .show(ui, |ui| {
             for (prefix, meaning) in [
                 ("C-", texts.config_notation_ctrl),
@@ -332,10 +399,11 @@ fn notation_help_ui(ui: &mut egui::Ui) {
                 ui.end_row();
             }
         });
-    ui.add_space(4.0);
+    ui.add_space(NOTE_GAP);
     ui.label(texts.config_notation_sequence);
+    ui.add_space(CELL_PAD);
     ui.label(texts.config_notation_macro);
-    ui.add_space(6.0);
+    ui.add_space(NOTE_GAP);
     if ui.link(texts.config_help_link).clicked() {
         super::log::action(texts.config_help_link);
         super::win32::open_url(i18n::help_url());
@@ -393,24 +461,21 @@ fn general_ui(ui: &mut egui::Ui, table: &RemapTable, comments: &ConfigComments) 
 /// in the file, the value in effect, and the user's own note.
 fn settings_table(ui: &mut egui::Ui, id: &str, rows: &[(&str, &str, String, Option<&str>)]) {
     let texts = i18n::t();
-    egui::Grid::new(id)
-        .striped(true)
-        .num_columns(4)
-        .min_col_width(110.0)
-        .show(ui, |ui| {
-            ui.label(egui::RichText::new(texts.config_column_item).strong());
-            ui.label(egui::RichText::new(texts.config_column_key).strong());
-            ui.label(egui::RichText::new(texts.config_column_value).strong());
-            ui.label(egui::RichText::new(texts.config_rule_comment).strong());
+    let columns = [
+        texts.config_column_item,
+        texts.config_column_key,
+        texts.config_column_value,
+        texts.config_rule_comment,
+    ];
+    table(ui, id, &columns, 110.0, |ui| {
+        for (label, key, value, comment) in rows {
+            ui.label(*label);
+            ui.label(egui::RichText::new(*key).monospace().weak());
+            ui.label(egui::RichText::new(value).monospace());
+            ui.label(comment.unwrap_or_default());
             ui.end_row();
-            for (label, key, value, comment) in rows {
-                ui.label(*label);
-                ui.label(egui::RichText::new(*key).monospace().weak());
-                ui.label(egui::RichText::new(value).monospace());
-                ui.label(comment.unwrap_or_default());
-                ui.end_row();
-            }
-        });
+        }
+    });
 }
 
 fn ime_ui(ui: &mut egui::Ui, settings: &IndicatorSettings, comments: &ConfigComments) {
@@ -486,12 +551,14 @@ fn field(ui: &mut egui::Ui, label: &str, key: &str, value: &str) {
     });
 }
 
-/// The comment the user wrote on that line, if any.
+/// The comment the user wrote on that line, if any, kept clear of the list it
+/// introduces so the two do not read as one block.
 fn note(ui: &mut egui::Ui, comment: Option<&str>) {
     if let Some(comment) = comment {
         ui.indent("note", |ui| {
             ui.label(egui::RichText::new(format!("# {comment}")).weak());
         });
+        ui.add_space(NOTE_GAP);
     }
 }
 
