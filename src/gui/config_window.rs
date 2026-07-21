@@ -642,19 +642,69 @@ fn general_ui(ui: &mut egui::Ui, table: &RemapTable, comments: &ConfigComments) 
             None => ("delay_ms", None),
         },
     };
-    settings_table(
-        ui,
-        "macro-settings",
-        &[(
-            texts.config_macro_delay,
-            delay_key,
-            table.macro_delay_ms.to_string(),
-            delay_comment,
-        )],
-    );
+    let mut rows: Vec<(&str, &str, String, Option<&str>)> = vec![(
+        texts.config_macro_delay,
+        delay_key,
+        table.macro_delay_ms.to_string(),
+        delay_comment,
+    )];
+    // Recording is opt-in, so the three keys only earn rows once they exist
+    // (ADR 0043); listing "(not configured)" three times would be noise for
+    // everyone who does not use the feature.
+    if let Some(keys) = table.macro_record.as_ref() {
+        rows.push((
+            texts.config_macro_record_start,
+            "record_start",
+            keys.start.to_string(),
+            comments.general("macro.record_start"),
+        ));
+        rows.push((
+            texts.config_macro_record_stop,
+            "record_stop",
+            keys.stop.to_string(),
+            comments.general("macro.record_stop"),
+        ));
+        rows.push((
+            texts.config_macro_record_play,
+            "record_play",
+            keys.play.to_string(),
+            comments.general("macro.record_play"),
+        ));
+    }
+    settings_table(ui, "macro-settings", &rows);
+
+    if table.macro_record.is_some() {
+        recorded_macro_ui(ui);
+    }
 
     section(ui, Icon::Ime, texts.config_ime_indicator, "[ime_indicator]");
     ime_ui(ui, &table.ime_indicator, comments);
+}
+
+/// The macro held in memory right now, rendered the way a config macro is so
+/// the two read alike (owner decision 2026-07-21).
+///
+/// Deliberately outside the settings table: every other row states what the
+/// file says, and this one states what memory holds. The note spells that
+/// out, because a reader who takes it for a config value would go looking
+/// for it in the file and never find it.
+fn recorded_macro_ui(ui: &mut egui::Ui) {
+    let texts = i18n::t();
+    let commands = crate::macro_record::recorded();
+    let rendered = match commands {
+        Some(ref commands) if !commands.is_empty() => commands
+            .iter()
+            .map(|combo| combo.to_string())
+            .collect::<Vec<_>>()
+            .join(" → "),
+        _ => texts.config_none.to_owned(),
+    };
+    ui.add_space(f32::from(CELL_PAD));
+    ui.horizontal(|ui| {
+        ui.label(texts.config_macro_recorded);
+        ui.label(egui::RichText::new(rendered).monospace());
+    });
+    own_note(ui, texts.config_macro_recorded_note);
 }
 
 /// The shared four-column shape for a settings section: what it is, the key

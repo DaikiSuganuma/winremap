@@ -89,6 +89,15 @@ pub fn has_recording() -> bool {
     RECORDED.load().is_some()
 }
 
+/// The stored macro, for the settings window to display. Never read from the
+/// hook callback — this clones.
+pub fn recorded() -> Option<Vec<KeyCombo>> {
+    RECORDED
+        .load()
+        .as_ref()
+        .map(|commands| (**commands).clone())
+}
+
 /// Puts a line on the banner and leaves it there. Called from the message
 /// loop with the text already formatted.
 pub fn banner_show(text: String) {

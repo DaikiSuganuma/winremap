@@ -23,6 +23,7 @@
       <a href="#quickstart">Quick start</a>
       <a href="#config">Configuration</a>
       <a href="#keys">Key notation</a>
+      <a href="#record">Macro recording</a>
       <a href="#ime">IME indicator</a>
       <a href="#faq">FAQ</a>
     </nav>
@@ -212,6 +213,40 @@ application = ["phpstorm64.exe", "idea64.exe"]
   <p>Not supported in v0.1: punctuation/OEM keys (<code>;</code>, <code>,</code>, …
   their key codes depend on the keyboard layout) and modifier keys on the
   <em>input</em> side of a rule.</p>
+</section>
+
+<section id="record">
+  <h2>Macro recording (optional)</h2>
+  <p>Name the keys and WinRemap can record what you do and play it back. Nothing
+  happens until you name them.</p>
+<pre><code>[macro]
+record_start = "S-F10"  # press to start recording
+# record_stop = "S-F11" # omit it and the start key stops it too
+record_play  = "F10"    # press to replay
+</code></pre>
+  <p>Press <kbd>Shift</kbd>+<kbd>F10</kbd>, do the work, press it again, then press
+  <kbd>F10</kbd> as often as you like. A banner at the bottom of the screen reads
+  <em>Recording macro 3/20</em> while a recording runs, and shows the commands while they
+  replay — recording never happens without you seeing it.</p>
+  <p>Worth knowing before you rely on it:</p>
+  <ul>
+    <li><strong>20 commands per recording.</strong> A command is one chord: <code>C-a</code>
+    is one, the two strokes of <code>A-x h</code> are two. The 21st ends the recording and
+    says so; nothing is dropped quietly.</li>
+    <li><strong>Nothing is written to disk.</strong> The recording lives in memory and is
+    gone when WinRemap exits, and it is never saved to your config file. To keep a
+    sequence, write it as a macro rule instead.</li>
+    <li><strong>What is recorded is what WinRemap emitted</strong>, not the keys you
+    pressed. With <code>"C-h" = "Back"</code> in effect, the recording holds
+    <code>Back</code>.</li>
+    <li><strong>Order, not timing.</strong> Each command is tapped once, in order. How long
+    you held a key, and holding one key while pressing another, are not reproduced —
+    Emacs keyboard macros behave the same way.</li>
+    <li>One recording is kept; recording again replaces it. The replay key does nothing
+    while a replay is running, and an in-progress recording is dropped if you disable
+    WinRemap or reload the config, since the key that would end it comes from that file.</li>
+  </ul>
+  <p><code>delay_ms</code> paces a replay exactly as it paces a config macro.</p>
 </section>
 
 <section id="ime">
