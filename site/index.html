@@ -7,6 +7,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WinRemap — Help</title>
 <meta name="description" content="WinRemap help: install, configure, and troubleshoot the per-application key remapper for Windows.">
+<meta name="color-scheme" content="light dark">
+<!-- Pico CSS v2.1.1, pinned and integrity-checked (ADR 0046). -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css"
+      integrity="sha384-L1dWfspMTHU/ApYnFiMz2QID/PlP1xCW9visvBdbEkOLkSSWsP6ZJWhPw6apiXxU"
+      crossorigin="anonymous">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/kbd-enabled-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/kbd-enabled-16.png">
@@ -16,18 +22,22 @@
 <body>
 
 <header class="topnav">
-  <div class="container">
-    <a class="brand" href="#top"><img src="assets/kbd-enabled-32.png" alt="">WinRemap</a>
-    <nav>
-      <a href="#install">Install</a>
-      <a href="#quickstart">Quick start</a>
-      <a href="config.html">Configuration</a>
-      <a href="#record">Macro recording</a>
-      <a href="#ime">IME indicator</a>
-      <a href="#faq">FAQ</a>
-    </nav>
-    <span class="lang"><a href="ja/" lang="ja">日本語</a></span>
-  </div>
+  <nav class="container">
+    <ul>
+      <li><a class="brand" href="#top"><img src="assets/kbd-enabled-32.png" alt="">WinRemap</a></li>
+    </ul>
+    <ul>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#quickstart">Quick start</a></li>
+        <li><a href="config.html">Configuration</a></li>
+        <li><a href="#record">Macro recording</a></li>
+        <li><a href="#ime">IME indicator</a></li>
+        <li><a href="#faq">FAQ</a></li>
+    </ul>
+    <ul>
+      <li><a href="ja/" lang="ja">日本語</a></li>
+    </ul>
+  </nav>
 </header>
 
 <div class="hero" id="top">
@@ -37,9 +47,9 @@
     <p class="tagline">A per-application key remapper for Windows, written in Rust.
     Remap keys only in the apps you choose — declared in one simple TOML file.</p>
     <div class="buttons">
-      <a class="btn primary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe">Download installer</a>
-      <a class="btn" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe">Portable exe</a>
-      <a class="btn" href="https://github.com/DaikiSuganuma/winremap">GitHub</a>
+      <a role="button" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe">Download installer</a>
+      <a role="button" class="secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe">Portable exe</a>
+      <a role="button" class="secondary" href="https://github.com/DaikiSuganuma/winremap">GitHub</a>
     </div>
     <p class="sub">Free &amp; open source (MIT) · No network access · Never logs keystrokes ·
     <a href="https://github.com/DaikiSuganuma/winremap/releases">all releases</a></p>
@@ -146,7 +156,7 @@ application = ["phpstorm64.exe", "idea64.exe"]
   <p>Config errors are reported all at once, with line numbers. If a reload fails, the
   previous working config stays active — a typo never disables your keyboard setup.</p>
 
-  <p><a class="btn primary" href="config.html">Configuration guide →</a></p>
+  <p><a role="button" href="config.html">Configuration guide →</a></p>
   <p class="note">Every option explained, the full key-notation table, worked examples for
   CapsLock, Emacs bindings, per-app exceptions and macros, and what each error message
   means.</p>
@@ -308,7 +318,8 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
   <div class="container">
     <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
     <span>Tray menu icons from <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a> (MIT) —
-      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">notices</a>.</span>
+      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">notices</a>.
+      This site is styled with <a href="https://picocss.com/">Pico CSS</a> (MIT).</span>
     <span>Inspired by <a href="https://github.com/xremap/xremap">xremap</a> and
       <a href="https://sites.google.com/site/craftware/keyhac-ja">Keyhac</a> /
       <a href="https://github.com/smzht/fakeymacs">fakeymacs</a> — an independent project,

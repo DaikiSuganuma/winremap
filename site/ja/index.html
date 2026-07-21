@@ -7,6 +7,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WinRemap — ヘルプ</title>
 <meta name="description" content="WinRemap ヘルプ: Windows 用アプリ別キーリマッパーのインストール・設定・トラブルシューティング。">
+<meta name="color-scheme" content="light dark">
+<!-- Pico CSS v2.1.1, pinned and integrity-checked (ADR 0046). -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css"
+      integrity="sha384-L1dWfspMTHU/ApYnFiMz2QID/PlP1xCW9visvBdbEkOLkSSWsP6ZJWhPw6apiXxU"
+      crossorigin="anonymous">
 <link rel="stylesheet" href="../style.css">
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/kbd-enabled-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="../assets/kbd-enabled-16.png">
@@ -16,18 +22,22 @@
 <body>
 
 <header class="topnav">
-  <div class="container">
-    <a class="brand" href="#top"><img src="../assets/kbd-enabled-32.png" alt="">WinRemap</a>
-    <nav>
-      <a href="#install">インストール</a>
-      <a href="#quickstart">クイックスタート</a>
-      <a href="config.html">設定</a>
-      <a href="#record">マクロ記憶</a>
-      <a href="#ime">IME 表示</a>
-      <a href="#faq">FAQ</a>
-    </nav>
-    <span class="lang"><a href="../" lang="en">English</a></span>
-  </div>
+  <nav class="container">
+    <ul>
+      <li><a class="brand" href="#top"><img src="../assets/kbd-enabled-32.png" alt="">WinRemap</a></li>
+    </ul>
+    <ul>
+        <li><a href="#install">インストール</a></li>
+        <li><a href="#quickstart">クイックスタート</a></li>
+        <li><a href="config.html">設定</a></li>
+        <li><a href="#record">マクロ記憶</a></li>
+        <li><a href="#ime">IME 表示</a></li>
+        <li><a href="#faq">FAQ</a></li>
+    </ul>
+    <ul>
+      <li><a href="../" lang="en">English</a></li>
+    </ul>
+  </nav>
 </header>
 
 <div class="hero" id="top">
@@ -37,9 +47,9 @@
     <p class="tagline">Rust 製の Windows 用アプリ別キーリマッパー。
     選んだアプリでだけキーを置き換え。設定はシンプルな TOML ファイル 1 つ。</p>
     <div class="buttons">
-      <a class="btn primary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe">インストーラーをダウンロード</a>
-      <a class="btn" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe">ポータブル版 exe</a>
-      <a class="btn" href="https://github.com/DaikiSuganuma/winremap">GitHub</a>
+      <a role="button" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe">インストーラーをダウンロード</a>
+      <a role="button" class="secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe">ポータブル版 exe</a>
+      <a role="button" class="secondary" href="https://github.com/DaikiSuganuma/winremap">GitHub</a>
     </div>
     <p class="sub">無料・オープンソース (MIT) · ネットワーク通信なし · キー入力を記録しない ·
     <a href="https://github.com/DaikiSuganuma/winremap/releases">全リリース</a></p>
@@ -148,7 +158,7 @@ application = ["phpstorm64.exe", "idea64.exe"]
   <p>設定エラーは行番号付きで全件まとめて報告されます。リロードに失敗した場合は直前の
   有効な設定が維持されるので、編集ミスでキーボード環境が止まることはありません。</p>
 
-  <p><a class="btn primary" href="config.html">設定ガイド →</a></p>
+  <p><a role="button" href="config.html">設定ガイド →</a></p>
   <p class="note">全項目の説明、キー記法の一覧表、CapsLock・Emacs 風キーバインド・
   アプリ別の例外・マクロの記述例、そして各エラーメッセージの意味を掲載しています。</p>
 </section>
@@ -313,7 +323,8 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
       <a href="https://github.com/DaikiSuganuma/winremap">ソースコード</a> ·
       <a href="../" lang="en">English help</a></span>
     <span>トレイメニューのアイコンは <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>(MIT)を使用しています —
-      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">ライセンス表示</a></span>
+      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">ライセンス表示</a>。
+      本サイトのスタイルには <a href="https://picocss.com/">Pico CSS</a>(MIT)を使用しています。</span>
     <span><a href="https://github.com/xremap/xremap">xremap</a> と
       <a href="https://sites.google.com/site/craftware/keyhac-ja">Keyhac</a> /
       <a href="https://github.com/smzht/fakeymacs">fakeymacs</a> に影響を受けた

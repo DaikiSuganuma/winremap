@@ -7,6 +7,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WinRemap — Configuration guide</title>
 <meta name="description" content="WinRemap configuration guide: every option in config.toml explained, with worked examples for CapsLock, Emacs bindings, per-app rules and macros.">
+<meta name="color-scheme" content="light dark">
+<!-- Pico CSS v2.1.1, pinned and integrity-checked (ADR 0046). -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css"
+      integrity="sha384-L1dWfspMTHU/ApYnFiMz2QID/PlP1xCW9visvBdbEkOLkSSWsP6ZJWhPw6apiXxU"
+      crossorigin="anonymous">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/kbd-enabled-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/kbd-enabled-16.png">
@@ -16,20 +22,24 @@
 <body>
 
 <header class="topnav">
-  <div class="container">
-    <a class="brand" href="index.html"><img src="assets/kbd-enabled-32.png" alt="">WinRemap</a>
-    <nav>
-      <a href="index.html">Help</a>
-      <a href="#shape">File shape</a>
-      <a href="#apps">Targeting apps</a>
-      <a href="#rules">Rules</a>
-      <a href="#sections">Settings</a>
-      <a href="#keys">Key notation</a>
-      <a href="#recipes">Examples</a>
-      <a href="#errors">Errors</a>
-    </nav>
-    <span class="lang"><a href="ja/config.html" lang="ja">日本語</a></span>
-  </div>
+  <nav class="container">
+    <ul>
+      <li><a class="brand" href="index.html"><img src="assets/kbd-enabled-32.png" alt="">WinRemap</a></li>
+    </ul>
+    <ul>
+        <li><a href="index.html">Help</a></li>
+        <li><a href="#shape">File shape</a></li>
+        <li><a href="#apps">Targeting apps</a></li>
+        <li><a href="#rules">Rules</a></li>
+        <li><a href="#sections">Settings</a></li>
+        <li><a href="#keys">Key notation</a></li>
+        <li><a href="#recipes">Examples</a></li>
+        <li><a href="#errors">Errors</a></li>
+    </ul>
+    <ul>
+      <li><a href="ja/config.html" lang="ja">日本語</a></li>
+    </ul>
+  </nav>
 </header>
 
 <div class="hero" id="top">
@@ -444,6 +454,7 @@ record_play  = "F10"     # F10 replays
 <footer>
   <div class="container">
     <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
+    <span>Styled with <a href="https://picocss.com/">Pico CSS</a> (MIT).</span>
     <span><a href="index.html">Help</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap">Source</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/issues">Report an issue</a> ·

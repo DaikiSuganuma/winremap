@@ -7,6 +7,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WinRemap — 設定ガイド</title>
 <meta name="description" content="WinRemap 設定ガイド: config.toml の全項目の説明と、CapsLock・Emacs 風キーバインド・アプリ別ルール・マクロの記述例。">
+<meta name="color-scheme" content="light dark">
+<!-- Pico CSS v2.1.1, pinned and integrity-checked (ADR 0046). -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css"
+      integrity="sha384-L1dWfspMTHU/ApYnFiMz2QID/PlP1xCW9visvBdbEkOLkSSWsP6ZJWhPw6apiXxU"
+      crossorigin="anonymous">
 <link rel="stylesheet" href="../style.css">
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/kbd-enabled-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="../assets/kbd-enabled-16.png">
@@ -16,20 +22,24 @@
 <body>
 
 <header class="topnav">
-  <div class="container">
-    <a class="brand" href="index.html"><img src="../assets/kbd-enabled-32.png" alt="">WinRemap</a>
-    <nav>
-      <a href="index.html">ヘルプ</a>
-      <a href="#shape">ファイルの形</a>
-      <a href="#apps">アプリの指定</a>
-      <a href="#rules">ルール</a>
-      <a href="#sections">設定セクション</a>
-      <a href="#keys">キー記法</a>
-      <a href="#recipes">記述例</a>
-      <a href="#errors">エラー</a>
-    </nav>
-    <span class="lang"><a href="../config.html" lang="en">English</a></span>
-  </div>
+  <nav class="container">
+    <ul>
+      <li><a class="brand" href="index.html"><img src="../assets/kbd-enabled-32.png" alt="">WinRemap</a></li>
+    </ul>
+    <ul>
+        <li><a href="index.html">ヘルプ</a></li>
+        <li><a href="#shape">ファイルの形</a></li>
+        <li><a href="#apps">アプリの指定</a></li>
+        <li><a href="#rules">ルール</a></li>
+        <li><a href="#sections">設定セクション</a></li>
+        <li><a href="#keys">キー記法</a></li>
+        <li><a href="#recipes">記述例</a></li>
+        <li><a href="#errors">エラー</a></li>
+    </ul>
+    <ul>
+      <li><a href="../config.html" lang="en">English</a></li>
+    </ul>
+  </nav>
 </header>
 
 <div class="hero" id="top">
@@ -444,6 +454,7 @@ record_play  = "F10"     # F10 で再生
 <footer>
   <div class="container">
     <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
+    <span>スタイルに <a href="https://picocss.com/">Pico CSS</a>（MIT）を使用しています。</span>
     <span><a href="index.html">ヘルプ</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap">ソース</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·

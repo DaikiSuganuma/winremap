@@ -115,7 +115,7 @@ v0.2 から繰り越し（[v0.2 開発計画 §4](../v0.2/01_development-plan.md
 
 ### タスク
 
-1. ADR 0045 — 配布チャネル方針（winget / scoop それぞれのマニフェスト提出先、バージョン更新の運用、公式チャネルとしての位置づけ）。0044 は Phase A が使うため 0045 から
+1. ~~ADR 0045 — 配布チャネル方針~~ — [作成済み](decisions/0045-package-manager-channels.md)。ID は `DaikiSuganuma.WinRemap`（`Moniker: winremap`）、scoop は公式 Extras バケットへ（オーナー決定 2026-07-21）
 2. winget: `microsoft/winget-pkgs` へのマニフェスト提出（installer は Inno Setup 製のため `installerType: inno`）。リリースごとの更新自動化（winget-releaser 等の GitHub Actions）を評価
 3. scoop: 提出先の選定 — 公式 Extras バケットへの提出、または自前バケット（`suganuma/scoop-winremap` 等）。portable exe + `autoupdate` 定義
 4. README / ヘルプサイトのインストール手順に winget / scoop を追記。「他サイト配布バイナリは非公式」の記述と整合させる（マニフェストは公式 Releases の URL を参照するため公式チャネルと明記できる）
@@ -214,5 +214,5 @@ Phase B（winget/scoop）─┘                                        │
 |---|---|
 | — | ~~v0.3 のスコープ~~・~~多言語ファイル化を後回しにする判断~~（2026-07-21 決定済み: §1） |
 | A | ~~ブリーフ §3.3 の改訂方針~~・~~記憶対象~~・~~寿命~~・~~記憶中の提示~~・~~上限とスロット数~~・~~設定の書き方~~・~~再生の重複とキーリピート~~（いずれも 2026-07-21 決定済み: §2.1、[ADR 0043](decisions/0043-runtime-macro-recording.md)）。~~設計書の承認~~・~~再生の専用スレッド化に伴う不変条件 2・3 の改訂~~（2026-07-21 承認済み: [設計書](02_macro-record-design.md)、[ADR 0044](decisions/0044-macro-replay-thread.md)）。残るは実装中に出る判断 |
-| B | scoop の提出先（Extras か自前バケットか）、winget のパッケージ ID |
+| B | ~~scoop の提出先~~・~~winget のパッケージ ID~~（2026-07-21 決定済み: [ADR 0045](decisions/0045-package-manager-channels.md)）。残るは初回提出と、更新自動化を入れるかの判断 |
 | D | v0.3.0 リリース判断 |

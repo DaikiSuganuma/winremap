@@ -1,243 +1,186 @@
-/* WinRemap help site — self-contained, no external assets (ADR 0028). */
+/* WinRemap help site — a thin layer over Pico CSS (ADR 0028, ADR 0046).
+ *
+ * Pico supplies the type scale, colours, dark mode, tables, code blocks and
+ * the container. Everything here is what Pico has no opinion about: the
+ * hero band, the two callout styles, the sticky nav, and a few places where
+ * a page of key names wants tighter spacing than prose does.
+ *
+ * Colours are Pico's own custom properties throughout, so both themes come
+ * from Pico rather than being re-declared here. */
 
-:root {
-  --bg: #ffffff;
-  --bg-soft: #f6f8fa;
-  --fg: #1f2328;
-  --fg-muted: #59636e;
-  --accent: #0969da;
-  --accent-fg: #ffffff;
-  --border: #d1d9e0;
-  --kbd-bg: #f6f8fa;
-  --kbd-border: #d1d9e0;
-  --code-bg: #f6f8fa;
-  --warn-bg: #fff8c5;
-  --warn-border: #d4a72c;
-}
+/* --- sticky top nav -------------------------------------------------- */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0d1117;
-    --bg-soft: #161b22;
-    --fg: #e6edf3;
-    --fg-muted: #9198a1;
-    --accent: #4493f8;
-    --accent-fg: #0d1117;
-    --border: #3d444d;
-    --kbd-bg: #161b22;
-    --kbd-border: #3d444d;
-    --code-bg: #161b22;
-    --warn-bg: #3a2d12;
-    --warn-border: #9e6a03;
-  }
-}
-
-* { box-sizing: border-box; }
-
-html { scroll-behavior: smooth; }
-
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans",
-    "Noto Sans JP", "Yu Gothic UI", sans-serif;
-  line-height: 1.65;
-}
-
-.container {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 0 1.25rem;
-}
-
-/* --- top navigation --- */
-.topnav {
+body > header.topnav {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  padding-block: 0;
+  background: var(--pico-background-color);
+  border-bottom: 1px solid var(--pico-muted-border-color);
 }
 
-.topnav .container {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+.topnav nav {
   flex-wrap: wrap;
+  font-size: 0.9rem;
 }
 
 .topnav .brand {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   font-weight: 700;
-  color: var(--fg);
   text-decoration: none;
 }
 
-.topnav .brand img { width: 24px; height: 24px; }
-
-.topnav nav {
-  display: flex;
-  gap: 0.9rem;
-  flex-wrap: wrap;
-  font-size: 0.9rem;
+.topnav .brand img {
+  width: 24px;
+  height: 24px;
 }
 
-.topnav nav a { color: var(--fg-muted); text-decoration: none; }
-.topnav nav a:hover { color: var(--accent); }
-.topnav .lang { margin-left: auto; font-size: 0.9rem; }
+/* The language switch is the last group and belongs at the far end. */
+.topnav nav > ul:last-child {
+  margin-inline-start: auto;
+}
 
-/* --- hero --- */
+/* --- hero ------------------------------------------------------------ */
+
 .hero {
   text-align: center;
-  padding: 3rem 0 2.5rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-soft);
+  padding-block: 2.5rem 2rem;
+  background: var(--pico-card-background-color);
+  border-bottom: 1px solid var(--pico-muted-border-color);
 }
 
-.hero img.logo { width: 96px; height: 96px; }
-.hero h1 { margin: 0.5rem 0 0.25rem; font-size: 2.2rem; }
-.hero p.tagline { margin: 0 auto 1.5rem; max-width: 40em; color: var(--fg-muted); }
+.hero img.logo {
+  width: 96px;
+  height: 96px;
+}
 
-.buttons {
+.hero h1 {
+  margin-block: 0.5rem 0.25rem;
+}
+
+.hero .tagline {
+  margin-inline: auto;
+  max-width: 42em;
+  color: var(--pico-muted-color);
+}
+
+.hero .buttons {
   display: flex;
-  gap: 0.75rem;
-  justify-content: center;
   flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-block: 1.25rem;
 }
 
-.btn {
-  display: inline-block;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: 600;
-  border: 1px solid var(--border);
-  color: var(--fg);
-  background: var(--bg);
+/* Pico stretches a role="button" to fill its container; in a row they
+   should size to their labels instead. */
+.hero .buttons > a,
+p > a[role="button"] {
+  width: auto;
+  margin: 0;
 }
-
-.btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-fg);
-}
-
-.btn:hover { filter: brightness(1.1); }
 
 .hero .sub {
-  margin-top: 0.9rem;
-  font-size: 0.85rem;
-  color: var(--fg-muted);
-}
-
-/* --- sections --- */
-main.container { padding-top: 1rem; padding-bottom: 3rem; }
-
-section { border-bottom: 1px solid var(--border); padding: 1.75rem 0; }
-section:last-of-type { border-bottom: none; }
-
-h2 { font-size: 1.5rem; margin: 0 0 0.75rem; scroll-margin-top: 4rem; }
-h3 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; scroll-margin-top: 4rem; }
-
-a { color: var(--accent); }
-
-ol, ul { padding-left: 1.5rem; }
-li { margin: 0.3rem 0; }
-
-/* --- code & keys --- */
-pre {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.9rem 1rem;
-  overflow-x: auto;
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-
-code {
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-  font-size: 0.92em;
-  background: var(--code-bg);
-  border-radius: 4px;
-  padding: 0.1em 0.35em;
-}
-
-pre code { background: none; padding: 0; }
-
-kbd {
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-  font-size: 0.85em;
-  background: var(--kbd-bg);
-  border: 1px solid var(--kbd-border);
-  border-bottom-width: 2px;
-  border-radius: 4px;
-  padding: 0.1em 0.45em;
-  white-space: nowrap;
-}
-
-/* --- tables --- */
-.table-wrap { overflow-x: auto; }
-
-table {
-  border-collapse: collapse;
-  width: 100%;
   font-size: 0.9rem;
-  margin: 0.75rem 0;
+  color: var(--pico-muted-color);
+  margin-bottom: 0;
 }
 
-th, td {
-  border: 1px solid var(--border);
-  padding: 0.45rem 0.7rem;
-  text-align: left;
-  vertical-align: top;
+/* --- sections -------------------------------------------------------- */
+
+main > section {
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  padding-block: 1.5rem;
 }
 
-th { background: var(--bg-soft); }
+main > section:last-of-type {
+  border-bottom: 0;
+}
 
-/* --- callouts --- */
-.note, .warn {
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--accent);
-  border-radius: 6px;
-  background: var(--bg-soft);
+/* Pico's heading margins assume prose; these pages stack a heading
+   straight onto a table or a code block. */
+main > section > h2 {
+  margin-bottom: 0.75rem;
+}
+
+main > section h3 {
+  margin-block: 1.75rem 0.6rem;
+  font-size: 1.15rem;
+}
+
+/* --- callouts -------------------------------------------------------- */
+
+.note,
+.warn {
+  border: 1px solid var(--pico-muted-border-color);
+  border-inline-start: 4px solid var(--pico-primary);
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-card-sectioning-background-color);
   padding: 0.75rem 1rem;
-  margin: 1rem 0;
+  margin-block: 1rem;
 }
 
 .warn {
-  border-left-color: var(--warn-border);
-  background: var(--warn-bg);
+  border-inline-start-color: var(--pico-del-color);
 }
 
-/* --- FAQ --- */
-details {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.6rem 1rem;
-  margin: 0.5rem 0;
-  background: var(--bg-soft);
+/* --- code, keys, tables ---------------------------------------------- */
+
+/* Config snippets are the substance of these pages, so they get more room
+   than Pico's default block spacing gives them. */
+pre {
+  margin-block: 1rem;
 }
 
-details summary { cursor: pointer; font-weight: 600; }
-details[open] summary { margin-bottom: 0.5rem; }
+pre,
+code,
+kbd {
+  font-size: 0.9em;
+}
 
-/* --- footer --- */
-footer {
-  border-top: 1px solid var(--border);
-  padding: 1.5rem 0 2.5rem;
-  color: var(--fg-muted);
+kbd {
+  white-space: nowrap;
+}
+
+/* Reference tables are dense and mostly short cells, and the config guide
+   has several in a row. */
+.table-wrap {
+  overflow-x: auto;
+  margin-block: 1rem;
+}
+
+.table-wrap table {
+  margin-bottom: 0;
+}
+
+.table-wrap :is(th, td) {
+  padding: 0.5rem 0.7rem;
+  vertical-align: top;
+}
+
+/* --- FAQ ------------------------------------------------------------- */
+
+details summary {
+  font-weight: 600;
+}
+
+/* --- footer ---------------------------------------------------------- */
+
+body > footer {
+  border-top: 1px solid var(--pico-muted-border-color);
+  color: var(--pico-muted-color);
   font-size: 0.88rem;
 }
 
-footer .container { display: grid; gap: 0.4rem; }
+body > footer .container {
+  display: grid;
+  gap: 0.4rem;
+}
 
 @media (max-width: 600px) {
-  .hero h1 { font-size: 1.7rem; }
-  .topnav nav { font-size: 0.82rem; gap: 0.6rem; }
+  .topnav nav {
+    font-size: 0.82rem;
+  }
 }
