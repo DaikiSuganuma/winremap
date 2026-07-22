@@ -39,8 +39,10 @@ wingetcreate submit packaging\winget
 
 ## scoop（`scoop/`）
 
+> **保留中（[ADR 0048](../docs/v0.3/decisions/0048-scoop-defer-extras.md)）**: Extras への提出（[#18357](https://github.com/ScoopInstaller/Extras/pull/18357)）は知名度基準（星 100／fork 50 目安）未達でクローズされた。マニフェスト `winremap.json` は再申請用に残す。基準到達後に、まず Extras の package request を出してから URL・ハッシュを更新して再提出する。
+
 - マニフェスト: `winremap.json`（portable `winremap.exe` を対象、`autoupdate` 定義つき）
-- 提出先: 公式 [ScoopInstaller/Extras](https://github.com/ScoopInstaller/Extras) バケットへ PR
+- 提出先: 公式 [ScoopInstaller/Extras](https://github.com/ScoopInstaller/Extras) バケットへ PR（再開時）
 
 ローカル検証:
 

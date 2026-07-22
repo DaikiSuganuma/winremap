@@ -1,8 +1,10 @@
 # ADR 0045: winget / scoop の配布チャネル方針
 
-- ステータス: 承認（オーナー指示）
+- ステータス: 承認（オーナー指示）。**scoop 部分は [ADR 0048](0048-scoop-defer-extras.md) により保留（2026-07-22）** — winget 部分は有効
 - 日付: 2026-07-21
 - 作成: Claude Code（AI モデル: claude-opus-4-8）
+
+> **注記（2026-07-22）**: scoop を Extras へ提出したが、知名度基準（星 100／fork 50 目安）未達でメンテナにクローズされた（[Extras#18357](https://github.com/ScoopInstaller/Extras/pull/18357)）。scoop 対応は保留とし、経緯と再開条件は [ADR 0048](0048-scoop-defer-extras.md) に記録した。winget（[winget-pkgs#405731](https://github.com/microsoft/winget-pkgs/pull/405731)）は影響を受けず本 ADR のとおり進行する。
 
 ## 文脈
 
