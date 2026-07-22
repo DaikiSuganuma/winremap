@@ -56,24 +56,63 @@ static FOCUS_CONFIG: AtomicBool = AtomicBool::new(false);
 /// is picked up by the message loop instead.
 static RELOAD_REQUESTED: AtomicBool = AtomicBool::new(false);
 
-/// When the config in effect was loaded. Local time, formatted once — the
-/// settings window shows it next to the file's own timestamp so a stale view
-/// is obvious.
-fn loaded_at() -> &'static Mutex<Option<String>> {
-    static AT: OnceLock<Mutex<Option<String>>> = OnceLock::new();
-    AT.get_or_init(|| Mutex::new(None))
+/// The `(mtime, size)` the active config file had when it was last loaded.
+/// The address bar's change mark (●) is "the file no longer matches this"
+/// (v0.4 screen design §2.2).
+fn loaded_stamp_slot() -> &'static Mutex<Option<winremap::config::draft::FileStamp>> {
+    static STAMP: OnceLock<Mutex<Option<winremap::config::draft::FileStamp>>> = OnceLock::new();
+    STAMP.get_or_init(|| Mutex::new(None))
 }
 
 /// Records that the config was just loaded. Called for the startup load and
-/// for every successful reload, whoever asked for it.
+/// for every successful reload, whoever asked for it. Stamps the file and
+/// reports to the status bar.
 pub fn mark_config_loaded() {
-    if let Ok(mut at) = loaded_at().lock() {
-        *at = Some(crate::clock::local_now());
+    let stamp = winremap::config::draft::stamp(&active_config_path()).ok();
+    if let Ok(mut slot) = loaded_stamp_slot().lock() {
+        *slot = stamp;
+    }
+    set_status(i18n::t().status_loaded);
+}
+
+pub fn loaded_stamp() -> Option<winremap::config::draft::FileStamp> {
+    loaded_stamp_slot().lock().ok().and_then(|stamp| *stamp)
+}
+
+/// When this process started, formatted once for the status bar.
+fn started_at_slot() -> &'static OnceLock<String> {
+    static AT: OnceLock<String> = OnceLock::new();
+    &AT
+}
+
+/// Called once from startup; the status bar shows this for the process's
+/// whole life.
+pub fn mark_started() {
+    let _ = started_at_slot().set(crate::clock::local_now());
+}
+
+pub fn started_at() -> &'static str {
+    started_at_slot().get().map(String::as_str).unwrap_or("")
+}
+
+/// The status bar's message slot: the latest thing that happened, replaced
+/// by the next one, never cleared on its own (v0.4 screen design §5).
+fn status_slot() -> &'static Mutex<String> {
+    static STATUS: OnceLock<Mutex<String>> = OnceLock::new();
+    STATUS.get_or_init(|| Mutex::new(String::new()))
+}
+
+pub fn set_status(text: &str) {
+    if let Ok(mut slot) = status_slot().lock() {
+        *slot = text.to_owned();
     }
 }
 
-pub fn config_loaded_at() -> Option<String> {
-    loaded_at().lock().ok().and_then(|at| at.clone())
+pub fn status() -> String {
+    status_slot()
+        .lock()
+        .map(|slot| slot.clone())
+        .unwrap_or_default()
 }
 
 /// Asks the message loop for a reload; see `RELOAD_REQUESTED`. The wake is
@@ -102,11 +141,22 @@ fn config_path() -> &'static Mutex<PathBuf> {
     PATH.get_or_init(|| Mutex::new(PathBuf::new()))
 }
 
-/// Records which config file this run uses, so the GUI can show and open it.
+/// Records which config file this run uses. Set at startup and by the
+/// address bar's file switch (ADR 0050).
 pub fn set_config_path(path: PathBuf) {
     if let Ok(mut slot) = config_path().lock() {
         *slot = path;
     }
+}
+
+/// The active config file — the single source of truth (ADR 0050). Every
+/// reader goes through this: the settings window, the editor launcher, and
+/// the tray's reload, so switching the file switches them all.
+pub fn active_config_path() -> PathBuf {
+    config_path()
+        .lock()
+        .map(|path| path.clone())
+        .unwrap_or_default()
 }
 
 /// Opens the settings window, or brings it to the front if it is already up.

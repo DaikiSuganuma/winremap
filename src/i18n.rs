@@ -46,17 +46,17 @@ pub struct Texts {
     pub menu_log: &'static str,
     pub menu_quit: &'static str,
     pub config_window_title: &'static str,
-    pub config_window_file: &'static str,
     pub config_window_open_in_editor: &'static str,
-    /// Says how to change things, and nothing about whether editing will
-    /// ever be built in — that is undecided (owner decision 2026-07-21).
-    pub config_window_readonly: &'static str,
-    pub config_window_path: &'static str,
-    pub config_window_file_time: &'static str,
-    /// Header of the label column in a two-column "item / value" table.
-    pub config_column_field: &'static str,
-    pub config_window_loaded_at: &'static str,
-    pub config_unknown: &'static str,
+    /// Opens the config folder in Explorer (address-bar dropdown).
+    pub config_open_folder: &'static str,
+    /// Enters edit mode (v0.4 screen design §2).
+    pub config_edit: &'static str,
+    /// Tooltip on the ● change mark: the file differs from what is loaded.
+    pub config_file_changed: &'static str,
+    /// The breadcrumb's first segment (v0.4 screen design §4.1).
+    pub config_breadcrumb_root: &'static str,
+    /// Status-bar message after any successful load.
+    pub status_loaded: &'static str,
     pub config_window_no_config: &'static str,
     pub config_general: &'static str,
     pub config_keymaps: &'static str,
@@ -145,14 +145,12 @@ static EN: Texts = Texts {
     menu_log: "Show log",
     menu_quit: "Quit",
     config_window_title: "WinRemap — settings",
-    config_window_file: "Config file",
     config_window_open_in_editor: "Open in text editor",
-    config_window_readonly: "To change the config, edit the file and reload.",
-    config_window_path: "Path",
-    config_window_file_time: "Modified at",
-    config_column_field: "Item",
-    config_window_loaded_at: "Loaded at",
-    config_unknown: "unknown",
+    config_open_folder: "Open folder",
+    config_edit: "Edit",
+    config_file_changed: "Changed on disk — not loaded yet",
+    config_breadcrumb_root: "Settings",
+    status_loaded: "Config loaded.",
     config_window_no_config: "No config is loaded.",
     config_general: "General",
     config_keymaps: "Keymaps",
@@ -229,14 +227,12 @@ static JA: Texts = Texts {
     menu_log: "ログを表示",
     menu_quit: "終了",
     config_window_title: "WinRemap — 設定",
-    config_window_file: "設定ファイル",
     config_window_open_in_editor: "テキストエディタで開く",
-    config_window_readonly: "設定を変更するには、ファイルを編集して再読み込みしてください。",
-    config_window_path: "パス",
-    config_window_file_time: "更新日時",
-    config_column_field: "項目",
-    config_window_loaded_at: "読み込み",
-    config_unknown: "不明",
+    config_open_folder: "フォルダーを開く",
+    config_edit: "編集",
+    config_file_changed: "ディスク上で変更されています（未読み込み）",
+    config_breadcrumb_root: "設定",
+    status_loaded: "読み込み完了しました",
     config_window_no_config: "設定が読み込まれていません。",
     config_general: "全体設定",
     config_keymaps: "キーマップ",
@@ -326,6 +322,22 @@ pub fn startup_loaded(count: usize, path: &Path) -> String {
     }
 }
 
+/// The status bar's "running since" segment (v0.4 screen design §5).
+pub fn status_started(time: &str) -> String {
+    match lang() {
+        Lang::En => format!("Started: {time}"),
+        Lang::Ja => format!("起動: {time}"),
+    }
+}
+
+/// Logged when the address bar switches the active config file (ADR 0050).
+pub fn action_switch_file(name: &str) -> String {
+    match lang() {
+        Lang::En => format!("Switch config file: {name}"),
+        Lang::Ja => format!("設定ファイルを切り替え: {name}"),
+    }
+}
+
 /// Opens the log: when this run of WinRemap started, and which build it is.
 /// The version is repeated here (rather than only in `startup_loaded`) because
 /// this is the line a pasted log is read from.
@@ -402,6 +414,19 @@ pub fn gui_failed(error: &str) -> String {
 
 /// The shell refused to open the config file (no `.toml` association, or the
 /// file is gone). Says which file, so the user can open it by hand.
+pub fn open_folder_failed(path: &str) -> String {
+    match lang() {
+        Lang::En => format!(
+            "could not open the config folder:
+{path}"
+        ),
+        Lang::Ja => format!(
+            "設定フォルダーを開けませんでした:
+{path}"
+        ),
+    }
+}
+
 pub fn open_editor_failed(path: &str) -> String {
     match lang() {
         Lang::En => format!(

@@ -83,11 +83,14 @@ pub const SECTION_GAP: f32 = 20.0;
 /// tail (owner decision 2026-07-21).
 pub const PANEL_PAD: i8 = 8;
 
-/// The config-file table's share of the header's width. Half, so the
-/// controls that act on the file have the other half; stretching the table
-/// across the whole window pushed each value a long way from its label
-/// (owner decision 2026-07-21).
-pub const FILE_TABLE_WIDTH_RATIO: f32 = 0.5;
+/// Height of one row in the settings window's navigation tree. Taller than
+/// the text so the full-width selection fill reads as a band, like
+/// Explorer's (v0.4 screen design §3).
+pub const NAV_ROW_HEIGHT: f32 = 24.0;
+
+/// Indent for tree children under their group heading. There is no
+/// expand/collapse, so this is the only thing that draws the hierarchy.
+pub const NAV_INDENT: f32 = 18.0;
 
 /// Padding inside a highlighted box, so its fill reads as a surface rather
 /// than as ink spilled behind the text.
@@ -163,6 +166,26 @@ pub fn table_header_text(visuals: &egui::Visuals) -> egui::Color32 {
 /// Zebra striping for odd body rows.
 pub fn table_stripe(visuals: &egui::Visuals) -> egui::Color32 {
     visuals.faint_bg_color
+}
+
+/// How far the navigation tree's selected row is pushed toward the text
+/// colour: a quiet grey, like Explorer's selection, not egui's accent blue
+/// (owner decision 2026-07-22).
+const NAV_SELECTION_LERP: f32 = 0.14;
+const NAV_HOVER_LERP: f32 = 0.07;
+
+/// Full-row fill behind the selected navigation entry.
+pub fn sidebar_selection_fill(visuals: &egui::Visuals) -> egui::Color32 {
+    visuals
+        .panel_fill
+        .lerp_to_gamma(visuals.text_color(), NAV_SELECTION_LERP)
+}
+
+/// Full-row fill under the pointer, one step quieter than the selection.
+pub fn sidebar_hover_fill(visuals: &egui::Visuals) -> egui::Color32 {
+    visuals
+        .panel_fill
+        .lerp_to_gamma(visuals.text_color(), NAV_HOVER_LERP)
 }
 
 /// Fill for a box that has to stand out from the tables around it.

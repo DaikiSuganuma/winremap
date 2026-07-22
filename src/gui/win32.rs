@@ -105,6 +105,12 @@ pub fn open_in_default_editor(path: &Path) -> bool {
     shell_open(&HSTRING::from(path.as_os_str()))
 }
 
+/// Opens a folder in Explorer — the shell's "open" verb again; a
+/// directory's handler is Explorer itself.
+pub fn open_folder(path: &Path) -> bool {
+    shell_open(&HSTRING::from(path.as_os_str()))
+}
+
 /// Opens a URL in the default browser.
 ///
 /// eframe only follows `ui.hyperlink_to` when built with its `webbrowser`

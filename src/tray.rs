@@ -6,7 +6,6 @@
 //! extra thread or locking is involved.
 
 use std::cell::Cell;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -24,7 +23,6 @@ pub struct Tray {
     settings_item: IconMenuItem,
     log_item: IconMenuItem,
     quit_item: IconMenuItem,
-    config_path: PathBuf,
     /// Remembered so re-enabling can restore the "N keymap(s)" tooltip.
     keymap_count: Cell<usize>,
     /// `--macro-delay` beats the config's value even across reloads
@@ -32,11 +30,7 @@ pub struct Tray {
     macro_delay_override: Option<u32>,
 }
 
-pub fn init(
-    config_path: PathBuf,
-    keymap_count: usize,
-    macro_delay_override: Option<u32>,
-) -> anyhow::Result<Tray> {
+pub fn init(keymap_count: usize, macro_delay_override: Option<u32>) -> anyhow::Result<Tray> {
     let texts = i18n::t();
     // Disabled on purpose: a caption, not a command. It also makes the menu
     // self-identifying when several tray icons look alike.
@@ -83,7 +77,6 @@ pub fn init(
         settings_item,
         log_item,
         quit_item,
-        config_path,
         keymap_count: Cell::new(keymap_count),
         macro_delay_override,
     })
@@ -135,7 +128,11 @@ impl Tray {
     }
 
     fn reload(&self) {
-        match config::load(&self.config_path) {
+        // Read fresh each time, not held as a field: the address bar can
+        // switch the active file, and a copy here would keep reloading the
+        // old one (ADR 0050).
+        let config_path = crate::gui::active_config_path();
+        match config::load(&config_path) {
             Ok(table) => {
                 let count = table.keymaps.len();
                 crate::sender::set_macro_delay(
@@ -157,7 +154,7 @@ impl Tray {
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
                 crate::gui::log::emit(&i18n::reload_ok(count));
                 if hook::debug_enabled() {
-                    crate::gui::log::emit(&i18n::debug_config_loaded(&self.config_path, count));
+                    crate::gui::log::emit(&i18n::debug_config_loaded(&config_path, count));
                 }
             }
             Err(e) => {

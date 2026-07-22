@@ -25,6 +25,7 @@ use crate::i18n;
 use crate::theme;
 use crate::theme::{CELL_PAD, EDGE_PAD, NOTE_GAP, SECTION_GAP, SECTION_TEXT, TITLE_TEXT};
 use winremap::config::comments::{ConfigComments, KeymapComments};
+use winremap::config::draft;
 use winremap::ime_indicator_settings::IndicatorSettings;
 use winremap::keymap::{AppFilter, Keymap, Output, RemapTable, vk_display_name};
 
@@ -44,77 +45,99 @@ pub struct ConfigWindow {
     /// re-read when a reload swaps in a new one (ADR 0003) rather than every
     /// frame. Compared, never dereferenced.
     comments_for: Option<usize>,
-    /// The config file's modification time, and when it was last read off
-    /// disk. See `file_time`.
-    file_time: Option<(Instant, String)>,
+    /// The address bar's view of the config folder; see [`FileList`].
+    files: FileList,
 }
 
-/// How stale the file's timestamp is allowed to get. Short enough that saving
-/// in an editor shows up while the window is open, long enough that painting
-/// stays free of disk access.
-const FILE_TIME_INTERVAL: Duration = Duration::from_secs(2);
+/// How stale the folder listing and the change marks may get. Short enough
+/// that an external save shows up while the window is open, long enough
+/// that painting stays free of disk access. The notify watch (ADR 0051)
+/// will make this poll the fallback rather than the primary path.
+const FILE_POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+/// The `*.toml` files beside the active config, with their change marks
+/// (v0.4 screen design §2.2–2.3).
+#[derive(Default)]
+struct FileList {
+    checked: Option<Instant>,
+    entries: Vec<FileEntry>,
+    /// The stamp each file had when first listed. ● on another file means
+    /// "differs from this"; on the active file it means "differs from what
+    /// is loaded" — the state the removed timestamps used to convey.
+    first_seen: HashMap<String, draft::FileStamp>,
+}
+
+struct FileEntry {
+    name: String,
+    changed: bool,
+}
+
+impl FileList {
+    fn refresh(&mut self, path: &Path) {
+        if let Some(checked) = self.checked
+            && checked.elapsed() < FILE_POLL_INTERVAL
+        {
+            return;
+        }
+        self.checked = Some(Instant::now());
+        self.entries.clear();
+        let Some(folder) = path.parent() else { return };
+        let Ok(dir) = std::fs::read_dir(folder) else {
+            return;
+        };
+        let mut names: Vec<String> = dir
+            .flatten()
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+            .filter_map(|entry| {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                name.to_ascii_lowercase().ends_with(".toml").then_some(name)
+            })
+            .collect();
+        names.sort_by_key(|name| name.to_ascii_lowercase());
+        let active = file_name(path);
+        let loaded = super::loaded_stamp();
+        for name in names {
+            let stamp = draft::stamp(&folder.join(&name)).ok();
+            let changed = if name.eq_ignore_ascii_case(&active) {
+                matches!((loaded, stamp), (Some(loaded), Some(stamp)) if loaded != stamp)
+            } else {
+                matches!(
+                    (self.first_seen.get(&name), stamp),
+                    (Some(first), Some(stamp)) if *first != stamp
+                )
+            };
+            if let Some(stamp) = stamp {
+                self.first_seen.entry(name.clone()).or_insert(stamp);
+            }
+            self.entries.push(FileEntry { name, changed });
+        }
+    }
+
+    fn is_changed(&self, name: &str) -> bool {
+        self.entries
+            .iter()
+            .any(|entry| entry.name == name && entry.changed)
+    }
+}
+
+/// The file's name for display; the path up to it is the folder's job.
+fn file_name(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
 
 impl ConfigWindow {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         let texts = i18n::t();
-        let path = super::config_path()
-            .lock()
-            .map(|path| path.clone())
-            .unwrap_or_default();
+        let path = super::active_config_path();
         // A snapshot for the whole frame: the hook may swap the table at any
         // moment (ADR 0003), and the list and the detail pane have to agree.
         let table = crate::hook::REMAP_TABLE.load_full();
         self.sync_comments(table.as_ref(), &path);
 
-        let file_time = self.file_time(&path);
-        // A filled band, like the log window's header (owner decision
-        // 2026-07-21): it names the file everything below is read from, so
-        // it reads as chrome rather than as the first section of the pane.
-        egui::Panel::top("config-header")
-            .frame(theme::chrome_frame(ui.visuals()))
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    icons::show(ui, Icon::File, SECTION_TEXT);
-                    ui.label(egui::RichText::new(texts.config_window_file).strong());
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label(
-                            egui::RichText::new(format!(
-                                "{} v{}",
-                                texts.app_name,
-                                env!("CARGO_PKG_VERSION")
-                            ))
-                            .weak(),
-                        );
-                    });
-                });
-                ui.add_space(NOTE_GAP);
-                // The table keeps a fixed width and the controls that act on the
-                // file sit to its right, level with it: this window shows, the
-                // editor changes, the button applies (owner decision
-                // 2026-07-21).
-                let table_width = ui.available_width() * theme::FILE_TABLE_WIDTH_RATIO;
-                ui.horizontal(|ui| {
-                    ui.scope(|ui| {
-                        ui.set_max_width(table_width);
-                        file_table(ui, &path, &file_time);
-                    });
-                    ui.add_space(SECTION_GAP);
-                    // Stacked and left-aligned beside the table: they act on the
-                    // file it describes (owner decision 2026-07-21).
-                    ui.vertical(|ui| {
-                        if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
-                            open_in_default_editor(&path);
-                        }
-                        ui.add_space(NOTE_GAP);
-                        if icons::button(ui, Icon::Reload, texts.menu_reload).clicked() {
-                            super::log::action(texts.menu_reload);
-                            super::request_reload();
-                        }
-                    });
-                });
-                ui.add_space(NOTE_GAP);
-                ui.label(egui::RichText::new(texts.config_window_readonly).weak());
-            });
+        self.header_ui(ui, &path);
+        statusbar_ui(ui);
 
         let Some(table) = table else {
             egui::CentralPanel::default().show(ui, |ui| {
@@ -143,6 +166,7 @@ impl ConfigWindow {
         }
 
         egui::CentralPanel::default().show(ui, |ui| {
+            breadcrumb_ui(ui, &table, self.selection);
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| match self.selection {
@@ -159,25 +183,53 @@ impl ConfigWindow {
         });
     }
 
-    /// The config file's own timestamp, re-read at most every
-    /// `FILE_TIME_INTERVAL` — this is called from a paint, and hitting the
-    /// disk on every frame to answer a question that changes once an hour
-    /// would be silly.
-    fn file_time(&mut self, path: &Path) -> String {
-        if let Some((read_at, shown)) = &self.file_time
-            && read_at.elapsed() < FILE_TIME_INTERVAL
-        {
-            return shown.clone();
-        }
-        let shown = std::fs::metadata(path)
-            .and_then(|meta| meta.modified())
-            .ok()
-            .and_then(crate::clock::local_from)
-            // A file that cannot be stat'ed is worth showing as unknown rather
-            // than as an empty gap: it usually means it was moved or deleted.
-            .unwrap_or_else(|| i18n::t().config_unknown.to_owned());
-        self.file_time = Some((Instant::now(), shown.clone()));
-        shown
+    /// The Explorer-style address bar (v0.4 screen design §2): the folder,
+    /// the file as a dropdown over the folder's `*.toml`s, reload, and — at
+    /// the right end — the edit button (owner decision 2026-07-22).
+    fn header_ui(&mut self, ui: &mut egui::Ui, path: &Path) {
+        let texts = i18n::t();
+        egui::Panel::top("config-header")
+            .frame(theme::chrome_frame(ui.visuals()))
+            .show(ui, |ui| {
+                self.files.refresh(path);
+                let active = file_name(path);
+                ui.horizontal(|ui| {
+                    icons::show(ui, Icon::Folder, theme::body_icon_size(ui));
+                    let folder = path
+                        .parent()
+                        .map(|folder| folder.display().to_string())
+                        .unwrap_or_default();
+                    ui.label(egui::RichText::new(folder).monospace().weak());
+                    ui.label(egui::RichText::new("›").weak());
+                    let changed = self.files.is_changed(&active);
+                    let shown = if changed {
+                        format!("{active} ●")
+                    } else {
+                        active.clone()
+                    };
+                    let combo = egui::ComboBox::from_id_salt("config-file-switch")
+                        .selected_text(egui::RichText::new(shown).monospace())
+                        .show_ui(ui, |ui| file_menu_ui(ui, &self.files, path, &active));
+                    if changed {
+                        combo.response.on_hover_text(texts.config_file_changed);
+                    }
+                    ui.add_space(4.0);
+                    if icons::icon_button(ui, Icon::Reload)
+                        .on_hover_text(texts.menu_reload)
+                        .clicked()
+                    {
+                        super::log::action(texts.menu_reload);
+                        super::request_reload();
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Edit-mode entry point (B2). Disabled until the draft
+                        // editing lands; placed now so the layout is final.
+                        ui.add_enabled_ui(false, |ui| {
+                            let _ = icons::button(ui, Icon::Pencil, texts.config_edit);
+                        });
+                    });
+                });
+            });
     }
 
     /// Whether the detail pane is currently showing a keymap. Mirrors the
@@ -195,51 +247,189 @@ impl ConfigWindow {
         self.comments = winremap::config::comments::read(path);
     }
 
+    /// The navigation tree (v0.4 screen design §3): icons, an indent for the
+    /// keymaps under their heading, no expand/collapse.
     fn list_ui(&mut self, ui: &mut egui::Ui, table: &RemapTable) {
         let texts = i18n::t();
         ui.add_space(4.0);
-        ui.selectable_value(
-            &mut self.selection,
-            Selection::General,
+        if nav_row(
+            ui,
+            self.selection == Selection::General,
+            false,
+            Icon::Gear,
             texts.config_general,
-        );
+        )
+        .clicked()
+        {
+            self.selection = Selection::General;
+        }
         ui.add_space(8.0);
-        ui.label(egui::RichText::new(texts.config_keymaps).strong());
+        // The group heading draws the tree's hierarchy; it is not a
+        // destination itself.
+        ui.horizontal(|ui| {
+            ui.add_space(6.0);
+            icons::show(ui, Icon::Keyboard, theme::body_icon_size(ui));
+            ui.label(egui::RichText::new(texts.config_keymaps).strong());
+        });
         if table.keymaps.is_empty() {
             ui.label(egui::RichText::new(texts.config_no_keymaps).weak());
         }
         for (index, keymap) in table.keymaps.iter().enumerate() {
-            ui.selectable_value(
-                &mut self.selection,
-                Selection::Keymap(index),
-                keymap_label(keymap),
-            );
+            if nav_row(
+                ui,
+                self.selection == Selection::Keymap(index),
+                true,
+                Icon::Apps,
+                &keymap_label(keymap),
+            )
+            .clicked()
+            {
+                self.selection = Selection::Keymap(index);
+            }
         }
     }
 }
 
-/// Where the config came from and how current it is.
-///
-/// A table rather than a run of labels: the two timestamps only mean anything
-/// read against each other, since a file saved but not reloaded is the one
-/// state this window cannot otherwise show.
-fn file_table(ui: &mut egui::Ui, path: &Path, file_time: &str) {
+/// The address bar's dropdown: every `*.toml` beside the active file — ✓ on
+/// the one in use, ● on any that changed on disk — plus the file actions,
+/// which live here rather than as more header icons (owner decision
+/// 2026-07-22).
+fn file_menu_ui(ui: &mut egui::Ui, files: &FileList, path: &Path, active: &str) {
     let texts = i18n::t();
-    let columns = [texts.config_column_field, texts.config_column_value];
-    table(ui, "config-file", &columns, 120.0, |ui| {
-        for (label, value) in [
-            (texts.config_window_path, path.display().to_string()),
-            (texts.config_window_file_time, file_time.to_owned()),
-            (
-                texts.config_window_loaded_at,
-                super::config_loaded_at().unwrap_or_else(|| texts.config_none.to_owned()),
-            ),
-        ] {
-            ui.label(label);
-            ui.label(egui::RichText::new(value).monospace());
-            ui.end_row();
+    for entry in &files.entries {
+        let current = entry.name == active;
+        let label = format!(
+            "{}{}{}",
+            if current { "✓ " } else { "  " },
+            entry.name,
+            if entry.changed { " ●" } else { "" }
+        );
+        let row = ui.selectable_label(current, egui::RichText::new(label).monospace());
+        let row = if entry.changed {
+            row.on_hover_text(texts.config_file_changed)
+        } else {
+            row
+        };
+        if row.clicked()
+            && !current
+            && let Some(folder) = path.parent()
+        {
+            // Switching = swap the path, then the ordinary reload path does
+            // the loading (ADR 0050). A file that fails to load behaves like
+            // any failed reload: the live table stays.
+            super::log::action(&i18n::action_switch_file(&entry.name));
+            super::set_config_path(folder.join(&entry.name));
+            super::request_reload();
+        }
+    }
+    ui.separator();
+    if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
+        open_in_default_editor(path);
+    }
+    if icons::link(ui, Icon::Folder, texts.config_open_folder)
+        && let Some(folder) = path.parent()
+    {
+        super::log::action(texts.config_open_folder);
+        if !super::win32::open_folder(folder) {
+            crate::notify::error(&i18n::open_folder_failed(&folder.display().to_string()));
+        }
+    }
+}
+
+/// One row of the navigation tree: an icon, a label, and — when selected —
+/// a full-width grey fill like Explorer's (owner decision 2026-07-22).
+/// egui's `selectable_value` highlights only the text, hence hand-drawn.
+fn nav_row(
+    ui: &mut egui::Ui,
+    selected: bool,
+    indented: bool,
+    icon: Icon,
+    label: &str,
+) -> egui::Response {
+    let size = egui::vec2(ui.available_width(), theme::NAV_ROW_HEIGHT);
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    if ui.is_rect_visible(rect) {
+        if selected {
+            ui.painter().rect_filled(
+                rect,
+                egui::CornerRadius::same(2),
+                theme::sidebar_selection_fill(ui.visuals()),
+            );
+        } else if response.hovered() {
+            ui.painter().rect_filled(
+                rect,
+                egui::CornerRadius::same(2),
+                theme::sidebar_hover_fill(ui.visuals()),
+            );
+        }
+        let inner = rect.shrink2(egui::vec2(6.0, 0.0));
+        let mut child = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(inner)
+                .layout(egui::Layout::left_to_right(egui::Align::Center)),
+        );
+        if indented {
+            child.add_space(theme::NAV_INDENT);
+        }
+        let icon_size = theme::body_icon_size(&child);
+        icons::show(&mut child, icon, icon_size);
+        child.add_space(4.0);
+        child.label(label);
+    }
+    response
+}
+
+/// The breadcrumb over the detail pane: where you are, Explorer-style
+/// (v0.4 screen design §4.1). Display only — the tree does the moving.
+fn breadcrumb_ui(ui: &mut egui::Ui, table: &RemapTable, selection: Selection) {
+    let texts = i18n::t();
+    ui.add_space(f32::from(CELL_PAD));
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(texts.config_breadcrumb_root).weak());
+        ui.label(egui::RichText::new(">").weak());
+        match selection {
+            Selection::General => {
+                ui.label(texts.config_general);
+            }
+            Selection::Keymap(index) => match table.keymaps.get(index) {
+                Some(keymap) => {
+                    ui.label(egui::RichText::new(texts.config_keymaps).weak());
+                    ui.label(egui::RichText::new(">").weak());
+                    ui.label(keymap_label(keymap));
+                }
+                // Mirrors the detail pane's reload fallback.
+                None => {
+                    ui.label(texts.config_general);
+                }
+            },
         }
     });
+    ui.separator();
+}
+
+/// The permanent bottom band (v0.4 screen design §5): the version — its one
+/// home in this window (owner decision 2026-07-22) — when this run started,
+/// and the last thing that happened.
+fn statusbar_ui(ui: &mut egui::Ui) {
+    let texts = i18n::t();
+    egui::Panel::bottom("config-statusbar")
+        .frame(theme::chrome_frame(ui.visuals()))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "{} v{}",
+                        texts.app_name,
+                        env!("CARGO_PKG_VERSION")
+                    ))
+                    .weak(),
+                );
+                ui.separator();
+                ui.label(egui::RichText::new(i18n::status_started(super::started_at())).weak());
+                ui.separator();
+                ui.label(super::status());
+            });
+        });
 }
 
 /// List entry text: the section's `name`, or its target when it has none.

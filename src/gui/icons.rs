@@ -29,10 +29,17 @@ pub enum Icon {
     External,
     /// Leaves WinRemap for the browser.
     Link,
-    File,
     Reload,
     Clear,
     Copy,
+    /// The config folder in the address bar (v0.4 screen design §2).
+    Folder,
+    /// The general-settings entry in the navigation tree.
+    Gear,
+    /// The keymap group heading in the navigation tree.
+    Keyboard,
+    /// Enters edit mode.
+    Pencil,
 }
 
 impl Icon {
@@ -47,10 +54,13 @@ impl Icon {
             Icon::Notation => "question-circle",
             Icon::External => "box-arrow-up-right",
             Icon::Link => "link-45deg",
-            Icon::File => "file-earmark-text",
             Icon::Reload => "arrow-clockwise",
             Icon::Clear => "trash",
             Icon::Copy => "clipboard",
+            Icon::Folder => "folder",
+            Icon::Gear => "gear",
+            Icon::Keyboard => "keyboard",
+            Icon::Pencil => "pencil",
         }
     }
 
@@ -66,10 +76,13 @@ impl Icon {
                 include_bytes!(concat!(env!("OUT_DIR"), "/ui-box-arrow-up-right.rgba"))
             }
             Icon::Link => include_bytes!(concat!(env!("OUT_DIR"), "/ui-link-45deg.rgba")),
-            Icon::File => include_bytes!(concat!(env!("OUT_DIR"), "/ui-file-earmark-text.rgba")),
             Icon::Reload => include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-clockwise.rgba")),
             Icon::Clear => include_bytes!(concat!(env!("OUT_DIR"), "/ui-trash.rgba")),
             Icon::Copy => include_bytes!(concat!(env!("OUT_DIR"), "/ui-clipboard.rgba")),
+            Icon::Folder => include_bytes!(concat!(env!("OUT_DIR"), "/ui-folder.rgba")),
+            Icon::Gear => include_bytes!(concat!(env!("OUT_DIR"), "/ui-gear.rgba")),
+            Icon::Keyboard => include_bytes!(concat!(env!("OUT_DIR"), "/ui-keyboard.rgba")),
+            Icon::Pencil => include_bytes!(concat!(env!("OUT_DIR"), "/ui-pencil.rgba")),
         }
     }
 }
@@ -86,6 +99,17 @@ pub fn button(ui: &mut egui::Ui, icon: Icon, text: &str) -> egui::Response {
         .fit_to_exact_size(egui::vec2(size, size))
         .tint(tint);
     ui.add(egui::Button::image_and_text(image, text))
+}
+
+/// An icon-only button, for chrome where a label would crowd the row; the
+/// caller supplies the name as a tooltip instead.
+pub fn icon_button(ui: &mut egui::Ui, icon: Icon) -> egui::Response {
+    let tint = ui.visuals().widgets.inactive.fg_stroke.color;
+    let size = theme::button_icon_size(ui);
+    let image = image(ui.ctx(), icon)
+        .fit_to_exact_size(egui::vec2(size, size))
+        .tint(tint);
+    ui.add(egui::Button::image(image))
 }
 
 /// A link that says where it goes: the icon marks it as leaving WinRemap.
