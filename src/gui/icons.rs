@@ -40,6 +40,19 @@ pub enum Icon {
     Keyboard,
     /// Enters edit mode.
     Pencil,
+    /// Saves the draft.
+    Floppy,
+    /// Discards the draft (arrow-counterclockwise).
+    Revert,
+    /// Adds a row or a keymap.
+    Plus,
+    /// Deletes the selected keymap.
+    Dash,
+    /// Reorders the selected keymap.
+    ArrowUp,
+    ArrowDown,
+    /// Deletes one table row.
+    Close,
 }
 
 impl Icon {
@@ -61,6 +74,13 @@ impl Icon {
             Icon::Gear => "gear",
             Icon::Keyboard => "keyboard",
             Icon::Pencil => "pencil",
+            Icon::Floppy => "floppy",
+            Icon::Revert => "arrow-counterclockwise",
+            Icon::Plus => "plus",
+            Icon::Dash => "dash",
+            Icon::ArrowUp => "arrow-up",
+            Icon::ArrowDown => "arrow-down",
+            Icon::Close => "x",
         }
     }
 
@@ -83,6 +103,15 @@ impl Icon {
             Icon::Gear => include_bytes!(concat!(env!("OUT_DIR"), "/ui-gear.rgba")),
             Icon::Keyboard => include_bytes!(concat!(env!("OUT_DIR"), "/ui-keyboard.rgba")),
             Icon::Pencil => include_bytes!(concat!(env!("OUT_DIR"), "/ui-pencil.rgba")),
+            Icon::Floppy => include_bytes!(concat!(env!("OUT_DIR"), "/ui-floppy.rgba")),
+            Icon::Revert => {
+                include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-counterclockwise.rgba"))
+            }
+            Icon::Plus => include_bytes!(concat!(env!("OUT_DIR"), "/ui-plus.rgba")),
+            Icon::Dash => include_bytes!(concat!(env!("OUT_DIR"), "/ui-dash.rgba")),
+            Icon::ArrowUp => include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-up.rgba")),
+            Icon::ArrowDown => include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-down.rgba")),
+            Icon::Close => include_bytes!(concat!(env!("OUT_DIR"), "/ui-x.rgba")),
         }
     }
 }

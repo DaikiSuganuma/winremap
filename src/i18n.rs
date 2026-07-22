@@ -51,6 +51,27 @@ pub struct Texts {
     pub config_open_folder: &'static str,
     /// Enters edit mode (v0.4 screen design §2).
     pub config_edit: &'static str,
+    pub config_save: &'static str,
+    pub config_revert: &'static str,
+    pub config_close: &'static str,
+    pub config_cancel: &'static str,
+    /// Tooltip on the address bar's inert dropdown while editing.
+    pub config_switch_locked: &'static str,
+    /// Saving over an externally changed file (screen design §7.1).
+    pub config_overwrite: &'static str,
+    pub config_reread: &'static str,
+    pub config_next_issue: &'static str,
+    /// The breadcrumb-row banner while editing (screen design §4.1).
+    pub config_edit_notice: &'static str,
+    pub config_close_confirm: &'static str,
+    pub config_external_changed: &'static str,
+    pub config_add_app: &'static str,
+    pub config_add_rule: &'static str,
+    pub config_keymap_add: &'static str,
+    pub config_keymap_remove: &'static str,
+    pub config_move_up: &'static str,
+    pub config_move_down: &'static str,
+    pub status_saved: &'static str,
     /// Tooltip on the ● change mark: the file differs from what is loaded.
     pub config_file_changed: &'static str,
     /// The breadcrumb's first segment (v0.4 screen design §4.1).
@@ -148,6 +169,24 @@ static EN: Texts = Texts {
     config_window_open_in_editor: "Open in text editor",
     config_open_folder: "Open folder",
     config_edit: "Edit",
+    config_save: "Save",
+    config_revert: "Revert",
+    config_close: "Close",
+    config_cancel: "Cancel",
+    config_switch_locked: "Files cannot be switched while editing",
+    config_overwrite: "Overwrite",
+    config_reread: "Re-read (discard edits)",
+    config_next_issue: "Next ▸",
+    config_edit_notice: "● Editing — the file is untouched until you press Save",
+    config_close_confirm: "Close without saving?",
+    config_external_changed: "The config file was changed outside WinRemap.",
+    config_add_app: "Add application",
+    config_add_rule: "Add rule",
+    config_keymap_add: "Add keymap",
+    config_keymap_remove: "Delete keymap",
+    config_move_up: "Move up",
+    config_move_down: "Move down",
+    status_saved: "Saved.",
     config_file_changed: "Changed on disk — not loaded yet",
     config_breadcrumb_root: "Settings",
     status_loaded: "Config loaded.",
@@ -230,6 +269,24 @@ static JA: Texts = Texts {
     config_window_open_in_editor: "テキストエディタで開く",
     config_open_folder: "フォルダーを開く",
     config_edit: "編集",
+    config_save: "保存",
+    config_revert: "元に戻す",
+    config_close: "閉じる",
+    config_cancel: "キャンセル",
+    config_switch_locked: "編集中はファイルを切り替えられません",
+    config_overwrite: "上書き保存",
+    config_reread: "読み直す（編集を破棄）",
+    config_next_issue: "次へ ▸",
+    config_edit_notice: "● 編集中 — ［保存］を押すまで設定ファイルは変わりません",
+    config_close_confirm: "保存せずに閉じますか?",
+    config_external_changed: "設定ファイルが WinRemap の外で変更されています。",
+    config_add_app: "アプリを追加",
+    config_add_rule: "規則を追加",
+    config_keymap_add: "キーマップを追加",
+    config_keymap_remove: "キーマップを削除",
+    config_move_up: "上へ",
+    config_move_down: "下へ",
+    status_saved: "保存しました",
     config_file_changed: "ディスク上で変更されています（未読み込み）",
     config_breadcrumb_root: "設定",
     status_loaded: "読み込み完了しました",
@@ -327,6 +384,33 @@ pub fn status_started(time: &str) -> String {
     match lang() {
         Lang::En => format!("Started: {time}"),
         Lang::Ja => format!("起動: {time}"),
+    }
+}
+
+/// Why edit mode could not start (unreadable file). Shown in the status
+/// bar; the reason stays technical English (guidelines §11).
+pub fn edit_cannot_start(reason: &str) -> String {
+    match lang() {
+        Lang::En => format!("Cannot start editing: {reason}"),
+        Lang::Ja => format!("編集を開始できません: {reason}"),
+    }
+}
+
+/// A save that failed on I/O or on non-validation grounds (screen design
+/// §7.2).
+pub fn save_failed(reason: &str) -> String {
+    match lang() {
+        Lang::En => format!("Could not save: {reason}"),
+        Lang::Ja => format!("保存できませんでした: {reason}"),
+    }
+}
+
+/// The validation footer: how many issues, and the one under the cursor
+/// (screen design §6.4). Issue text itself stays technical English.
+pub fn issues_found(count: usize, first: &str) -> String {
+    match lang() {
+        Lang::En => format!("⚠ {count} issue(s): {first}"),
+        Lang::Ja => format!("⚠ {count} 件の問題があります: {first}"),
     }
 }
 

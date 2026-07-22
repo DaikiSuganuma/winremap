@@ -131,11 +131,43 @@ const CHROME_FILL_LERP: f32 = 0.05;
 /// that it competes with the tables around it.
 const HIGHLIGHT_FILL_LERP: f32 = 0.10;
 
+/// How far the edit-mode header leans toward the warning colour: enough to
+/// say "this is not the ordinary window", not enough to shout (v0.4 screen
+/// design §2.4).
+const EDIT_MODE_LERP: f32 = 0.12;
+
+/// The footer's confirmation/validation bands lean further — they are asking
+/// for a decision.
+const WARN_BAND_LERP: f32 = 0.18;
+
 /// Fill for a header or footer band.
 pub fn chrome_fill(visuals: &egui::Visuals) -> egui::Color32 {
     visuals
         .panel_fill
         .lerp_to_gamma(visuals.text_color(), CHROME_FILL_LERP)
+}
+
+/// The header band while editing (v0.4 screen design §2.4).
+pub fn edit_mode_frame(visuals: &egui::Visuals) -> egui::Frame {
+    egui::Frame::new()
+        .fill(
+            visuals
+                .panel_fill
+                .lerp_to_gamma(visuals.warn_fg_color, EDIT_MODE_LERP),
+        )
+        .inner_margin(egui::Margin::same(PANEL_PAD))
+}
+
+/// The footer band for validation errors and confirmations (screen design
+/// §6.4/§7).
+pub fn warn_band_frame(visuals: &egui::Visuals) -> egui::Frame {
+    egui::Frame::new()
+        .fill(
+            visuals
+                .panel_fill
+                .lerp_to_gamma(visuals.warn_fg_color, WARN_BAND_LERP),
+        )
+        .inner_margin(egui::Margin::same(PANEL_PAD))
 }
 
 /// The frame a header or footer panel draws itself with: the band's fill

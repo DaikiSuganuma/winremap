@@ -25,9 +25,14 @@ use crate::i18n;
 use crate::theme;
 use crate::theme::{CELL_PAD, EDGE_PAD, NOTE_GAP, SECTION_GAP, SECTION_TEXT, TITLE_TEXT};
 use winremap::config::comments::{ConfigComments, KeymapComments};
-use winremap::config::draft;
-use winremap::ime_indicator_settings::IndicatorSettings;
-use winremap::keymap::{AppFilter, Keymap, Output, RemapTable, vk_display_name};
+use winremap::config::draft::{self, ConfigDraft, KeymapDraft, RuleDraft};
+use winremap::ime_indicator_settings::{
+    IndicatorSettings, MAX_INDICATOR_DURATION_MS, MAX_INDICATOR_SIZE, MIN_INDICATOR_DURATION_MS,
+    MIN_INDICATOR_SIZE,
+};
+use winremap::keymap::{
+    AppFilter, Keymap, MAX_MACRO_DELAY_MS, Output, RemapTable, vk_display_name,
+};
 
 /// Which entry the left list has selected.
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
@@ -47,6 +52,48 @@ pub struct ConfigWindow {
     comments_for: Option<usize>,
     /// The address bar's view of the config folder; see [`FileList`].
     files: FileList,
+    /// `Some` = edit mode (ADR 0049). The window shows the draft, never the
+    /// live table, until Save or Revert ends it.
+    edit: Option<EditState>,
+}
+
+/// Everything edit mode holds: the draft being edited, the pristine copy the
+/// save diffs against (ADR 0036 — untouched lines must stay untouched), and
+/// the file identity for the external-change check.
+struct EditState {
+    original: ConfigDraft,
+    draft: ConfigDraft,
+    stamp: Option<draft::FileStamp>,
+    /// Validation results of the last failed save attempt (screen design
+    /// §6.4).
+    issues: Vec<winremap::config::Issue>,
+    issue_cursor: usize,
+    notice: Option<Notice>,
+}
+
+/// What the footer band is currently asking or reporting (screen design
+/// §6.4/§7). One at a time: each replaces the last.
+#[derive(Clone)]
+enum Notice {
+    ExternalChange,
+    SaveFailed(String),
+    ConfirmClose,
+}
+
+/// What a header button asked for; applied after the panel closes so the
+/// actions can borrow `self` whole.
+enum HeaderAction {
+    None,
+    Edit,
+    Save,
+    Revert,
+}
+
+enum FooterAction {
+    None,
+    Overwrite,
+    Reread,
+    CloseDiscard,
 }
 
 /// How stale the folder listing and the change marks may get. Short enough
@@ -138,6 +185,12 @@ impl ConfigWindow {
 
         self.header_ui(ui, &path);
         statusbar_ui(ui);
+        self.footer_ui(ui, &path);
+
+        if self.edit.is_some() {
+            self.edit_body_ui(ui);
+            return;
+        }
 
         let Some(table) = table else {
             egui::CentralPanel::default().show(ui, |ui| {
@@ -185,11 +238,21 @@ impl ConfigWindow {
 
     /// The Explorer-style address bar (v0.4 screen design §2): the folder,
     /// the file as a dropdown over the folder's `*.toml`s, reload, and — at
-    /// the right end — the edit button (owner decision 2026-07-22).
+    /// the right end — the edit button (owner decision 2026-07-22). While
+    /// editing, the band takes the edit colour, the dropdown goes inert, the
+    /// reload button hides, and the right end turns into Save / Revert
+    /// (§2.4) — the same spot, so the hand does not travel.
     fn header_ui(&mut self, ui: &mut egui::Ui, path: &Path) {
         let texts = i18n::t();
+        let editing = self.edit.is_some();
+        let frame = if editing {
+            theme::edit_mode_frame(ui.visuals())
+        } else {
+            theme::chrome_frame(ui.visuals())
+        };
+        let mut action = HeaderAction::None;
         egui::Panel::top("config-header")
-            .frame(theme::chrome_frame(ui.visuals()))
+            .frame(frame)
             .show(ui, |ui| {
                 self.files.refresh(path);
                 let active = file_name(path);
@@ -198,8 +261,8 @@ impl ConfigWindow {
                     // icon, path, dropdown, buttons — centres on one axis.
                     // Without it the shorter labels sit at the top while the
                     // taller widgets, added later, stretch the row downward.
-                    let row_height =
-                        ui.text_style_height(&egui::TextStyle::Button) + 2.0 * theme::BUTTON_PADDING;
+                    let row_height = ui.text_style_height(&egui::TextStyle::Button)
+                        + 2.0 * theme::BUTTON_PADDING;
                     ui.set_height(row_height);
                     icons::show(ui, Icon::Folder, theme::body_icon_size(ui));
                     let folder = path
@@ -208,35 +271,259 @@ impl ConfigWindow {
                         .unwrap_or_default();
                     ui.label(egui::RichText::new(folder).monospace().weak());
                     ui.label(egui::RichText::new("›").weak());
-                    let changed = self.files.is_changed(&active);
-                    let shown = if changed {
-                        format!("{active} ●")
+                    if editing {
+                        // Switching files mid-edit would orphan the draft.
+                        ui.add_enabled_ui(false, |ui| {
+                            egui::ComboBox::from_id_salt("config-file-switch")
+                                .selected_text(egui::RichText::new(active.clone()).monospace())
+                                .show_ui(ui, |_| {});
+                        })
+                        .response
+                        .on_hover_text(texts.config_switch_locked);
                     } else {
-                        active.clone()
-                    };
-                    let combo = egui::ComboBox::from_id_salt("config-file-switch")
-                        .selected_text(egui::RichText::new(shown).monospace())
-                        .show_ui(ui, |ui| file_menu_ui(ui, &self.files, path, &active));
-                    if changed {
-                        combo.response.on_hover_text(texts.config_file_changed);
-                    }
-                    ui.add_space(4.0);
-                    if icons::icon_button(ui, Icon::Reload)
-                        .on_hover_text(texts.menu_reload)
-                        .clicked()
-                    {
-                        super::log::action(texts.menu_reload);
-                        super::request_reload();
+                        let changed = self.files.is_changed(&active);
+                        let shown = if changed {
+                            format!("{active} ●")
+                        } else {
+                            active.clone()
+                        };
+                        let combo = egui::ComboBox::from_id_salt("config-file-switch")
+                            .selected_text(egui::RichText::new(shown).monospace())
+                            .show_ui(ui, |ui| file_menu_ui(ui, &self.files, path, &active));
+                        if changed {
+                            combo.response.on_hover_text(texts.config_file_changed);
+                        }
+                        ui.add_space(4.0);
+                        if icons::icon_button(ui, Icon::Reload)
+                            .on_hover_text(texts.menu_reload)
+                            .clicked()
+                        {
+                            super::log::action(texts.menu_reload);
+                            super::request_reload();
+                        }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        // Edit-mode entry point (B2). Disabled until the draft
-                        // editing lands; placed now so the layout is final.
-                        ui.add_enabled_ui(false, |ui| {
-                            let _ = icons::button(ui, Icon::Pencil, texts.config_edit);
-                        });
+                        if editing {
+                            // Right-to-left: Revert lands rightmost, Save to
+                            // its left — reading order Save, Revert (§2.4).
+                            if icons::button(ui, Icon::Revert, texts.config_revert).clicked() {
+                                action = HeaderAction::Revert;
+                            }
+                            if icons::button(ui, Icon::Floppy, texts.config_save).clicked() {
+                                action = HeaderAction::Save;
+                            }
+                        } else if icons::button(ui, Icon::Pencil, texts.config_edit).clicked() {
+                            action = HeaderAction::Edit;
+                        }
                     });
                 });
             });
+        match action {
+            HeaderAction::None => {}
+            HeaderAction::Edit => self.start_edit(path),
+            HeaderAction::Save => self.save(path, false),
+            HeaderAction::Revert => self.revert(),
+        }
+    }
+
+    /// Reads the file into a fresh draft and enters edit mode (ADR 0049
+    /// decision 2: the file, not the live table, is the edit's origin).
+    fn start_edit(&mut self, path: &Path) {
+        match draft::read(path) {
+            Ok((parsed, stamp)) => {
+                super::log::action(i18n::t().config_edit);
+                self.edit = Some(EditState {
+                    original: parsed.clone(),
+                    draft: parsed,
+                    stamp: Some(stamp),
+                    issues: Vec::new(),
+                    issue_cursor: 0,
+                    notice: None,
+                });
+            }
+            Err(error) => super::set_status(&i18n::edit_cannot_start(&error.to_string())),
+        }
+    }
+
+    fn revert(&mut self) {
+        super::log::action(i18n::t().config_revert);
+        self.edit = None;
+    }
+
+    /// The save transaction (design doc §4): stamp check, re-read, apply the
+    /// draft's diff, validate with the same parser the CLI and tray use,
+    /// write atomically, reload. Any failure keeps edit mode — the draft is
+    /// never the casualty.
+    fn save(&mut self, path: &Path, force: bool) {
+        let Some(edit) = self.edit.as_mut() else {
+            return;
+        };
+        edit.issues.clear();
+        edit.issue_cursor = 0;
+        edit.notice = None;
+        if !force
+            && let (Some(opened), Ok(now)) = (edit.stamp, draft::stamp(path))
+            && opened != now
+        {
+            // Never silently overwrite an outside edit (design doc §6.2).
+            edit.notice = Some(Notice::ExternalChange);
+            return;
+        }
+        let source = match std::fs::read_to_string(path) {
+            Ok(source) => source,
+            Err(error) => {
+                edit.notice = Some(Notice::SaveFailed(error.to_string()));
+                return;
+            }
+        };
+        let text = match draft::apply(&source, &edit.original, &edit.draft) {
+            Ok(text) => text,
+            Err(error) => {
+                edit.notice = Some(Notice::SaveFailed(error.to_string()));
+                return;
+            }
+        };
+        match winremap::config::parse_str(&text) {
+            Ok(_) => {}
+            Err(winremap::config::ConfigError::Invalid(issues)) => {
+                edit.issues = issues;
+                return;
+            }
+            Err(other) => {
+                edit.notice = Some(Notice::SaveFailed(other.to_string()));
+                return;
+            }
+        }
+        if let Err(error) = draft::write_atomic(path, &text) {
+            edit.notice = Some(Notice::SaveFailed(error.to_string()));
+            return;
+        }
+        super::log::action(i18n::t().config_save);
+        super::set_status(i18n::t().status_saved);
+        self.edit = None;
+        // The tray reloads it back in: read, atomic swap, stamp (ADR 0003).
+        super::request_reload();
+    }
+
+    /// Called when the window is asked to close. An unsaved draft turns the
+    /// close into a footer confirmation instead (screen design §7.3); a
+    /// clean one is discarded silently.
+    pub fn intercept_close(&mut self) -> bool {
+        match self.edit.as_mut() {
+            Some(edit) if edit.draft != edit.original => {
+                edit.notice = Some(Notice::ConfirmClose);
+                true
+            }
+            _ => {
+                self.edit = None;
+                false
+            }
+        }
+    }
+
+    /// The edit-mode footer band: validation results and confirmations
+    /// (screen design §6.4/§7). Absent when there is nothing to say.
+    fn footer_ui(&mut self, ui: &mut egui::Ui, path: &Path) {
+        let Some(edit) = self.edit.as_mut() else {
+            return;
+        };
+        if edit.notice.is_none() && edit.issues.is_empty() {
+            return;
+        }
+        let texts = i18n::t();
+        let mut action = FooterAction::None;
+        let notice = edit.notice.clone();
+        egui::Panel::bottom("config-footer")
+            .frame(theme::warn_band_frame(ui.visuals()))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| match notice {
+                    Some(Notice::ExternalChange) => {
+                        ui.label(texts.config_external_changed);
+                        if ui.button(texts.config_overwrite).clicked() {
+                            action = FooterAction::Overwrite;
+                        }
+                        if ui.button(texts.config_reread).clicked() {
+                            action = FooterAction::Reread;
+                        }
+                        if ui.button(texts.config_cancel).clicked() {
+                            edit.notice = None;
+                        }
+                    }
+                    Some(Notice::SaveFailed(reason)) => {
+                        ui.label(i18n::save_failed(&reason));
+                        if ui.button(texts.config_cancel).clicked() {
+                            edit.notice = None;
+                        }
+                    }
+                    Some(Notice::ConfirmClose) => {
+                        ui.label(texts.config_close_confirm);
+                        if ui.button(texts.config_close).clicked() {
+                            action = FooterAction::CloseDiscard;
+                        }
+                        if ui.button(texts.config_cancel).clicked() {
+                            edit.notice = None;
+                        }
+                    }
+                    None => {
+                        let count = edit.issues.len();
+                        if let Some(issue) = edit.issues.get(edit.issue_cursor) {
+                            ui.label(i18n::issues_found(count, &issue.to_string()));
+                        }
+                        if count > 1 && ui.button(texts.config_next_issue).clicked() {
+                            edit.issue_cursor = (edit.issue_cursor + 1) % count;
+                        }
+                    }
+                });
+            });
+        match action {
+            FooterAction::None => {}
+            FooterAction::Overwrite => self.save(path, true),
+            FooterAction::Reread => self.start_edit(path),
+            FooterAction::CloseDiscard => {
+                self.edit = None;
+                super::hide_config();
+            }
+        }
+    }
+
+    /// The window body in edit mode: everything shows the draft, never the
+    /// live table (ADR 0049) — a tray reload changes what the hook does, not
+    /// what is being edited.
+    fn edit_body_ui(&mut self, ui: &mut egui::Ui) {
+        let selection = &mut self.selection;
+        let Some(edit) = self.edit.as_mut() else {
+            return;
+        };
+        let draft = &mut edit.draft;
+
+        egui::Panel::left("config-list")
+            .default_size(220.0)
+            .show(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| edit_list_ui(ui, selection, draft));
+            });
+
+        let shown = *selection;
+        if matches!(shown, Selection::Keymap(index) if index < draft.keymaps.len()) {
+            egui::Panel::right("config-notation")
+                .default_size(240.0)
+                .show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, notation_help_ui);
+                });
+        }
+
+        egui::CentralPanel::default().show(ui, |ui| {
+            breadcrumb_edit_ui(ui, draft, shown);
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| match shown {
+                    Selection::Keymap(index) if index < draft.keymaps.len() => {
+                        keymap_edit_ui(ui, &mut draft.keymaps[index]);
+                    }
+                    _ => general_edit_ui(ui, draft),
+                });
+        });
     }
 
     /// Whether the detail pane is currently showing a keymap. Mirrors the
@@ -425,6 +712,356 @@ fn breadcrumb_ui(ui: &mut egui::Ui, table: &RemapTable, selection: Selection) {
         }
     });
     ui.separator();
+}
+
+/// The navigation tree in edit mode: the same rows over the draft, plus the
+/// keymap add/delete/reorder controls (screen design §3.1).
+fn edit_list_ui(ui: &mut egui::Ui, selection: &mut Selection, draft: &mut ConfigDraft) {
+    let texts = i18n::t();
+    ui.add_space(4.0);
+    if nav_row(
+        ui,
+        *selection == Selection::General,
+        false,
+        Icon::Gear,
+        texts.config_general,
+    )
+    .clicked()
+    {
+        *selection = Selection::General;
+    }
+    ui.add_space(8.0);
+    ui.horizontal(|ui| {
+        ui.add_space(6.0);
+        icons::show(ui, Icon::Keyboard, theme::body_icon_size(ui));
+        ui.label(egui::RichText::new(texts.config_keymaps).strong());
+    });
+    if draft.keymaps.is_empty() {
+        ui.label(egui::RichText::new(texts.config_no_keymaps).weak());
+    }
+    for (index, keymap) in draft.keymaps.iter().enumerate() {
+        if nav_row(
+            ui,
+            *selection == Selection::Keymap(index),
+            true,
+            Icon::Apps,
+            &keymap_draft_label(keymap),
+        )
+        .clicked()
+        {
+            *selection = Selection::Keymap(index);
+        }
+    }
+    ui.add_space(NOTE_GAP);
+    let selected = match *selection {
+        Selection::Keymap(index) if index < draft.keymaps.len() => Some(index),
+        _ => None,
+    };
+    ui.horizontal(|ui| {
+        if icons::icon_button(ui, Icon::Plus)
+            .on_hover_text(texts.config_keymap_add)
+            .clicked()
+        {
+            draft.keymaps.push(KeymapDraft::default());
+            *selection = Selection::Keymap(draft.keymaps.len() - 1);
+        }
+        // Only a selected keymap can be deleted or moved; General and the
+        // heading are not list entries.
+        ui.add_enabled_ui(selected.is_some(), |ui| {
+            if icons::icon_button(ui, Icon::Dash)
+                .on_hover_text(texts.config_keymap_remove)
+                .clicked()
+                && let Some(index) = selected
+            {
+                draft.keymaps.remove(index);
+                *selection = if draft.keymaps.is_empty() {
+                    Selection::General
+                } else {
+                    Selection::Keymap(index.min(draft.keymaps.len() - 1))
+                };
+            }
+            if icons::icon_button(ui, Icon::ArrowUp)
+                .on_hover_text(texts.config_move_up)
+                .clicked()
+                && let Some(index) = selected
+                && index > 0
+                && index < draft.keymaps.len()
+            {
+                draft.keymaps.swap(index - 1, index);
+                *selection = Selection::Keymap(index - 1);
+            }
+            if icons::icon_button(ui, Icon::ArrowDown)
+                .on_hover_text(texts.config_move_down)
+                .clicked()
+                && let Some(index) = selected
+                && index + 1 < draft.keymaps.len()
+            {
+                draft.keymaps.swap(index, index + 1);
+                *selection = Selection::Keymap(index + 1);
+            }
+        });
+    });
+}
+
+/// List label for a draft keymap; mirrors `keymap_label` for compiled ones.
+fn keymap_draft_label(keymap: &KeymapDraft) -> String {
+    let texts = i18n::t();
+    if !keymap.name.is_empty() {
+        return keymap.name.clone();
+    }
+    if keymap.application.iter().any(|app| app == "*") {
+        return texts.config_apps_all.to_owned();
+    }
+    if keymap.application.is_empty() {
+        return texts.config_none.to_owned();
+    }
+    keymap.application.join(", ")
+}
+
+/// The edit-mode breadcrumb: the same crumbs over the draft, with the
+/// editing banner at the right end (screen design §4.1) — the header colour
+/// says it, this spells it out.
+fn breadcrumb_edit_ui(ui: &mut egui::Ui, draft: &ConfigDraft, selection: Selection) {
+    let texts = i18n::t();
+    ui.add_space(f32::from(CELL_PAD));
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(texts.config_breadcrumb_root).weak());
+        ui.label(egui::RichText::new(">").weak());
+        match selection {
+            Selection::Keymap(index) if index < draft.keymaps.len() => {
+                ui.label(egui::RichText::new(texts.config_keymaps).weak());
+                ui.label(egui::RichText::new(">").weak());
+                ui.label(keymap_draft_label(&draft.keymaps[index]));
+            }
+            _ => {
+                ui.label(texts.config_general);
+            }
+        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let warn = ui.visuals().warn_fg_color;
+            ui.label(egui::RichText::new(texts.config_edit_notice).color(warn));
+        });
+    });
+    ui.separator();
+}
+
+/// The keymap detail pane, editable (screen design §4.3). The section order
+/// and headings are the viewer's; only the cells become inputs. The ⓘ/⚠
+/// notation feedback, shared-input and comment columns arrive with B3.
+fn keymap_edit_ui(ui: &mut egui::Ui, keymap: &mut KeymapDraft) {
+    let texts = i18n::t();
+    ui.add_space(8.0);
+    ui.horizontal(|ui| {
+        ui.label(texts.config_field_name);
+        ui.label(egui::RichText::new("name").monospace().weak());
+        ui.add(
+            egui::TextEdit::singleline(&mut keymap.name)
+                .font(egui::TextStyle::Monospace)
+                .desired_width(240.0),
+        );
+    });
+
+    section(ui, Icon::Apps, texts.config_field_apps, "application");
+    edit_string_table(ui, "apps-edit", &mut keymap.application);
+    ui.add_space(f32::from(CELL_PAD));
+    if icons::button(ui, Icon::Plus, texts.config_add_app).clicked() {
+        keymap.application.push(String::new());
+    }
+    ui.add_space(NOTE_GAP);
+    own_note(ui, texts.config_apps_case_note);
+
+    // Exclusions only make sense against "*" — the same rule the viewer
+    // applies, but read from the draft's own strings.
+    if keymap.application.iter().any(|app| app == "*") {
+        section(ui, Icon::Exclude, texts.config_field_exclude, "exclude");
+        edit_string_table(ui, "excludes-edit", &mut keymap.exclude);
+        ui.add_space(f32::from(CELL_PAD));
+        if icons::button(ui, Icon::Plus, texts.config_add_app).clicked() {
+            keymap.exclude.push(String::new());
+        }
+    }
+
+    section(ui, Icon::Rules, texts.config_rules, "[keymap.remap]");
+    edit_rules_table(ui, &mut keymap.rules);
+    ui.add_space(f32::from(CELL_PAD));
+    if icons::button(ui, Icon::Plus, texts.config_add_rule).clicked() {
+        keymap.rules.push(RuleDraft::default());
+    }
+}
+
+/// One editable exe name per row with a per-row delete, in `table()`'s
+/// shape so view and edit read alike.
+fn edit_string_table(ui: &mut egui::Ui, id: &str, values: &mut Vec<String>) {
+    let texts = i18n::t();
+    let columns = [texts.config_column_app, ""];
+    let mut remove = None;
+    table(ui, id, &columns, 220.0, |ui| {
+        for (index, value) in values.iter_mut().enumerate() {
+            ui.add(
+                egui::TextEdit::singleline(value)
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(260.0),
+            );
+            if icons::icon_button(ui, Icon::Close).clicked() {
+                remove = Some(index);
+            }
+            ui.end_row();
+        }
+    });
+    if let Some(index) = remove {
+        values.remove(index);
+    }
+}
+
+/// Editable remap rules: raw spellings on both sides (ADR 0049 decision 5 —
+/// what the user wrote is what they edit), macros as comma-separated output.
+fn edit_rules_table(ui: &mut egui::Ui, rules: &mut Vec<RuleDraft>) {
+    let texts = i18n::t();
+    let columns = [texts.config_rule_input, texts.config_rule_output, ""];
+    let mut remove = None;
+    table(ui, "rules-edit", &columns, 140.0, |ui| {
+        for (index, rule) in rules.iter_mut().enumerate() {
+            ui.add(
+                egui::TextEdit::singleline(&mut rule.input)
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(160.0),
+            );
+            ui.add(
+                egui::TextEdit::singleline(&mut rule.output)
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(220.0),
+            );
+            if icons::icon_button(ui, Icon::Close).clicked() {
+                remove = Some(index);
+            }
+            ui.end_row();
+        }
+    });
+    if let Some(index) = remove {
+        rules.remove(index);
+    }
+}
+
+/// General settings, editable (screen design §4.4): sliders for the numeric
+/// ranges — always in-range by construction — checkboxes for the flags, and
+/// key notation as text. The recorded macro stays the live, read-only box.
+fn general_edit_ui(ui: &mut egui::Ui, draft: &mut ConfigDraft) {
+    let texts = i18n::t();
+    ui.add_space(8.0);
+    section(ui, Icon::Macro, texts.config_macro_section, "[macro]");
+    // Show whichever spelling the file uses (ADR 0039); saving keeps it.
+    let delay_key = if draft.uses_legacy_delay_key {
+        "macro_delay_ms"
+    } else {
+        "delay_ms"
+    };
+    ui.horizontal(|ui| {
+        ui.label(texts.config_macro_delay);
+        ui.label(egui::RichText::new(delay_key).monospace().weak());
+        let mut delay = draft.macro_delay.trim().parse::<u32>().unwrap_or(0);
+        if ui
+            .add(egui::Slider::new(&mut delay, 0..=MAX_MACRO_DELAY_MS))
+            .changed()
+        {
+            draft.macro_delay = delay.to_string();
+        }
+    });
+    for (label, key, value) in [
+        (
+            texts.config_macro_record_start,
+            "record_start",
+            &mut draft.macro_record.start,
+        ),
+        (
+            texts.config_macro_record_stop,
+            "record_stop",
+            &mut draft.macro_record.stop,
+        ),
+        (
+            texts.config_macro_record_play,
+            "record_play",
+            &mut draft.macro_record.play,
+        ),
+    ] {
+        ui.horizontal(|ui| {
+            ui.label(label);
+            ui.label(egui::RichText::new(key).monospace().weak());
+            ui.add(
+                egui::TextEdit::singleline(value)
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(160.0),
+            );
+        });
+    }
+
+    // Live runtime state, not a file value — deliberately outside the
+    // editable rows, exactly as in view mode.
+    if crate::macro_record::recorded().is_some() {
+        recorded_macro_ui(ui);
+    }
+
+    section(ui, Icon::Ime, texts.config_ime_indicator, "[ime_indicator]");
+    let defaults = IndicatorSettings::default();
+    let mut enabled = draft.ime.enabled.unwrap_or(defaults.enabled);
+    if ui
+        .checkbox(&mut enabled, texts.config_ime_enabled)
+        .changed()
+    {
+        draft.ime.enabled = Some(enabled);
+    }
+    if enabled {
+        for (label, key, value, min, max, fallback) in [
+            (
+                texts.config_ime_duration,
+                "duration_ms",
+                &mut draft.ime.duration_ms,
+                MIN_INDICATOR_DURATION_MS,
+                MAX_INDICATOR_DURATION_MS,
+                defaults.duration_ms,
+            ),
+            (
+                texts.config_ime_size,
+                "size",
+                &mut draft.ime.size,
+                MIN_INDICATOR_SIZE,
+                MAX_INDICATOR_SIZE,
+                defaults.size,
+            ),
+            (
+                texts.config_ime_opacity,
+                "opacity",
+                &mut draft.ime.opacity,
+                0,
+                255,
+                u32::from(defaults.opacity),
+            ),
+        ] {
+            ui.horizontal(|ui| {
+                ui.label(label);
+                ui.label(egui::RichText::new(key).monospace().weak());
+                let mut number = value.trim().parse::<u32>().unwrap_or(fallback);
+                if ui.add(egui::Slider::new(&mut number, min..=max)).changed() {
+                    *value = number.to_string();
+                }
+            });
+        }
+        let mut show_app = draft.ime.show_app_name.unwrap_or(defaults.show_app_name);
+        if ui
+            .checkbox(&mut show_app, texts.config_ime_show_app_name)
+            .changed()
+        {
+            draft.ime.show_app_name = Some(show_app);
+        }
+        ui.horizontal(|ui| {
+            ui.label(texts.config_ime_triggers);
+            ui.label(egui::RichText::new("trigger_keys").monospace().weak());
+            ui.add(
+                egui::TextEdit::singleline(&mut draft.ime.trigger_keys)
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(220.0),
+            );
+        });
+    }
 }
 
 /// The permanent bottom band (v0.4 screen design §5): the version — its one

@@ -159,6 +159,13 @@ pub fn active_config_path() -> PathBuf {
         .unwrap_or_default()
 }
 
+/// Hides the settings window (close = hide, ADR 0032). For the footer's
+/// "close without saving" — the ordinary close goes through the viewport.
+pub(crate) fn hide_config() {
+    CONFIG_OPEN.store(false, Ordering::SeqCst);
+    log::action(&i18n::action_closed(i18n::t().config_window_title));
+}
+
 /// Opens the settings window, or brings it to the front if it is already up.
 pub fn open_config() {
     log::action(i18n::t().menu_settings);
@@ -385,10 +392,20 @@ fn show_config_viewport(ctx: &egui::Context, state: &Arc<Mutex<config_window::Co
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
             }
             // Closing a child viewport may destroy it: the event loop belongs
-            // to the host, so nothing is lost (ADR 0037).
+            // to the host, so nothing is lost (ADR 0037). An unsaved draft
+            // intercepts the close and asks in the footer instead (v0.4
+            // screen design §7.3).
             if ctx.input(|i| i.viewport().close_requested()) {
-                CONFIG_OPEN.store(false, Ordering::SeqCst);
-                log::action(&i18n::action_closed(i18n::t().config_window_title));
+                let intercepted = state
+                    .lock()
+                    .map(|mut window| window.intercept_close())
+                    .unwrap_or(false);
+                if intercepted {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                } else {
+                    CONFIG_OPEN.store(false, Ordering::SeqCst);
+                    log::action(&i18n::action_closed(i18n::t().config_window_title));
+                }
             }
             if let Ok(mut window) = state.lock() {
                 window.ui(ui);
