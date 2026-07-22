@@ -66,6 +66,8 @@ pub struct Texts {
     pub config_close_confirm: &'static str,
     pub config_external_changed: &'static str,
     pub config_add_app: &'static str,
+    /// Starts the foreground-capture countdown (B4, screen design §6.3).
+    pub config_capture_app: &'static str,
     pub config_add_rule: &'static str,
     pub config_keymap_add: &'static str,
     pub config_keymap_remove: &'static str,
@@ -189,6 +191,7 @@ static EN: Texts = Texts {
     config_close_confirm: "Close without saving?",
     config_external_changed: "The config file was changed outside WinRemap.",
     config_add_app: "Add application",
+    config_capture_app: "Capture the foreground app",
     config_add_rule: "Add rule",
     config_keymap_add: "Add keymap",
     config_keymap_remove: "Delete keymap",
@@ -296,6 +299,7 @@ static JA: Texts = Texts {
     config_close_confirm: "保存せずに閉じますか?",
     config_external_changed: "設定ファイルが WinRemap の外で変更されています。",
     config_add_app: "アプリを追加",
+    config_capture_app: "今の前面アプリから取得",
     config_add_rule: "規則を追加",
     config_keymap_add: "キーマップを追加",
     config_keymap_remove: "キーマップを削除",
@@ -477,6 +481,14 @@ pub fn output_human(combos: &[KeyCombo]) -> String {
                 Lang::Ja => format!("{steps}（マクロ）"),
             }
         }
+    }
+}
+
+/// The capture button while it counts down (B4, screen design §6.3).
+pub fn capture_countdown(seconds: u64) -> String {
+    match lang() {
+        Lang::En => format!("{seconds}… bring the target app to the front"),
+        Lang::Ja => format!("{seconds}… 対象アプリを前面にしてください"),
     }
 }
 

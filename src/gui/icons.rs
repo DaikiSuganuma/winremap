@@ -53,6 +53,8 @@ pub enum Icon {
     ArrowDown,
     /// Deletes one table row.
     Close,
+    /// The foreground-capture countdown (B4).
+    Hourglass,
 }
 
 impl Icon {
@@ -81,6 +83,7 @@ impl Icon {
             Icon::ArrowUp => "arrow-up",
             Icon::ArrowDown => "arrow-down",
             Icon::Close => "x",
+            Icon::Hourglass => "hourglass",
         }
     }
 
@@ -112,6 +115,7 @@ impl Icon {
             Icon::ArrowUp => include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-up.rgba")),
             Icon::ArrowDown => include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-down.rgba")),
             Icon::Close => include_bytes!(concat!(env!("OUT_DIR"), "/ui-x.rgba")),
+            Icon::Hourglass => include_bytes!(concat!(env!("OUT_DIR"), "/ui-hourglass.rgba")),
         }
     }
 }

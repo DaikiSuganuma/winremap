@@ -70,7 +70,20 @@ struct EditState {
     issues: Vec<winremap::config::Issue>,
     issue_cursor: usize,
     notice: Option<Notice>,
+    /// A running foreground capture (B4): which keymap asked, and when the
+    /// countdown fires.
+    capture: Option<Capture>,
 }
+
+struct Capture {
+    keymap: usize,
+    deadline: Instant,
+}
+
+/// The grace the capture gives for bringing the target app to the front —
+/// pressing the button makes the settings window the foreground app, which
+/// is exactly the wrong answer (screen design §6.3).
+const CAPTURE_DELAY: Duration = Duration::from_secs(3);
 
 /// What the footer band is currently asking or reporting (screen design
 /// §6.4/§7). One at a time: each replaces the last.
@@ -376,6 +389,7 @@ impl ConfigWindow {
                     issues: Vec::new(),
                     issue_cursor: 0,
                     notice: None,
+                    capture: None,
                 });
             }
             Err(error) => super::set_status(&i18n::edit_cannot_start(&error.to_string())),
@@ -532,7 +546,7 @@ impl ConfigWindow {
         let Some(edit) = self.edit.as_mut() else {
             return;
         };
-        let draft = &mut edit.draft;
+        let EditState { draft, capture, .. } = edit;
 
         egui::Panel::left("config-list")
             .default_size(220.0)
@@ -561,7 +575,13 @@ impl ConfigWindow {
                         // so they are looked up by the keymap's origin.
                         let origin = draft.keymaps[index].origin;
                         let keymap_comments = origin.and_then(|i| comments.keymap(i));
-                        keymap_edit_ui(ui, &mut draft.keymaps[index], keymap_comments);
+                        keymap_edit_ui(
+                            ui,
+                            &mut draft.keymaps[index],
+                            keymap_comments,
+                            capture,
+                            index,
+                        );
                     }
                     _ => general_edit_ui(ui, draft),
                 });
@@ -894,7 +914,13 @@ fn breadcrumb_edit_ui(ui: &mut egui::Ui, draft: &ConfigDraft, selection: Selecti
 /// and headings are the viewer's; only the cells become inputs. Notation
 /// fields carry their reading or problem beneath them (B3); the shared-input
 /// column is still to come.
-fn keymap_edit_ui(ui: &mut egui::Ui, keymap: &mut KeymapDraft, comments: Option<&KeymapComments>) {
+fn keymap_edit_ui(
+    ui: &mut egui::Ui,
+    keymap: &mut KeymapDraft,
+    comments: Option<&KeymapComments>,
+    capture: &mut Option<Capture>,
+    index: usize,
+) {
     let texts = i18n::t();
     ui.add_space(8.0);
     ui.horizontal(|ui| {
@@ -910,9 +936,16 @@ fn keymap_edit_ui(ui: &mut egui::Ui, keymap: &mut KeymapDraft, comments: Option<
     section(ui, Icon::Apps, texts.config_field_apps, "application");
     edit_string_table(ui, "apps-edit", &mut keymap.application);
     ui.add_space(f32::from(CELL_PAD));
-    if icons::button(ui, Icon::Plus, texts.config_add_app).clicked() {
-        keymap.application.push(String::new());
-    }
+    ui.horizontal(|ui| {
+        if icons::button(ui, Icon::Plus, texts.config_add_app).clicked() {
+            keymap.application.push(String::new());
+        }
+        // Capturing an exe name for a "*" keymap would be meaningless —
+        // every application is already a target (screen design §4.3).
+        if !keymap.application.iter().any(|app| app == "*") {
+            capture_button(ui, keymap, capture, index);
+        }
+    });
     ui.add_space(NOTE_GAP);
     own_note(ui, texts.config_apps_case_note);
 
@@ -1079,6 +1112,58 @@ fn key_names_help(ui: &mut egui::Ui, salt: &str) {
                     ui.end_row();
                 });
         });
+}
+
+/// The "capture the foreground app" button (B4, screen design §6.3).
+/// Pressing it starts a countdown — the press itself puts the settings
+/// window in the foreground, which is exactly the wrong answer — and when
+/// it fires, the exe in front lands in the application list.
+fn capture_button(
+    ui: &mut egui::Ui,
+    keymap: &mut KeymapDraft,
+    capture: &mut Option<Capture>,
+    index: usize,
+) {
+    let texts = i18n::t();
+    match capture {
+        Some(pending) if pending.keymap == index => {
+            let now = Instant::now();
+            if pending.deadline <= now {
+                // The exe cache is thread-local and this is the GUI thread,
+                // so refresh here rather than trusting the message loop's
+                // copy. Both calls are the safe public surface of `window`
+                // — no unsafe enters the GUI (invariant 3).
+                crate::window::refresh_foreground_cache();
+                let exe = crate::window::with_foreground_exe(|exe| exe.to_owned());
+                if !exe.is_empty()
+                    && !keymap
+                        .application
+                        .iter()
+                        .any(|app| app.eq_ignore_ascii_case(&exe))
+                {
+                    keymap.application.push(exe);
+                }
+                *capture = None;
+            } else {
+                let seconds = (pending.deadline - now).as_secs_f32().ceil() as u64;
+                ui.add_enabled_ui(false, |ui| {
+                    let _ = icons::button(ui, Icon::Hourglass, &i18n::capture_countdown(seconds));
+                });
+                // Keep painting so the count visibly ticks and the deadline
+                // fires without waiting for other input.
+                ui.ctx().request_repaint_after(Duration::from_millis(100));
+            }
+        }
+        _ => {
+            if icons::button(ui, Icon::Apps, texts.config_capture_app).clicked() {
+                super::log::action(texts.config_capture_app);
+                *capture = Some(Capture {
+                    keymap: index,
+                    deadline: Instant::now() + CAPTURE_DELAY,
+                });
+            }
+        }
+    }
 }
 
 /// One editable exe name per row with a per-row delete, in `table()`'s
