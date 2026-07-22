@@ -182,6 +182,48 @@ pub fn vk_display_name(vk: u16) -> String {
     }
 }
 
+/// Every canonical special-key name, in the order `vk_display_name` spells
+/// them. Feeds the "did you mean" suggestion and the settings window's
+/// key-name reference (B3) — one list, so neither can drift from the parser.
+/// Letters, digits and F-keys are described categorically by the UI rather
+/// than enumerated.
+pub const SPECIAL_KEY_NAMES: &[&str] = &[
+    "Back", "Tab", "Enter", "CapsLock", "Esc", "Space", "PageUp", "PageDown", "End", "Home",
+    "Left", "Up", "Right", "Down", "Insert", "Delete", "LWin", "RWin", "Apps", "LShift", "RShift",
+    "LCtrl", "RCtrl", "LAlt", "RAlt",
+];
+
+/// The closest known key name to a misspelling, when it is close enough to
+/// be a plausible slip (edit distance ≤ 2): `"Bak"` → `"Back"`. `None` for
+/// something too far from every name — a wild guess helps nobody.
+pub fn suggest_key_name(unknown: &str) -> Option<&'static str> {
+    let lower = unknown.to_ascii_lowercase();
+    SPECIAL_KEY_NAMES
+        .iter()
+        .map(|name| (edit_distance(&lower, &name.to_ascii_lowercase()), *name))
+        .filter(|(distance, _)| *distance <= 2)
+        .min_by_key(|(distance, _)| *distance)
+        .map(|(_, name)| name)
+}
+
+/// Plain Levenshtein over bytes — key names are ASCII, inputs that are not
+/// simply measure as further away, which is the right answer anyway.
+fn edit_distance(a: &str, b: &str) -> usize {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    let mut previous: Vec<usize> = (0..=b.len()).collect();
+    for (row, &from) in a.iter().enumerate() {
+        let mut current = vec![row + 1];
+        for (column, &to) in b.iter().enumerate() {
+            let substitute = previous[column] + usize::from(from != to);
+            let insert = current[column] + 1;
+            let delete = previous[column + 1] + 1;
+            current.push(substitute.min(insert).min(delete));
+        }
+        previous = current;
+    }
+    previous[b.len()]
+}
+
 /// Side-specific modifier VKs (Shift/Ctrl/Alt/Win). These cannot be remap
 /// *inputs*: the hook consumes them for chord-state tracking and never looks
 /// them up, so config validation rejects them early instead of letting such

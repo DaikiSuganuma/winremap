@@ -31,7 +31,8 @@ use winremap::ime_indicator_settings::{
     MIN_INDICATOR_SIZE,
 };
 use winremap::keymap::{
-    AppFilter, Keymap, MAX_MACRO_DELAY_MS, Output, RemapTable, vk_display_name,
+    AppFilter, KeyCombo, KeyParseError, Keymap, MAX_MACRO_DELAY_MS, Output, RemapTable,
+    SPECIAL_KEY_NAMES, parse_input_pattern, parse_key_combo, suggest_key_name, vk_display_name,
 };
 
 /// Which entry the left list has selected.
@@ -527,6 +528,7 @@ impl ConfigWindow {
     /// what is being edited.
     fn edit_body_ui(&mut self, ui: &mut egui::Ui) {
         let selection = &mut self.selection;
+        let comments = &self.comments;
         let Some(edit) = self.edit.as_mut() else {
             return;
         };
@@ -555,7 +557,11 @@ impl ConfigWindow {
                 .auto_shrink([false, false])
                 .show(ui, |ui| match shown {
                     Selection::Keymap(index) if index < draft.keymaps.len() => {
-                        keymap_edit_ui(ui, &mut draft.keymaps[index]);
+                        // Comments belong to the file the draft came from,
+                        // so they are looked up by the keymap's origin.
+                        let origin = draft.keymaps[index].origin;
+                        let keymap_comments = origin.and_then(|i| comments.keymap(i));
+                        keymap_edit_ui(ui, &mut draft.keymaps[index], keymap_comments);
                     }
                     _ => general_edit_ui(ui, draft),
                 });
@@ -885,9 +891,10 @@ fn breadcrumb_edit_ui(ui: &mut egui::Ui, draft: &ConfigDraft, selection: Selecti
 }
 
 /// The keymap detail pane, editable (screen design §4.3). The section order
-/// and headings are the viewer's; only the cells become inputs. The ⓘ/⚠
-/// notation feedback, shared-input and comment columns arrive with B3.
-fn keymap_edit_ui(ui: &mut egui::Ui, keymap: &mut KeymapDraft) {
+/// and headings are the viewer's; only the cells become inputs. Notation
+/// fields carry their reading or problem beneath them (B3); the shared-input
+/// column is still to come.
+fn keymap_edit_ui(ui: &mut egui::Ui, keymap: &mut KeymapDraft, comments: Option<&KeymapComments>) {
     let texts = i18n::t();
     ui.add_space(8.0);
     ui.horizontal(|ui| {
@@ -921,11 +928,157 @@ fn keymap_edit_ui(ui: &mut egui::Ui, keymap: &mut KeymapDraft) {
     }
 
     section(ui, Icon::Rules, texts.config_rules, "[keymap.remap]");
-    edit_rules_table(ui, &mut keymap.rules);
+    edit_rules_table(ui, &mut keymap.rules, comments);
     ui.add_space(f32::from(CELL_PAD));
-    if icons::button(ui, Icon::Plus, texts.config_add_rule).clicked() {
-        keymap.rules.push(RuleDraft::default());
+    ui.horizontal(|ui| {
+        if icons::button(ui, Icon::Plus, texts.config_add_rule).clicked() {
+            keymap.rules.push(RuleDraft::default());
+        }
+        key_names_help(ui, "key-names-rules");
+    });
+}
+
+/// What a key-notation field's feedback line says (screen design §6.1–6.2):
+/// the reading of a valid value, the reason for an invalid one.
+enum NotationCheck {
+    Valid(String),
+    Invalid(String),
+}
+
+/// Which notation a field holds, and so how it is parsed and read back.
+#[derive(Clone, Copy)]
+enum Notation {
+    /// A rule input: a chord or a two-stroke sequence.
+    Input,
+    /// A rule output: a chord, or a comma-separated macro.
+    Output,
+    /// A single chord (the recording keys).
+    Chord,
+    /// Comma-separated chords (the IME trigger keys).
+    ChordList,
+}
+
+fn check_notation(kind: Notation, text: &str) -> Option<NotationCheck> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        // A row still being typed; the save-time validation still gates.
+        return None;
     }
+    let rendered = match kind {
+        Notation::Input => parse_input_pattern(trimmed).map(|pattern| i18n::input_human(&pattern)),
+        Notation::Chord => parse_key_combo(trimmed).map(|combo| i18n::combo_human(&combo)),
+        Notation::Output => parse_combo_list(trimmed).map(|combos| i18n::output_human(&combos)),
+        Notation::ChordList => parse_combo_list(trimmed).map(|combos| {
+            combos
+                .iter()
+                .map(i18n::combo_human)
+                .collect::<Vec<_>>()
+                .join(" / ")
+        }),
+    };
+    Some(match rendered {
+        Ok(reading) => NotationCheck::Valid(reading),
+        Err(error) => NotationCheck::Invalid(notation_error_text(&error)),
+    })
+}
+
+fn parse_combo_list(text: &str) -> Result<Vec<KeyCombo>, KeyParseError> {
+    text.split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(parse_key_combo)
+        .collect()
+}
+
+/// The reason line under an invalid field: the parser's technical English,
+/// except an unknown key name with a near miss, which earns the friendlier
+/// "did you mean" (screen design §6.2).
+fn notation_error_text(error: &KeyParseError) -> String {
+    if let KeyParseError::UnknownKey(name) = error
+        && let Some(suggest) = suggest_key_name(name)
+    {
+        return i18n::unknown_key_suggestion(name, suggest);
+    }
+    error.to_string()
+}
+
+/// A key-notation edit cell: the box — warn-bordered when invalid — with its
+/// reading (ⓘ) or the problem (⚠) directly beneath (screen design §6).
+/// The check runs against the text as of this frame's start; one frame of
+/// lag, invisible in use.
+fn notation_cell(ui: &mut egui::Ui, kind: Notation, text: &mut String, width: f32) {
+    let check = check_notation(kind, text);
+    let invalid = matches!(check, Some(NotationCheck::Invalid(_)));
+    ui.vertical(|ui| {
+        ui.scope(|ui| {
+            if invalid {
+                let visuals = ui.visuals_mut();
+                let warn = visuals.warn_fg_color;
+                visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, warn);
+                visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, warn);
+            }
+            ui.add(
+                egui::TextEdit::singleline(text)
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(width),
+            );
+        });
+        match check {
+            Some(NotationCheck::Valid(reading)) => {
+                ui.label(
+                    egui::RichText::new(format!("\u{24d8} {reading}"))
+                        .weak()
+                        .small(),
+                );
+            }
+            Some(NotationCheck::Invalid(reason)) => {
+                let warn = ui.visuals().warn_fg_color;
+                ui.label(
+                    egui::RichText::new(format!("\u{26a0} {reason}"))
+                        .color(warn)
+                        .small(),
+                );
+            }
+            None => {}
+        }
+    });
+}
+
+/// The key-name reference behind a `?` button (screen design §6.5),
+/// generated from the parser's own list so the two cannot drift.
+fn key_names_help(ui: &mut egui::Ui, salt: &str) {
+    let texts = i18n::t();
+    let response = icons::icon_button(ui, Icon::Notation).on_hover_text(texts.config_keys_title);
+    egui::Popup::from_toggle_button_response(&response)
+        .id(egui::Id::new(salt))
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+        .show(|ui| {
+            ui.set_min_width(280.0);
+            ui.label(egui::RichText::new(texts.config_keys_title).strong());
+            ui.add_space(f32::from(CELL_PAD));
+            egui::Grid::new("key-names")
+                .num_columns(2)
+                .spacing(cell_spacing())
+                .show(ui, |ui| {
+                    ui.label(texts.config_keys_mods);
+                    ui.label(egui::RichText::new("C-  A-  S-  W-").monospace());
+                    ui.end_row();
+                    ui.label(texts.config_keys_chars);
+                    ui.label(egui::RichText::new(texts.config_keys_chars_list).monospace());
+                    ui.end_row();
+                    ui.label(texts.config_keys_function);
+                    ui.label(egui::RichText::new(texts.config_keys_function_list).monospace());
+                    ui.end_row();
+                    ui.label(texts.config_keys_special);
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(SPECIAL_KEY_NAMES.join(" ")).monospace(),
+                        )
+                        .wrap(),
+                    );
+                    ui.end_row();
+                });
+        });
 }
 
 /// One editable exe name per row with a per-row delete, in `table()`'s
@@ -954,22 +1107,31 @@ fn edit_string_table(ui: &mut egui::Ui, id: &str, values: &mut Vec<String>) {
 
 /// Editable remap rules: raw spellings on both sides (ADR 0049 decision 5 —
 /// what the user wrote is what they edit), macros as comma-separated output.
-fn edit_rules_table(ui: &mut egui::Ui, rules: &mut Vec<RuleDraft>) {
+/// Each side carries its live reading or problem beneath it (B3), and the
+/// comment written next to the rule rides along read-only.
+fn edit_rules_table(
+    ui: &mut egui::Ui,
+    rules: &mut Vec<RuleDraft>,
+    comments: Option<&KeymapComments>,
+) {
     let texts = i18n::t();
-    let columns = [texts.config_rule_input, texts.config_rule_output, ""];
+    let columns = [
+        texts.config_rule_input,
+        texts.config_rule_output,
+        texts.config_rule_comment,
+        "",
+    ];
     let mut remove = None;
-    table(ui, "rules-edit", &columns, 140.0, |ui| {
+    table(ui, "rules-edit", &columns, 120.0, |ui| {
         for (index, rule) in rules.iter_mut().enumerate() {
-            ui.add(
-                egui::TextEdit::singleline(&mut rule.input)
-                    .font(egui::TextStyle::Monospace)
-                    .desired_width(160.0),
-            );
-            ui.add(
-                egui::TextEdit::singleline(&mut rule.output)
-                    .font(egui::TextStyle::Monospace)
-                    .desired_width(220.0),
-            );
+            notation_cell(ui, Notation::Input, &mut rule.input, 160.0);
+            notation_cell(ui, Notation::Output, &mut rule.output, 220.0);
+            // Comments are keyed by the canonical form; an input mid-typing
+            // simply finds none and the cell stays empty until it parses.
+            let comment = winremap::config::comments::canonical_input(&rule.input)
+                .and_then(|canonical| comments.and_then(|c| c.rule(&canonical)))
+                .unwrap_or_default();
+            comment_cell(ui, comment);
             if icons::icon_button(ui, Icon::Close).clicked() {
                 remove = Some(index);
             }
@@ -1025,13 +1187,12 @@ fn general_edit_ui(ui: &mut egui::Ui, draft: &mut ConfigDraft) {
         ui.horizontal(|ui| {
             ui.label(label);
             ui.label(egui::RichText::new(key).monospace().weak());
-            ui.add(
-                egui::TextEdit::singleline(value)
-                    .font(egui::TextStyle::Monospace)
-                    .desired_width(160.0),
-            );
+            notation_cell(ui, Notation::Chord, value, 160.0);
         });
     }
+    ui.horizontal(|ui| {
+        key_names_help(ui, "key-names-record");
+    });
 
     // Live runtime state, not a file value — deliberately outside the
     // editable rows, exactly as in view mode.
@@ -1094,11 +1255,8 @@ fn general_edit_ui(ui: &mut egui::Ui, draft: &mut ConfigDraft) {
         ui.horizontal(|ui| {
             ui.label(texts.config_ime_triggers);
             ui.label(egui::RichText::new("trigger_keys").monospace().weak());
-            ui.add(
-                egui::TextEdit::singleline(&mut draft.ime.trigger_keys)
-                    .font(egui::TextStyle::Monospace)
-                    .desired_width(220.0),
-            );
+            notation_cell(ui, Notation::ChordList, &mut draft.ime.trigger_keys, 220.0);
+            key_names_help(ui, "key-names-triggers");
         });
     }
 }

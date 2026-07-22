@@ -11,7 +11,7 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use winremap::keymap::{KeyCombo, vk_display_name};
+use winremap::keymap::{InputPattern, KeyCombo, Mods, vk_display_name};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Lang {
@@ -72,6 +72,14 @@ pub struct Texts {
     pub config_move_up: &'static str,
     pub config_move_down: &'static str,
     pub status_saved: &'static str,
+    /// The key-name reference popup (screen design §6.5).
+    pub config_keys_title: &'static str,
+    pub config_keys_mods: &'static str,
+    pub config_keys_chars: &'static str,
+    pub config_keys_chars_list: &'static str,
+    pub config_keys_function: &'static str,
+    pub config_keys_function_list: &'static str,
+    pub config_keys_special: &'static str,
     /// Tooltip on the ● change mark: the file differs from what is loaded.
     pub config_file_changed: &'static str,
     /// The breadcrumb's first segment (v0.4 screen design §4.1).
@@ -187,6 +195,13 @@ static EN: Texts = Texts {
     config_move_up: "Move up",
     config_move_down: "Move down",
     status_saved: "Saved.",
+    config_keys_title: "Key names",
+    config_keys_mods: "Modifiers",
+    config_keys_chars: "Characters",
+    config_keys_chars_list: "a–z 0–9",
+    config_keys_function: "Function",
+    config_keys_function_list: "F1–F24",
+    config_keys_special: "Special",
     config_file_changed: "Changed on disk — not loaded yet",
     config_breadcrumb_root: "Settings",
     status_loaded: "Config loaded.",
@@ -287,6 +302,13 @@ static JA: Texts = Texts {
     config_move_up: "上へ",
     config_move_down: "下へ",
     status_saved: "保存しました",
+    config_keys_title: "使えるキー名",
+    config_keys_mods: "修飾",
+    config_keys_chars: "文字",
+    config_keys_chars_list: "a〜z 0〜9",
+    config_keys_function: "ファンクション",
+    config_keys_function_list: "F1〜F24",
+    config_keys_special: "特殊",
     config_file_changed: "ディスク上で変更されています（未読み込み）",
     config_breadcrumb_root: "設定",
     status_loaded: "読み込み完了しました",
@@ -402,6 +424,67 @@ pub fn save_failed(reason: &str) -> String {
     match lang() {
         Lang::En => format!("Could not save: {reason}"),
         Lang::Ja => format!("保存できませんでした: {reason}"),
+    }
+}
+
+/// A chord in human words: `C-S-h` → "Ctrl + Shift + h". The modifier names
+/// are product names, identical in both languages, so only the shape is
+/// fixed here (word-order-free by construction — it is a joined list).
+pub fn combo_human(combo: &KeyCombo) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    for (flag, name) in [
+        (Mods::CTRL, "Ctrl"),
+        (Mods::ALT, "Alt"),
+        (Mods::SHIFT, "Shift"),
+        (Mods::WIN, "Win"),
+    ] {
+        if combo.mods.contains(flag) {
+            parts.push(name.to_owned());
+        }
+    }
+    parts.push(vk_display_name(combo.vk));
+    parts.join(" + ")
+}
+
+/// A rule input in human words (screen design §6.1): a chord as
+/// `combo_human`, a sequence as "Alt+x, then h (two strokes)".
+pub fn input_human(pattern: &InputPattern) -> String {
+    match pattern {
+        InputPattern::Single(combo) => combo_human(combo),
+        InputPattern::Sequence(first, second) => {
+            let (first, second) = (combo_human(first), combo_human(second));
+            match lang() {
+                Lang::En => format!("{first}, then {second} (two strokes)"),
+                Lang::Ja => format!("{first} に続けて {second}（2 ストローク）"),
+            }
+        }
+    }
+}
+
+/// A rule output in human words: one chord plainly, several as the macro's
+/// step sequence.
+pub fn output_human(combos: &[KeyCombo]) -> String {
+    match combos {
+        [single] => combo_human(single),
+        several => {
+            let steps = several
+                .iter()
+                .map(combo_human)
+                .collect::<Vec<_>>()
+                .join(" → ");
+            match lang() {
+                Lang::En => format!("{steps} (macro)"),
+                Lang::Ja => format!("{steps}（マクロ）"),
+            }
+        }
+    }
+}
+
+/// An unknown key name with its nearest real one (screen design §6.2).
+pub fn unknown_key_suggestion(got: &str, suggest: &str) -> String {
+    match lang() {
+        Lang::En => format!("unknown key name \"{got}\" — did you mean \"{suggest}\"?"),
+        Lang::Ja => format!("未知のキー名 \"{got}\"。\"{suggest}\" のことですか?"),
     }
 }
 
@@ -898,5 +981,31 @@ pub fn macro_record_banner_replaying(app: &str, commands: &[KeyCombo]) -> String
     match lang() {
         Lang::En => format!("Replaying in {app}:  {steps}"),
         Lang::Ja => format!("{app} で再生中:  {steps}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use winremap::keymap::{parse_input_pattern, parse_key_combo};
+
+    // LANG is never initialized under test, so everything renders English.
+    #[test]
+    fn renders_notation_in_human_words() {
+        let combo = parse_key_combo("C-S-h").expect("parses");
+        assert_eq!(combo_human(&combo), "Ctrl + Shift + h");
+
+        let sequence = parse_input_pattern("A-x h").expect("parses");
+        assert_eq!(input_human(&sequence), "Alt + x, then h (two strokes)");
+
+        let single = parse_input_pattern("C-h").expect("parses");
+        assert_eq!(input_human(&single), "Ctrl + h");
+
+        let steps = [
+            parse_key_combo("C-Right").expect("parses"),
+            parse_key_combo("C-Left").expect("parses"),
+        ];
+        assert_eq!(output_human(&steps), "Ctrl + Right → Ctrl + Left (macro)");
+        assert_eq!(output_human(&steps[..1]), "Ctrl + Right");
     }
 }
