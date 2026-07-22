@@ -116,10 +116,10 @@ v0.2 から繰り越し（[v0.2 開発計画 §4](../v0.2/01_development-plan.md
 ### タスク
 
 1. ~~ADR 0045 — 配布チャネル方針~~ — [作成済み](decisions/0045-package-manager-channels.md)。ID は `DaikiSuganuma.WinRemap`（`Moniker: winremap`）、scoop は公式 Extras バケットへ（オーナー決定 2026-07-21）
-2. winget: `microsoft/winget-pkgs` へのマニフェスト提出（installer は Inno Setup 製のため `installerType: inno`）。リリースごとの更新自動化（winget-releaser 等の GitHub Actions）を評価
-3. scoop: 提出先の選定 — 公式 Extras バケットへの提出、または自前バケット（`suganuma/scoop-winremap` 等）。portable exe + `autoupdate` 定義
-4. README / ヘルプサイトのインストール手順に winget / scoop を追記。「他サイト配布バイナリは非公式」の記述と整合させる（マニフェストは公式 Releases の URL を参照するため公式チャネルと明記できる）
-5. [03_release-operations.md](../03_release-operations.md) にパッケージ更新手順を追記
+2. winget: `microsoft/winget-pkgs` へのマニフェスト提出（installer は Inno Setup 製のため `installerType: inno`）。リリースごとの更新自動化（winget-releaser 等の GitHub Actions）を評価 — **マニフェスト作成済み**（[`packaging/winget/`](../../packaging/winget/)、スキーマ 1.6.0、v0.3.0 の URL・SHA256 反映）。**提出（winget-pkgs への PR）はオーナー作業として残る**
+3. scoop: 提出先の選定 — 公式 Extras バケットへの提出、または自前バケット（`suganuma/scoop-winremap` 等）。portable exe + `autoupdate` 定義 — **マニフェスト作成済み**（[`packaging/scoop/winremap.json`](../../packaging/scoop/winremap.json)、`autoupdate` 定義つき）。**Extras への PR はオーナー作業として残る**
+4. ~~README / ヘルプサイトのインストール手順に winget / scoop を追記~~ — 済（README en/ja、`site/install.html`・`site/ja/install.html`。「公開後に有効」と明記）
+5. ~~[03_release-operations.md](../03_release-operations.md) にパッケージ更新手順を追記~~ — 済（§3 として追加）
 
 参照（公式）:
 

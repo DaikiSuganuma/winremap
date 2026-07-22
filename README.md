@@ -75,6 +75,19 @@ flowchart TD
    WinRemap at sign-in, and — if you have no config yet — creates
    `%APPDATA%\winremap\config.toml` from the minimal example.
 
+   Package managers work too, once WinRemap is published to each (the
+   manifests are submitted after every release; the
+   [Releases](https://github.com/DaikiSuganuma/winremap/releases) download
+   always works right away):
+
+   ```powershell
+   winget install winremap
+   scoop bucket add extras; scoop install winremap
+   ```
+
+   Both install the same official binaries from GitHub Releases — see
+   [`packaging/`](packaging/) for the manifests.
+
    Prefer a portable setup? Download the single `winremap.exe` instead, or
    build from source:
 
