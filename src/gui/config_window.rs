@@ -194,6 +194,13 @@ impl ConfigWindow {
                 self.files.refresh(path);
                 let active = file_name(path);
                 ui.horizontal(|ui| {
+                    // The row height is fixed up front so every element —
+                    // icon, path, dropdown, buttons — centres on one axis.
+                    // Without it the shorter labels sit at the top while the
+                    // taller widgets, added later, stretch the row downward.
+                    let row_height =
+                        ui.text_style_height(&egui::TextStyle::Button) + 2.0 * theme::BUTTON_PADDING;
+                    ui.set_height(row_height);
                     icons::show(ui, Icon::Folder, theme::body_icon_size(ui));
                     let folder = path
                         .parent()
@@ -323,17 +330,30 @@ fn file_menu_ui(ui: &mut egui::Ui, files: &FileList, path: &Path, active: &str) 
         }
     }
     ui.separator();
-    if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
-        open_in_default_editor(path);
-    }
-    if icons::link(ui, Icon::Folder, texts.config_open_folder)
-        && let Some(folder) = path.parent()
-    {
-        super::log::action(texts.config_open_folder);
-        if !super::win32::open_folder(folder) {
-            crate::notify::error(&i18n::open_folder_failed(&folder.display().to_string()));
+    // Breathing room around the action links (owner decision 2026-07-22):
+    // they read as a menu section of their own, not as more list rows.
+    ui.add_space(f32::from(CELL_PAD));
+    ui.horizontal(|ui| {
+        ui.add_space(NOTE_GAP);
+        if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
+            open_in_default_editor(path);
         }
-    }
+        ui.add_space(NOTE_GAP);
+    });
+    ui.add_space(f32::from(CELL_PAD));
+    ui.horizontal(|ui| {
+        ui.add_space(NOTE_GAP);
+        if icons::link(ui, Icon::Folder, texts.config_open_folder)
+            && let Some(folder) = path.parent()
+        {
+            super::log::action(texts.config_open_folder);
+            if !super::win32::open_folder(folder) {
+                crate::notify::error(&i18n::open_folder_failed(&folder.display().to_string()));
+            }
+        }
+        ui.add_space(NOTE_GAP);
+    });
+    ui.add_space(f32::from(CELL_PAD));
 }
 
 /// One row of the navigation tree: an icon, a label, and — when selected —
