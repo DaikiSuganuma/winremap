@@ -272,10 +272,25 @@ impl ConfigWindow {
                 ui.horizontal(|ui| {
                     // The row height is fixed up front so every element —
                     // icon, path, dropdown, buttons — centres on one axis.
-                    // Without it the shorter labels sit at the top while the
-                    // taller widgets, added later, stretch the row downward.
-                    let row_height = ui.text_style_height(&egui::TextStyle::Button)
-                        + 2.0 * theme::BUTTON_PADDING;
+                    // Measured from a real galley of the button's label, not
+                    // from `text_style_height`: the labels are Japanese, and
+                    // the JP fallback face stands taller than the Latin
+                    // font's nominal row height, so an estimate leaves the
+                    // buttons poking below centre (owner feedback
+                    // 2026-07-22).
+                    let label = if editing {
+                        texts.config_save
+                    } else {
+                        texts.config_edit
+                    };
+                    let font = egui::TextStyle::Button.resolve(ui.style());
+                    let text_height = ui
+                        .painter()
+                        .layout_no_wrap(label.to_owned(), font, egui::Color32::PLACEHOLDER)
+                        .size()
+                        .y;
+                    let row_height =
+                        text_height.max(theme::button_icon_size(ui)) + 2.0 * theme::BUTTON_PADDING;
                     ui.set_height(row_height);
                     icons::show(ui, Icon::Folder, theme::body_icon_size(ui));
                     let folder = path
@@ -316,6 +331,9 @@ impl ConfigWindow {
                         }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // The same fixed height as the row, so the buttons
+                        // centre on the same axis as everything else.
+                        ui.set_height(row_height);
                         if editing {
                             // Right-to-left: Revert lands rightmost, Save to
                             // its left — reading order Save, Revert (§2.4).
@@ -688,6 +706,11 @@ fn nav_row(
                 .max_rect(inner)
                 .layout(egui::Layout::left_to_right(egui::Align::Center)),
         );
+        // The label must not be text-selectable: egui's selectable labels
+        // claim the pointer for drag-selection, which swallowed clicks on
+        // the text and left only the blank end of the row clickable (owner
+        // feedback 2026-07-22). The row is a button; its text is not prose.
+        child.style_mut().interaction.selectable_labels = false;
         if indented {
             child.add_space(theme::NAV_INDENT);
         }
