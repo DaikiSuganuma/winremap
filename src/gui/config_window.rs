@@ -23,7 +23,7 @@ use super::icons::{self, Icon};
 // read and adjusted in one place.
 use crate::i18n;
 use crate::theme;
-use crate::theme::{CELL_PAD, EDGE_PAD, NOTE_GAP, SECTION_GAP, SECTION_TEXT, TITLE_TEXT};
+use crate::theme::{CELL_PAD, EDGE_PAD, NOTE_GAP, SECTION_GAP, SECTION_TEXT};
 use winremap::config::comments::{ConfigComments, KeymapComments};
 use winremap::config::draft::{self, ConfigDraft, KeymapDraft, RuleDraft};
 use winremap::ime_indicator_settings::{
@@ -269,29 +269,30 @@ impl ConfigWindow {
             .show(ui, |ui| {
                 self.files.refresh(path);
                 let active = file_name(path);
-                ui.horizontal(|ui| {
-                    // The row height is fixed up front so every element —
-                    // icon, path, dropdown, buttons — centres on one axis.
-                    // Measured from a real galley of the button's label, not
-                    // from `text_style_height`: the labels are Japanese, and
-                    // the JP fallback face stands taller than the Latin
-                    // font's nominal row height, so an estimate leaves the
-                    // buttons poking below centre (owner feedback
-                    // 2026-07-22).
-                    let label = if editing {
-                        texts.config_save
-                    } else {
-                        texts.config_edit
-                    };
-                    let font = egui::TextStyle::Button.resolve(ui.style());
-                    let text_height = ui
-                        .painter()
-                        .layout_no_wrap(label.to_owned(), font, egui::Color32::PLACEHOLDER)
-                        .size()
-                        .y;
-                    let row_height =
-                        text_height.max(theme::button_icon_size(ui)) + 2.0 * theme::BUTTON_PADDING;
-                    ui.set_height(row_height);
+                // The row's height is fixed *before* laying anything out.
+                // `ui.horizontal` pins its centring axis to the default
+                // interact height, so short labels ride high and anything
+                // taller sags below it — `set_height` cannot move that axis
+                // (owner feedback 2026-07-22). The height comes from a real
+                // galley of the button label: the labels are Japanese, and
+                // the JP fallback face stands taller than the Latin font's
+                // nominal row height.
+                let label = if editing {
+                    texts.config_save
+                } else {
+                    texts.config_edit
+                };
+                let font = egui::TextStyle::Button.resolve(ui.style());
+                let text_height = ui
+                    .painter()
+                    .layout_no_wrap(label.to_owned(), font, egui::Color32::PLACEHOLDER)
+                    .size()
+                    .y;
+                let row_height =
+                    text_height.max(theme::button_icon_size(ui)) + 2.0 * theme::BUTTON_PADDING;
+                let row_size = egui::vec2(ui.available_width(), row_height);
+                let layout = egui::Layout::left_to_right(egui::Align::Center);
+                ui.allocate_ui_with_layout(row_size, layout, |ui| {
                     icons::show(ui, Icon::Folder, theme::body_icon_size(ui));
                     let folder = path
                         .parent()
@@ -331,9 +332,6 @@ impl ConfigWindow {
                         }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        // The same fixed height as the row, so the buttons
-                        // centre on the same axis as everything else.
-                        ui.set_height(row_height);
                         if editing {
                             // Right-to-left: Revert lands rightmost, Save to
                             // its left — reading order Save, Revert (§2.4).
@@ -747,7 +745,6 @@ fn breadcrumb_ui(ui: &mut egui::Ui, table: &RemapTable, selection: Selection) {
             },
         }
     });
-    ui.separator();
 }
 
 /// The navigation tree in edit mode: the same rows over the draft, plus the
@@ -878,7 +875,6 @@ fn breadcrumb_edit_ui(ui: &mut egui::Ui, draft: &ConfigDraft, selection: Selecti
             ui.label(egui::RichText::new(texts.config_edit_notice).color(warn));
         });
     });
-    ui.separator();
 }
 
 /// The keymap detail pane, editable (screen design §4.3). The section order
@@ -1145,11 +1141,9 @@ fn keymap_ui(
 ) {
     let texts = i18n::t();
     ui.add_space(8.0);
-    ui.label(
-        egui::RichText::new(keymap_label(keymap))
-            .size(TITLE_TEXT)
-            .strong(),
-    );
+    // No pane title: the breadcrumb and the tree already name the keymap,
+    // and a third repetition said nothing new (owner feedback 2026-07-22).
+    // The name row and its same-line comment carry what the file says.
     if !keymap.name.is_empty() {
         field(ui, texts.config_field_name, "name", &keymap.name);
         note(ui, comments.and_then(|c| c.field("name")));
@@ -1483,12 +1477,8 @@ fn render_output(output: &Output) -> String {
 fn general_ui(ui: &mut egui::Ui, table: &RemapTable, comments: &ConfigComments) {
     let texts = i18n::t();
     ui.add_space(8.0);
-    ui.label(
-        egui::RichText::new(texts.config_general)
-            .size(TITLE_TEXT)
-            .strong(),
-    );
-
+    // No pane title — same reasoning as the keymap pane: the breadcrumb
+    // already says where you are.
     section(ui, Icon::Macro, texts.config_macro_section, "[macro]");
     // The v0.1 spelling still works, so show whichever key the file uses
     // (ADR 0039) - otherwise the comment column would come up empty.

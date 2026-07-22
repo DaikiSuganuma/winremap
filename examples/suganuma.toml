@@ -62,9 +62,8 @@ exclude = [
 "A-a" = "C-a" # 全選択
 
 # --- ブラウザはネイティブのショートカットを維持（emacs_exclusion_key 相当） ---
-# アプリ別ルールはグローバルより優先されるため、恒等リマップで実質素通しになる。
 [[keymap]]
-name = "browser-native-keys"
+name = "browser-native-keys" # アプリ別ルールはグローバルより優先されるため、恒等リマップで実質素通しになる。
 application = ["chrome.exe", "msedge.exe", "firefox.exe"]
 
 [keymap.remap]

@@ -44,8 +44,6 @@ pub const HOST_POSITION: [f32; 2] = [-32000.0, -32000.0];
 /// Section titles, bigger than body text and sitting under a rule, so a long
 /// detail pane reads as parts rather than one wall.
 pub const SECTION_TEXT: f32 = 17.0;
-/// The keymap's own name, one step above its sections.
-pub const TITLE_TEXT: f32 = 21.0;
 /// The recorded macro, which is the one value in the settings window that
 /// changes while you watch it.
 pub const HIGHLIGHT_TEXT: f32 = 16.0;
