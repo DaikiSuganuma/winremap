@@ -6,7 +6,7 @@
 > 本書で新規に起こす設計判断: [ADR 0049](decisions/0049-config-edit-draft-model.md)（閲覧＝ライブ表 / 編集＝ファイル起点ドラフトの二モデル）。
 
 - 作成日: 2026-07-22
-- 作成: Claude Code（AI モデル: claude-opus-4-8）／レビュー・承認: オーナー（**着手前承認待ち**）
+- 作成: Claude Code（AI モデル: claude-opus-4-8）／レビュー・承認: オーナー（**承認 2026-07-22**。[画面設計書](04_config-editing-screens.md) とあわせて実装着手を承認） 
 
 ---
 
