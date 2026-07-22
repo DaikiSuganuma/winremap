@@ -24,6 +24,7 @@
 pub mod config_window;
 mod icons;
 pub mod log;
+mod watch;
 mod win32;
 
 use std::path::PathBuf;
@@ -341,6 +342,13 @@ const SETTLE_FRAMES: u8 = 3;
 impl eframe::App for HostApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+
+        // The folder watch follows the settings window (ADR 0051): here on
+        // the host frame, because this runs whether or not that window is —
+        // which is exactly when a close has to release the watch.
+        let config_open = CONFIG_OPEN.load(Ordering::Relaxed);
+        let path = active_config_path();
+        watch::sync(config_open, path.parent(), &ctx);
 
         show_config_viewport(&ctx, &self.config);
         log::show_viewport(&ctx);

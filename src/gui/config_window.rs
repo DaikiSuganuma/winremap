@@ -96,10 +96,10 @@ enum FooterAction {
     CloseDiscard,
 }
 
-/// How stale the folder listing and the change marks may get. Short enough
-/// that an external save shows up while the window is open, long enough
-/// that painting stays free of disk access. The notify watch (ADR 0051)
-/// will make this poll the fallback rather than the primary path.
+/// How stale the folder listing and the change marks may get when the
+/// notify watch (ADR 0051) could not start and polling is the fallback.
+/// Short enough that an external save shows up while the window is open,
+/// long enough that painting stays free of disk access.
 const FILE_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
 /// The `*.toml` files beside the active config, with their change marks
@@ -112,6 +112,9 @@ struct FileList {
     /// "differs from this"; on the active file it means "differs from what
     /// is loaded" — the state the removed timestamps used to convey.
     first_seen: HashMap<String, draft::FileStamp>,
+    /// The loaded stamp the marks were computed against, so a reload —
+    /// which produces no folder event — still clears the active file's ●.
+    loaded_seen: Option<draft::FileStamp>,
 }
 
 struct FileEntry {
@@ -121,12 +124,23 @@ struct FileEntry {
 
 impl FileList {
     fn refresh(&mut self, path: &Path) {
-        if let Some(checked) = self.checked
+        let cue = super::watch::take_dirty();
+        let loaded = super::loaded_stamp();
+        if super::watch::active() {
+            // Event-driven (ADR 0051): the folder is looked at again on a
+            // watch cue, on a reload, or on the first frame — otherwise
+            // painting never touches the disk at all.
+            if !cue && loaded == self.loaded_seen && self.checked.is_some() {
+                return;
+            }
+        } else if !cue
+            && let Some(checked) = self.checked
             && checked.elapsed() < FILE_POLL_INTERVAL
         {
             return;
         }
         self.checked = Some(Instant::now());
+        self.loaded_seen = loaded;
         self.entries.clear();
         let Some(folder) = path.parent() else { return };
         let Ok(dir) = std::fs::read_dir(folder) else {
@@ -142,7 +156,6 @@ impl FileList {
             .collect();
         names.sort_by_key(|name| name.to_ascii_lowercase());
         let active = file_name(path);
-        let loaded = super::loaded_stamp();
         for name in names {
             let stamp = draft::stamp(&folder.join(&name)).ok();
             let changed = if name.eq_ignore_ascii_case(&active) {
