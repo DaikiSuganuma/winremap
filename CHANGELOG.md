@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Config editing in the settings window** (milestone B2, ADR 0049): the
+  Edit button turns the window into an editor for the config file itself —
+  keymap names, target apps, exclusions and remap rules as editable cells,
+  keymaps addable/deletable/reorderable from the tree, and the general
+  settings on sliders and checkboxes. Save validates with the same parser
+  the CLI and tray use, writes atomically, and reloads; comments, blank
+  lines, ordering and your own spellings survive untouched (ADR 0036).
+  A file changed outside WinRemap is never silently overwritten, a failed
+  save keeps the draft, and closing with unsaved changes asks first.
+- **Explorer-style settings window**: an address bar with a dropdown over
+  the config folder's `.toml` files — switch the active config by picking
+  one (ADR 0050); a ● marks any file that changed on disk, watched via the
+  `notify` crate while the window is open (ADR 0051). An icon tree with
+  full-row selection replaces the plain list, a breadcrumb tops the detail
+  pane, and a status bar shows the version, when WinRemap started, and the
+  last thing that happened.
+
 ## [0.3.0] - 2026-07-22
 
 ### Added
