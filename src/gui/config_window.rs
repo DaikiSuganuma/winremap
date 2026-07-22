@@ -293,6 +293,13 @@ impl ConfigWindow {
                 let row_size = egui::vec2(ui.available_width(), row_height);
                 let layout = egui::Layout::left_to_right(egui::Align::Center);
                 ui.allocate_ui_with_layout(row_size, layout, |ui| {
+                    // ComboBox lays itself out on an interact_size-high axis
+                    // of its own; with the app's button padding it outgrows
+                    // that axis, sags below centre and drags the row taller
+                    // (verified with a headless probe). Matching the
+                    // interact height to the row pins every widget to one
+                    // axis.
+                    ui.spacing_mut().interact_size.y = row_height;
                     icons::show(ui, Icon::Folder, theme::body_icon_size(ui));
                     let folder = path
                         .parent()

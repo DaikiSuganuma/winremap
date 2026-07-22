@@ -46,7 +46,10 @@ fn run() -> anyhow::Result<()> {
     // help text parse_args may print.
     i18n::init(extract_lang(&args)?);
     let cli = parse_args(&args)?;
-    let config_path = cli.config_path;
+    // Absolute from the start: the settings window's address bar shows the
+    // parent folder and lists its .toml files for switching (ADR 0050), and
+    // a relative `--config x.toml` has no parent to show or read.
+    let config_path = std::path::absolute(&cli.config_path).unwrap_or(cli.config_path);
     hook::set_debug(cli.debug);
     // Remembered so closing the log window restores this instead of
     // silencing a `--debug` session that was running before it opened.
