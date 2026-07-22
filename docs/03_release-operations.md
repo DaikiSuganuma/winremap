@@ -78,7 +78,7 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 
 1. `packaging/winget/*.yaml` と `packaging/scoop/winremap.json` の `PackageVersion` / `version`・`InstallerUrl` / `url`・SHA256 を新バージョンに更新する（ハッシュは Release の `SHA256SUMS` から。**winget は大文字**、scoop は小文字）
 2. **winget**: `manifests/d/DaikiSuganuma/WinRemap/<version>/` として [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) へ PR（`wingetcreate submit packaging\winget` が楽。事前に `winget validate --manifest packaging\winget`）
-3. **scoop**: `winremap.json` を [ScoopInstaller/Extras](https://github.com/ScoopInstaller/Extras) へ PR。`autoupdate` を定義済みなので、次回以降はバケット側の自動更新に乗ることが多い
+3. **scoop**: **保留中**（[ADR 0048](./v0.3/decisions/0048-scoop-defer-extras.md)）。Extras は知名度基準未達でクローズ済み。基準到達後に再開する。`winremap.json` は `packaging/scoop/` に温存
 4. `packaging/` の control copy を提出内容と同一にそろえてコミットする
 5. 更新自動化（[winget-releaser](https://github.com/vedantmgoyal9/winget-releaser) 等）を入れるかは [ADR 0045](./v0.3/decisions/0045-package-manager-channels.md) 決定 6 に従って判断する
 

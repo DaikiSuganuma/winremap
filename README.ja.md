@@ -50,16 +50,15 @@ flowchart TD
    自動起動（任意）に対応し、設定ファイルがまだ無い場合は
    `%APPDATA%\winremap\config.toml` を最小サンプルから作成します。
 
-   パッケージマネージャーからも入れられます（各マネージャーへの公開後。マニフェストは
-   リリースごとに提出します。[Releases](https://github.com/DaikiSuganuma/winremap/releases)
+   winget からも入れられます（マニフェストの受理後。リリースごとに提出します。
+   [Releases](https://github.com/DaikiSuganuma/winremap/releases)
    からのダウンロードは常に即利用可能です）:
 
    ```powershell
    winget install winremap
-   scoop bucket add extras; scoop install winremap
    ```
 
-   どちらも GitHub Releases の同じ公式バイナリを入れます。マニフェストは
+   GitHub Releases の同じ公式バイナリを入れます。マニフェストは
    [`packaging/`](packaging/) を参照してください。
 
    ポータブル運用にしたい場合は単体の `winremap.exe` をダウンロードするか、
