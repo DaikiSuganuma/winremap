@@ -72,7 +72,19 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
    gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
    ```
 
-## 3. 配布ポリシー（ブリーフ §10-3）
+## 3. パッケージマネージャーの更新（リリース後）
+
+winget / scoop のマニフェストは公式 Releases の資産（URL と SHA256）を指すため、**タグを打って Release を公開したあとに**更新・提出する（[ADR 0045](./v0.3/decisions/0045-package-manager-channels.md)）。提出物の control copy は [`packaging/`](../packaging/) にある（書き方・ローカル検証は [`packaging/README.md`](../packaging/README.md)）。
+
+1. `packaging/winget/*.yaml` と `packaging/scoop/winremap.json` の `PackageVersion` / `version`・`InstallerUrl` / `url`・SHA256 を新バージョンに更新する（ハッシュは Release の `SHA256SUMS` から。**winget は大文字**、scoop は小文字）
+2. **winget**: `manifests/d/DaikiSuganuma/WinRemap/<version>/` として [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) へ PR（`wingetcreate submit packaging\winget` が楽。事前に `winget validate --manifest packaging\winget`）
+3. **scoop**: `winremap.json` を [ScoopInstaller/Extras](https://github.com/ScoopInstaller/Extras) へ PR。`autoupdate` を定義済みなので、次回以降はバケット側の自動更新に乗ることが多い
+4. `packaging/` の control copy を提出内容と同一にそろえてコミットする
+5. 更新自動化（[winget-releaser](https://github.com/vedantmgoyal9/winget-releaser) 等）を入れるかは [ADR 0045](./v0.3/decisions/0045-package-manager-channels.md) 決定 6 に従って判断する
+
+> 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
+
+## 4. 配布ポリシー（ブリーフ §10-3）
 
 - 配布の一次は GitHub Releases。winget（`DaikiSuganuma.WinRemap`）と scoop（公式 Extras バケット）は [ADR 0045](./v0.3/decisions/0045-package-manager-channels.md) で採用済みで、いずれも公式 Releases の URL と SHA256 を参照する**別の入口**である。**マニフェストの確定・提出は v0.3.0 のリリース後**（タグを打つまで資産の URL とハッシュが定まらないため）。パッケージ更新手順は Phase B で本書に追記する
 - 他サイトで配布されているバイナリは非公式（README / SECURITY.md に明記済み）
