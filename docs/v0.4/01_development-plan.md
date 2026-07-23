@@ -153,7 +153,7 @@ v0.4 の新機能（Phase A・B）を利用者向けの言葉で反映する。
 4. `docs/v0.4/03_acceptance-checklist.md` と v0.1・v0.2・v0.3 の全項目で手動受け入れテスト実施・記録
 5. タグ `v0.4.0` → GitHub Release（installer + portable + SHA256SUMS + THIRD-PARTY-NOTICES + attestation）
 6. `release/0.4.0` を `main` と `develop` の両方へ **`--no-ff`** でマージ
-7. winget マニフェストの更新提出（[03_release-operations.md §3](../03_release-operations.md) の手順）。scoop は基準到達まで保留（[ADR 0048](../v0.3/decisions/0048-scoop-defer-extras.md)）
+7. winget マニフェストの提出（[03_release-operations.md §3](../03_release-operations.md) の手順）。**v0.4.0 が winget への初回登録になる** — v0.3.0 の提出は実行ファイルの DLL 依存で検証に失敗しており、その PR を取り下げてやり直す（オーナー決定 2026-07-23。[作業ノート](notes/20260723_winget-0.3.0-validation.md)、[ADR 0052](decisions/0052-static-crt.md)）。`Dependencies` は入れない。scoop は基準到達まで保留（[ADR 0048](../v0.3/decisions/0048-scoop-defer-extras.md)）
 
 ---
 
