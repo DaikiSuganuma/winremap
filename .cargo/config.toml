@@ -1,0 +1,5 @@
+# Link the MSVC C runtime statically (ADR 0052). Without this the exe imports
+# vcruntime140.dll, which a clean Windows machine does not have — winget's
+# validation VM failed to launch v0.3.0 with STATUS_DLL_NOT_FOUND.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
