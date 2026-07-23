@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The executable no longer depends on `vcruntime140.dll`, so it starts on a
+  clean Windows machine without the VC++ redistributable installed. This is
+  what crashed winget's validation of v0.3.0 with `STATUS_DLL_NOT_FOUND`;
+  the C runtime is now linked statically (ADR 0052).
+
 ## [0.3.0] - 2026-07-22
 
 ### Added
