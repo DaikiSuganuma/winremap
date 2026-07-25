@@ -178,11 +178,18 @@ function Save-Diagnostics {
 # guest\promote-tray-icon.ps1 for why the scenarios cannot open that flyout.
 function Set-TrayIconPromoted {
     $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-    # Its output says how many registry entries were promoted — worth seeing,
-    # since "no icon on the taskbar" is the failure it is meant to prevent.
-    $out = Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
-        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\promote-tray-icon.ps1"
-    Write-Host "  promote-tray-icon: $($out -join ' / ')" -ForegroundColor Gray
+    Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
+        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\promote-tray-icon.ps1" | Out-Null
+
+    # vmrun does not bring guest stdout back, so the script leaves its result
+    # in a file. Reading it turns a silent no-op — which costs the scenario its
+    # entire timeout and reads as an app bug — into an immediate failure.
+    $result = Join-Path $env:TEMP "winremap-promote-result.txt"
+    Remove-Item $result -Force -ErrorAction SilentlyContinue
+    Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\promote-result.txt" $result | Out-Null
+    $promoted = if (Test-Path $result) { (Get-Content $result -Raw).Trim() } else { "promoted=?" }
+    Write-Host "  tray icon: $promoted" -ForegroundColor Gray
+    return ($promoted -eq "promoted=1")
 }
 
 function Invoke-Scenario {
@@ -277,8 +284,14 @@ foreach ($file in $files) {
     # Sniffing the prompt wording for it was silently wrong the moment a
     # scenario was reworded — scenario 02 then looked for an icon nothing had
     # promoted, and blamed the app.
-    if ($needsTray[$name]) { Set-TrayIconPromoted }
-    $verdict = Invoke-Scenario -File $file
+    $ready = if ($needsTray[$name]) { Set-TrayIconPromoted } else { $true }
+    $verdict = if ($ready) {
+        Invoke-Scenario -File $file
+    }
+    else {
+        Write-Host "  skipped: the tray icon was not promoted" -ForegroundColor Red
+        "SETUP FAILED"
+    }
     if ($verdict -ne "PASS") { Save-Diagnostics -Name $name }
     $results[$name] = $verdict
 }
