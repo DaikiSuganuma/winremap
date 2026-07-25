@@ -161,11 +161,17 @@ claude -p `$prompt --dangerously-skip-permissions
         Write-Host $_
         $_
     }
-    # The agent is told to end with the verdict; the entry script prefixes
-    # guest output, so match on the word rather than the whole line.
+    # A timeout or a failed launch is a failed scenario whatever the text
+    # says; the entry script reports that through its exit code.
+    if ($LASTEXITCODE -ne 0) { return "ERROR" }
+
+    # Only a line that is nothing but the verdict counts. The entry script
+    # echoes the command it runs — prompt included — so a substring match
+    # would find the "print exactly PASS" of the instructions themselves.
+    # -cmatch keeps prose like "passed" out of it.
     $verdict = "NO VERDICT"
     foreach ($line in $output) {
-        if ("$line" -match '\b(PASS|FAIL)\b') { $verdict = $Matches[1] }
+        if ("$line" -cmatch '^\s*(?:\|\s*)?(PASS|FAIL)[.\s]*$') { $verdict = $Matches[1] }
     }
     return $verdict
 }
