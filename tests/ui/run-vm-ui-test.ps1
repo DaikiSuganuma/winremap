@@ -76,6 +76,21 @@ function Invoke-Vmrun {
     & $script:vmrun -T ws -gu $script:vm.UserName -gp $script:vm.Password @VmrunArgs 2>&1
 }
 
+# The golden snapshot was taken while an earlier test run was still live, so
+# reverting resumes that run's claude and MCP processes. They keep
+# C:\Setup\run-output.log open, our own run's output never lands in it, and
+# the scenario times out with nothing to show. Clear them before starting.
+# Harmless when the snapshot is clean; drop this once it is rebuilt.
+function Clear-StaleRun {
+    $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+    # powershell.exe is deliberately absent from the list: this command is one.
+    $script = "Get-Process node,CalculatorApp,cmd,winremap,notepad -ErrorAction SilentlyContinue | " +
+    "Stop-Process -Force -ErrorAction SilentlyContinue; " +
+    "Remove-Item 'C:\Setup\run-output.log','C:\Setup\run-done.txt' -Force -ErrorAction SilentlyContinue"
+    Invoke-Vmrun runProgramInGuest $script:vm.VmxPath $ps "-NoProfile" "-Command" $script | Out-Null
+    Write-Host "  cleared any run left over in the snapshot" -ForegroundColor Gray
+}
+
 function Reset-Guest {
     Write-Host "  reverting to snapshot '$Snapshot'..." -ForegroundColor Gray
     & $script:vmrun -T ws revertToSnapshot $script:vm.VmxPath $Snapshot 2>&1 | Out-Null
@@ -92,6 +107,7 @@ function Reset-Guest {
             Write-Host "  guest is up" -ForegroundColor Gray
             # The desktop needs a moment more before UI automation can attach.
             Start-Sleep -Seconds 15
+            Clear-StaleRun
             return
         }
         Start-Sleep -Seconds 5
@@ -140,15 +156,34 @@ function Copy-Payload {
     Write-Host "  payload copied to $guestDir" -ForegroundColor Gray
 }
 
+# A scenario that fails or hangs leaves nothing behind once the guest is
+# reverted, and the agent's own output is the first thing missing when it
+# hangs. Grab the screen and the guest-side log while they still exist.
+function Save-Diagnostics {
+    param([string]$Name)
+    $dir = Join-Path $env:TEMP "winremap-ui-test"
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    $shot = Join-Path $dir "$Name.png"
+    $log = Join-Path $dir "$Name.log"
+    Invoke-Vmrun captureScreen $script:vm.VmxPath $shot | Out-Null
+    Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "C:\Setup\run-output.log" $log | Out-Null
+    Write-Host "  diagnostics: $dir" -ForegroundColor Yellow
+}
+
 function Invoke-Scenario {
     param([System.IO.FileInfo]$File)
 
     $prompt = (Get-Content $File.FullName -Raw).TrimEnd()
     # The guest's PATH does not include npm's global bin in a non-login shell,
     # and the token lives in the User environment (never in this repo).
+    # Set-Location matters: vmrun starts the command in C:\Windows\System32,
+    # and the terminator MCP server never becomes healthy when spawned with
+    # that as its working directory — claude then hangs before its first tool
+    # call, with no output at all.
     $command = @"
 `$env:CLAUDE_CODE_OAUTH_TOKEN = [Environment]::GetEnvironmentVariable('CLAUDE_CODE_OAUTH_TOKEN','User')
 `$env:Path = `$env:Path + ';' + `$env:APPDATA + '\npm'
+Set-Location `$env:USERPROFILE
 `$prompt = @'
 $prompt
 '@
@@ -203,7 +238,9 @@ foreach ($file in $files) {
     $exe = Build-Binary -TestInject $needsInject
     if (-not $NoRevert) { Reset-Guest }
     Copy-Payload -Exe $exe
-    $results[$name] = Invoke-Scenario -File $file
+    $verdict = Invoke-Scenario -File $file
+    if ($verdict -ne "PASS") { Save-Diagnostics -Name $name }
+    $results[$name] = $verdict
 }
 
 if (-not $NoRevert) {
