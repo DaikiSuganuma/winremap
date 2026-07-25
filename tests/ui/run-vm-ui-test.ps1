@@ -151,7 +151,8 @@ function Copy-Payload {
             # minimal.toml is what the display scenarios read back; uitest.toml
             # is the fixture the remap scenario needs (see its header).
             @{ Local = (Join-Path $repoRoot "examples\minimal.toml"); Guest = "$guestDir\minimal.toml" },
-            @{ Local = (Join-Path $PSScriptRoot "fixtures\uitest.toml"); Guest = "$guestDir\uitest.toml" }
+            @{ Local = (Join-Path $PSScriptRoot "fixtures\uitest.toml"); Guest = "$guestDir\uitest.toml" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\promote-tray-icon.ps1"); Guest = "$guestDir\promote-tray-icon.ps1" }
         )) {
         Invoke-Vmrun copyFileFromHostToGuest $script:vm.VmxPath $pair.Local $pair.Guest | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "copying $($pair.Local) to the guest failed" }
@@ -171,6 +172,15 @@ function Save-Diagnostics {
     Invoke-Vmrun captureScreen $script:vm.VmxPath $shot | Out-Null
     Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "C:\Setup\run-output.log" $log | Out-Null
     Write-Host "  diagnostics: $dir" -ForegroundColor Yellow
+}
+
+# Puts WinRemap's icon on the taskbar instead of in the overflow flyout; see
+# guest\promote-tray-icon.ps1 for why the scenarios cannot open that flyout.
+function Set-TrayIconPromoted {
+    $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+    Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
+        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\promote-tray-icon.ps1" | Out-Null
+    Write-Host "  tray icon promoted out of the overflow" -ForegroundColor Gray
 }
 
 function Invoke-Scenario {
@@ -243,6 +253,12 @@ foreach ($file in $files) {
     $exe = Build-Binary -TestInject $needsInject
     if (-not $NoRevert) { Reset-Guest }
     Copy-Payload -Exe $exe
+    # Only the scenarios that use the tray need it, and it costs ~20 seconds.
+    if ((Get-Content $file.FullName -Raw) -match 'notification area|tray') {
+        if ((Get-Content $file.FullName -Raw) -notmatch 'Do not touch the notification area') {
+            Set-TrayIconPromoted
+        }
+    }
     $verdict = Invoke-Scenario -File $file
     if ($verdict -ne "PASS") { Save-Diagnostics -Name $name }
     $results[$name] = $verdict

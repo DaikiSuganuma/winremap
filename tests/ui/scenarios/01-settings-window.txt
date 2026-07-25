@@ -2,7 +2,7 @@ Use the terminator MCP tools to test a Windows desktop app. Do exactly these ste
 
 1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
 2. Wait 5 seconds for its tray icon to appear in the notification area.
-3. Expand the notification area overflow (the up-chevron button on the taskbar), then right-click the WinRemap tray icon.
+3. Right-click the notification-area icon whose name contains "WinRemap". It sits directly on the taskbar — it has been promoted out of the overflow, so do NOT open the overflow flyout (that flyout does not open reliably under automation).
 4. Click the menu item named "Settings".
 5. Wait 3 seconds, then list the UI elements (role and name) of the settings window (its title starts with "WinRemap" and contains "settings").
 
