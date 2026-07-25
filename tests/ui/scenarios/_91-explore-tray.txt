@@ -1,0 +1,16 @@
+Use the terminator MCP tools. This is an exploration run, not a pass/fail test of the app: its purpose is to find the exact selectors for the notification area (system tray) so later scenarios can name them instead of searching. Report precisely; take the steps in order.
+
+The guest's Windows display language is Japanese, so element names are Japanese. Report them verbatim.
+
+1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
+2. Wait 5 seconds. WinRemap has no window — it only places an icon in the notification area, usually inside the overflow (the chevron button at the right of the taskbar).
+3. Inspect the taskbar's UI tree. Report the role and name of the button that opens the notification area overflow, exactly as they appear.
+4. Open that overflow. Report the tool call you used (tool name and arguments) and whether it worked on the first try.
+5. Inspect the opened overflow. Report the role and name of every icon inside it, and say which one is WinRemap.
+6. Right-click the WinRemap icon. Report the tool call you used and whether it worked.
+7. Report the role and name of every item in the menu that opened, verbatim and in order.
+8. Press Escape to close the menu.
+
+Finish your report with a section titled SELECTORS containing, one per line, a terminator selector string for: the overflow button, the WinRemap tray icon, and each menu item — in the form role:<role>|name:<name>.
+
+On the final line print exactly PASS if you managed to open the tray menu and list its items, otherwise print exactly FAIL.

@@ -727,6 +727,27 @@ pub fn no_config_file(path: &Path) -> String {
     }
 }
 
+/// Startup line for a `test-inject` build running with `--accept-injected`
+/// (ADR 0053). The mode is invisible in normal use — the keyboard behaves as
+/// always until another program injects input — so it is announced instead.
+pub fn test_build_notice() -> &'static str {
+    match lang() {
+        Lang::En => {
+            "TEST BUILD: input injected by other software is remapped too (--accept-injected)"
+        }
+        Lang::Ja => "テストビルド: 他ソフトが注入した入力もリマップします（--accept-injected）",
+    }
+}
+
+/// Appended to the tray menu's caption in the same mode, so the running
+/// instance identifies itself without opening the log.
+pub fn test_build_tray_suffix() -> &'static str {
+    match lang() {
+        Lang::En => " — TEST BUILD",
+        Lang::Ja => " — テストビルド",
+    }
+}
+
 pub fn unknown_argument(arg: &str) -> String {
     match lang() {
         Lang::En => format!("unknown argument `{arg}` (try --help)"),
@@ -832,6 +853,37 @@ pub fn debug_foreground(full_path: &str, app_name: &str, keymap_list: &str) -> S
 }
 
 pub fn help_text() -> String {
+    let mut text = base_help_text();
+    // Documented only where it is accepted; ordinary builds reject the flag.
+    if let Some(extra) = test_inject_help() {
+        text.push_str(extra);
+    }
+    text
+}
+
+/// The test-only flag's help entry, present only in `test-inject` builds
+/// (ADR 0053).
+fn test_inject_help() -> Option<&'static str> {
+    #[cfg(feature = "test-inject")]
+    {
+        Some(match lang() {
+            Lang::En => {
+                "
+        --accept-injected  Remap input injected by other software as well
+                           (TEST BUILD ONLY — for UI test automation)"
+            }
+            Lang::Ja => {
+                "
+        --accept-injected  他ソフトが注入した入力もリマップする
+                           （テストビルド専用 — UI テスト自動化用）"
+            }
+        })
+    }
+    #[cfg(not(feature = "test-inject"))]
+    None
+}
+
+fn base_help_text() -> String {
     let version = env!("CARGO_PKG_VERSION");
     match lang() {
         Lang::En => format!(

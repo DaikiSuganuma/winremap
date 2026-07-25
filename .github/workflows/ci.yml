@@ -25,3 +25,10 @@ jobs:
         run: cargo test
       - name: Build (release)
         run: cargo build --release
+      # The UI-test build is off by default and never shipped (ADR 0053), so
+      # nothing else would catch it rotting. Release artifacts stay
+      # feature-free: release.yml builds without any --features.
+      - name: Clippy (test-inject)
+        run: cargo clippy --all-targets --features test-inject -- -D warnings
+      - name: Test (test-inject)
+        run: cargo test --features test-inject

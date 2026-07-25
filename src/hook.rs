@@ -62,6 +62,31 @@ pub fn debug_enabled() -> bool {
     DEBUG.load(Ordering::Relaxed)
 }
 
+/// `--accept-injected`: convert injected events that we did not inject
+/// ourselves, so a UI-test agent's `SendInput` can be remapped (ADR 0053).
+/// Only exists in `test-inject` builds; default OFF even there.
+#[cfg(feature = "test-inject")]
+static ACCEPT_INJECTED: AtomicBool = AtomicBool::new(false);
+
+#[cfg(feature = "test-inject")]
+pub fn set_accept_injected(enabled: bool) {
+    ACCEPT_INJECTED.store(enabled, Ordering::Relaxed);
+}
+
+/// Without the feature this is a compile-time `false`, so the shipped binary
+/// keeps the unconditional pass-through of invariant 1 with no branch added.
+#[inline]
+pub fn accept_injected() -> bool {
+    #[cfg(feature = "test-inject")]
+    {
+        ACCEPT_INJECTED.load(Ordering::Relaxed)
+    }
+    #[cfg(not(feature = "test-inject"))]
+    {
+        false
+    }
+}
+
 /// Who injected an event observed by the hook (debug echo, ADR 0016).
 #[derive(Clone, Copy)]
 enum InjectedSource {
@@ -526,36 +551,46 @@ fn handle_event(message: u32, event: &KBDLLHOOKSTRUCT) -> bool {
     let down = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
 
     if injected {
-        // Injected events pass through untouched — remapping them could loop
-        // (AGENTS.md invariant 1). Our own remap output still updates the
-        // logical modifier state so remapped modifiers can form chords.
-        if debug_enabled() {
-            // Echo every injected event so the exact delivered stream —
-            // including other software's injections — is visible (ADR 0016).
-            let source = match event.dwExtraInfo {
-                sender::MARKER_REMAP => InjectedSource::Remap,
-                sender::MARKER_COMPENSATION => InjectedSource::Compensation,
-                _ => InjectedSource::External,
-            };
-            log_debug(
-                None,
-                KeyCombo {
-                    mods: Mods::NONE,
-                    vk,
-                },
-                DebugAction::Injected {
-                    vk,
-                    up: !down,
-                    source,
-                },
-            );
-        }
+        let source = match event.dwExtraInfo {
+            sender::MARKER_REMAP => InjectedSource::Remap,
+            sender::MARKER_COMPENSATION => InjectedSource::Compensation,
+            _ => InjectedSource::External,
+        };
+        // Our own remap output still updates the logical modifier state so
+        // remapped modifiers can form chords.
         if event.dwExtraInfo == sender::MARKER_REMAP
             && let Some(bit) = sender::side_bit(vk)
         {
             update_sides(bit, down);
         }
-        return false;
+        // Injected events pass through untouched — remapping them could loop
+        // (AGENTS.md invariant 1). A `test-inject` build run with
+        // `--accept-injected` converts *foreign* injections so the UI-test
+        // agent's SendInput reaches the remap path; ours are still passed
+        // through unconditionally, and that is what closes the loop (ADR 0053).
+        let ours = !matches!(source, InjectedSource::External);
+        if ours || !accept_injected() {
+            if debug_enabled() {
+                // Echo every injected event so the exact delivered stream —
+                // including other software's injections — is visible (ADR 0016).
+                log_debug(
+                    None,
+                    KeyCombo {
+                        mods: Mods::NONE,
+                        vk,
+                    },
+                    DebugAction::Injected {
+                        vk,
+                        up: !down,
+                        source,
+                    },
+                );
+            }
+            return false;
+        }
+        // Falls through: from here the foreign injection is handled exactly
+        // like a physical key, so the debug log shows the remap decision
+        // rather than the pass-through echo.
     }
 
     // Memory-only bookkeeping (hook-safe): a down while already down is an

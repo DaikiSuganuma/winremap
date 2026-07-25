@@ -1,0 +1,13 @@
+# needs: tray
+Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
+
+1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
+2. Wait 5 seconds, then right-click the notification-area icon whose name contains "WinRemap" and click the menu item named "Settings". The icon sits directly on the taskbar — it has been promoted out of the overflow, so do NOT open the overflow flyout (that flyout does not open reliably under automation).
+3. Wait 3 seconds. This window is drawn with OpenGL: its contents are NOT exposed in the UIA tree, which shows only the title bar. Read it from a screenshot instead — capture the window and read the text on it.
+4. Report the config file path shown at the top of the window.
+5. Report the entries listed in the navigation tree on the left.
+6. Click the keymap named "notepad" in that tree, wait 2 seconds, capture the window again, and report what the detail pane on the right now shows.
+
+The config file C:\Test\minimal.toml defines one keymap named "notepad", whose application list is notepad.exe and whose single rule remaps C-h to Back.
+
+On the final line print exactly PASS if the window shows the path C:\Test\minimal.toml, the tree lists a keymap named notepad, and the detail pane shows that keymap with notepad.exe and the rule C-h to Back, otherwise print exactly FAIL.
