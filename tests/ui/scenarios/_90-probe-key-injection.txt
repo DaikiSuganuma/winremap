@@ -1,0 +1,12 @@
+Use the terminator MCP tools. This is a diagnostic of the test harness itself: WinRemap is deliberately NOT started. It answers one question — do the keys you send arrive at the application as real key events? Do exactly these steps and do not improvise extra ones. Do not touch the notification area (system tray).
+
+1. Launch notepad.exe and wait 3 seconds for its editing area to be ready.
+2. Click into Notepad's editing area and type: abc
+3. Read Notepad's text and report it.
+4. Press Ctrl+H once, as a real key chord sent to Notepad. Wait 3 seconds.
+5. Report whether Notepad's find/replace panel opened. This Notepad draws it INSIDE its own window, not as a separate window, so a window list is not enough — inspect Notepad's UI tree for a replace field or 置換 button and say what you found.
+6. Report exactly which terminator tool and arguments you used for step 4, and where the caret sits afterwards (start or end of the text).
+
+Notepad's own Ctrl+H opens the find/replace panel. It opening therefore proves that modifier chords reach the application as real key events, which is what the remap scenarios depend on.
+
+On the final line print exactly PASS if the find/replace panel opened, otherwise print exactly FAIL.

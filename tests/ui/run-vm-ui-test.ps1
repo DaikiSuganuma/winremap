@@ -148,7 +148,10 @@ function Copy-Payload {
     Invoke-Vmrun createDirectoryInGuest $script:vm.VmxPath $guestDir | Out-Null
     foreach ($pair in @(
             @{ Local = $Exe; Guest = "$guestDir\winremap.exe" },
-            @{ Local = (Join-Path $repoRoot "examples\minimal.toml"); Guest = "$guestDir\minimal.toml" }
+            # minimal.toml is what the display scenarios read back; uitest.toml
+            # is the fixture the remap scenario needs (see its header).
+            @{ Local = (Join-Path $repoRoot "examples\minimal.toml"); Guest = "$guestDir\minimal.toml" },
+            @{ Local = (Join-Path $PSScriptRoot "fixtures\uitest.toml"); Guest = "$guestDir\uitest.toml" }
         )) {
         Invoke-Vmrun copyFileFromHostToGuest $script:vm.VmxPath $pair.Local $pair.Guest | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "copying $($pair.Local) to the guest failed" }
@@ -220,7 +223,9 @@ $script:vm = Get-VmConfig
 # single match back to a scalar, and .Count then fails under StrictMode.
 $files = @(
     if ($Scenario -eq "all") {
-        Get-ChildItem (Join-Path $scenarioDir "*.txt") | Sort-Object Name
+        # _-prefixed files are diagnostics of the harness itself, run by name.
+        Get-ChildItem (Join-Path $scenarioDir "*.txt") |
+            Where-Object { $_.Name -notlike "_*" } | Sort-Object Name
     }
     else {
         Get-ChildItem (Join-Path $scenarioDir "$Scenario.txt")
