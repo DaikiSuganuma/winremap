@@ -1,0 +1,15 @@
+Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
+
+This binary is a test build: started with --accept-injected it also remaps input injected by other software, which is what lets your keystrokes reach its remapping. Without that flag the test cannot work, so pass it exactly as written.
+
+1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en --accept-injected
+2. Wait 5 seconds. Expand the notification area overflow (the up-chevron button on the taskbar), right-click the WinRemap tray icon, and report the first menu item's text. It should end with "TEST BUILD". Press Escape to close the menu.
+3. Launch notepad.exe and wait 3 seconds for its editing area to be ready.
+4. Click into Notepad's editing area and type: abc
+5. Read Notepad's text and report it. It must be "abc" before continuing.
+6. Press Ctrl+H once. Wait 2 seconds.
+7. Read Notepad's text again and report it. Also report whether a "Replace" dialog opened.
+
+The config remaps C-h to Back inside notepad.exe, so Ctrl+H must delete the last character: the text becomes "ab" and no Replace dialog opens. Notepad's own Ctrl+H opens the Replace dialog, so that dialog means the remap did not happen.
+
+On the final line print exactly PASS if the tray caption ended with "TEST BUILD" and the text became "ab" with no Replace dialog, otherwise print exactly FAIL.

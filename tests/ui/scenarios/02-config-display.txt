@@ -1,0 +1,11 @@
+Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
+
+1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
+2. Wait 5 seconds, expand the notification area overflow (the up-chevron button on the taskbar), right-click the WinRemap tray icon, and click the menu item named "Settings".
+3. Wait 3 seconds. Read the text of the address bar at the top of the settings window and report it.
+4. In the tree on the left, click the item named "notepad" (it is under "Keymaps").
+5. Read the text shown in the detail pane on the right and report it.
+
+The config file C:\Test\minimal.toml defines one keymap named "notepad", whose application list is notepad.exe and whose single rule remaps C-h to Back.
+
+On the final line print exactly PASS if the address bar shows the path C:\Test\minimal.toml and the detail pane shows the keymap named notepad with notepad.exe and the rule C-h to Back, otherwise print exactly FAIL.

@@ -19,6 +19,7 @@
 | [02_rust-guidelines.md](02_rust-guidelines.md) | Rust 開発の作法（バージョン非依存） |
 | [03_release-operations.md](03_release-operations.md) | リリース運用手順（オーナー向けランブック） |
 | [04_git-branching.md](04_git-branching.md) | Git ブランチ運用（git-flow の適用。マージは常に `--no-ff`） |
+| [05_ui-test-automation.md](05_ui-test-automation.md) | UI テスト自動化（VM ＋ AI エージェント）の使い方。実行入口は `tests/ui/` |
 
 ## バージョン別
 

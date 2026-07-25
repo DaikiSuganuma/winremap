@@ -1,6 +1,6 @@
 # ADR 0053: UI テスト自動化のための注入イベント受理モード（既定 OFF の Cargo feature）
 
-- ステータス: 提案（オーナー承認待ち）
+- ステータス: 承認（オーナー承認 2026-07-25）
 - 日付: 2026-07-25
 - 作成: Claude Code（AI モデル: claude-opus-5）
 - 参照: [`KBDLLHOOKSTRUCT`（Microsoft Learn）](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-kbdllhookstruct)、[`SendInput`（Microsoft Learn）](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput)、[Cargo features（The Cargo Book）](https://doc.rust-lang.org/cargo/reference/features.html)、[ADR 0015](../../v0.1/decisions/0015-menu-mask-key.md)・[ADR 0016](../../v0.1/decisions/0016-debug-key-logging.md)（`dwExtraInfo` マーカーと注入イベントの扱い）
