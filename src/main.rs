@@ -51,6 +51,8 @@ fn run() -> anyhow::Result<()> {
     // a relative `--config x.toml` has no parent to show or read.
     let config_path = std::path::absolute(&cli.config_path).unwrap_or(cli.config_path);
     hook::set_debug(cli.debug);
+    #[cfg(feature = "test-inject")]
+    hook::set_accept_injected(cli.accept_injected);
     // Remembered so closing the log window restores this instead of
     // silencing a `--debug` session that was running before it opened.
     gui::log::set_cli_debug(cli.debug);
@@ -69,6 +71,13 @@ fn run() -> anyhow::Result<()> {
     let started = i18n::session_started(&clock::local_now());
     notify::console_line(&started);
     gui::log::set_session_start(&started);
+    if hook::accept_injected() {
+        // Loud on purpose: this build converts other software's injected
+        // input, so it must never be mistaken for a normal one (ADR 0053).
+        let notice = i18n::test_build_notice();
+        notify::console_line(notice);
+        gui::log::emit(notice);
+    }
 
     // A startup config error aborts: better to not run at all than to sit in
     // the tray silently doing nothing the user asked for (config-spec §4).
@@ -148,12 +157,17 @@ struct CliArgs {
     debug: bool,
     /// `None` when the flag was absent, so the config file's value applies.
     macro_delay_ms: Option<u32>,
+    /// Test-only remapping of other software's injected events (ADR 0053).
+    #[cfg(feature = "test-inject")]
+    accept_injected: bool,
 }
 
 fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
     let mut config: Option<PathBuf> = None;
     let mut debug = false;
     let mut macro_delay_ms: Option<u32> = None;
+    #[cfg(feature = "test-inject")]
+    let mut accept_injected = false;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -166,6 +180,10 @@ fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
                 iter.next();
             }
             "--debug" => debug = true,
+            // Absent from ordinary builds, where it falls to the unknown
+            // argument arm below like any other typo (ADR 0053).
+            #[cfg(feature = "test-inject")]
+            "--accept-injected" => accept_injected = true,
             "--macro-delay" => {
                 let value = iter.next().context("--macro-delay requires milliseconds")?;
                 let max = winremap::keymap::MAX_MACRO_DELAY_MS;
@@ -194,6 +212,8 @@ fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
         config_path,
         debug,
         macro_delay_ms,
+        #[cfg(feature = "test-inject")]
+        accept_injected,
     })
 }
 
@@ -205,4 +225,34 @@ fn default_config_path() -> anyhow::Result<PathBuf> {
         bail!("{}", i18n::no_config_file(&path));
     }
     Ok(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `--config` keeps the cases off %APPDATA%, which may hold a real config.
+    fn parse(extra: &[&str]) -> anyhow::Result<CliArgs> {
+        let mut args = vec!["--config".to_owned(), "x.toml".to_owned()];
+        args.extend(extra.iter().map(|s| (*s).to_owned()));
+        parse_args(&args)
+    }
+
+    /// The guarantee of ADR 0053: a shipped build does not know the flag. A
+    /// misplaced `#[cfg]` would silently hand it to every user instead.
+    #[test]
+    #[cfg(not(feature = "test-inject"))]
+    fn accept_injected_is_unknown_without_the_feature() {
+        let Err(err) = parse(&["--accept-injected"]) else {
+            panic!("--accept-injected must not be accepted outside a test build");
+        };
+        assert!(err.to_string().contains("--accept-injected"));
+    }
+
+    #[test]
+    #[cfg(feature = "test-inject")]
+    fn accept_injected_is_off_until_asked_for() {
+        assert!(!parse(&[]).unwrap().accept_injected);
+        assert!(parse(&["--accept-injected"]).unwrap().accept_injected);
+    }
 }

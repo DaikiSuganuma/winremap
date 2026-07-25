@@ -14,6 +14,14 @@ categories = ["os::windows-apis"]
 lto = "thin"
 strip = true
 
+# `test-inject` lets the UI-test agent's SendInput be remapped, which the
+# unconditional pass-through of injected events otherwise prevents (ADR 0053).
+# Default OFF: release artifacts must never contain it. Build test binaries
+# with `cargo build --release --features test-inject`.
+[features]
+default = []
+test-inject = []
+
 [dependencies]
 anyhow = "1"
 arc-swap = "1.9.2"

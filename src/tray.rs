@@ -34,8 +34,17 @@ pub fn init(keymap_count: usize, macro_delay_override: Option<u32>) -> anyhow::R
     let texts = i18n::t();
     // Disabled on purpose: a caption, not a command. It also makes the menu
     // self-identifying when several tray icons look alike.
+    let test_build = if crate::hook::accept_injected() {
+        i18n::test_build_tray_suffix()
+    } else {
+        ""
+    };
     let title_item = IconMenuItem::new(
-        format!("{} v{}", texts.app_name, env!("CARGO_PKG_VERSION")),
+        format!(
+            "{} v{}{test_build}",
+            texts.app_name,
+            env!("CARGO_PKG_VERSION")
+        ),
         false,
         app_menu_icon(),
         None,
