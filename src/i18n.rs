@@ -11,7 +11,7 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use winremap::keymap::{KeyCombo, vk_display_name};
+use winremap::keymap::{InputPattern, KeyCombo, Mods, vk_display_name};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Lang {
@@ -46,17 +46,48 @@ pub struct Texts {
     pub menu_log: &'static str,
     pub menu_quit: &'static str,
     pub config_window_title: &'static str,
-    pub config_window_file: &'static str,
     pub config_window_open_in_editor: &'static str,
-    /// Says how to change things, and nothing about whether editing will
-    /// ever be built in — that is undecided (owner decision 2026-07-21).
-    pub config_window_readonly: &'static str,
-    pub config_window_path: &'static str,
-    pub config_window_file_time: &'static str,
-    /// Header of the label column in a two-column "item / value" table.
-    pub config_column_field: &'static str,
-    pub config_window_loaded_at: &'static str,
-    pub config_unknown: &'static str,
+    /// Opens the config folder in Explorer (address-bar dropdown).
+    pub config_open_folder: &'static str,
+    /// Enters edit mode (v0.4 screen design §2).
+    pub config_edit: &'static str,
+    pub config_save: &'static str,
+    pub config_revert: &'static str,
+    pub config_close: &'static str,
+    pub config_cancel: &'static str,
+    /// Tooltip on the address bar's inert dropdown while editing.
+    pub config_switch_locked: &'static str,
+    /// Saving over an externally changed file (screen design §7.1).
+    pub config_overwrite: &'static str,
+    pub config_reread: &'static str,
+    pub config_next_issue: &'static str,
+    /// The breadcrumb-row banner while editing (screen design §4.1).
+    pub config_edit_notice: &'static str,
+    pub config_close_confirm: &'static str,
+    pub config_external_changed: &'static str,
+    pub config_add_app: &'static str,
+    /// Starts the foreground-capture countdown (B4, screen design §6.3).
+    pub config_capture_app: &'static str,
+    pub config_add_rule: &'static str,
+    pub config_keymap_add: &'static str,
+    pub config_keymap_remove: &'static str,
+    pub config_move_up: &'static str,
+    pub config_move_down: &'static str,
+    pub status_saved: &'static str,
+    /// The key-name reference popup (screen design §6.5).
+    pub config_keys_title: &'static str,
+    pub config_keys_mods: &'static str,
+    pub config_keys_chars: &'static str,
+    pub config_keys_chars_list: &'static str,
+    pub config_keys_function: &'static str,
+    pub config_keys_function_list: &'static str,
+    pub config_keys_special: &'static str,
+    /// Tooltip on the ● change mark: the file differs from what is loaded.
+    pub config_file_changed: &'static str,
+    /// The breadcrumb's first segment (v0.4 screen design §4.1).
+    pub config_breadcrumb_root: &'static str,
+    /// Status-bar message after any successful load.
+    pub status_loaded: &'static str,
     pub config_window_no_config: &'static str,
     pub config_general: &'static str,
     pub config_keymaps: &'static str,
@@ -145,14 +176,38 @@ static EN: Texts = Texts {
     menu_log: "Show log",
     menu_quit: "Quit",
     config_window_title: "WinRemap — settings",
-    config_window_file: "Config file",
     config_window_open_in_editor: "Open in text editor",
-    config_window_readonly: "To change the config, edit the file and reload.",
-    config_window_path: "Path",
-    config_window_file_time: "Modified at",
-    config_column_field: "Item",
-    config_window_loaded_at: "Loaded at",
-    config_unknown: "unknown",
+    config_open_folder: "Open folder",
+    config_edit: "Edit",
+    config_save: "Save",
+    config_revert: "Revert",
+    config_close: "Close",
+    config_cancel: "Cancel",
+    config_switch_locked: "Files cannot be switched while editing",
+    config_overwrite: "Overwrite",
+    config_reread: "Re-read (discard edits)",
+    config_next_issue: "Next ▸",
+    config_edit_notice: "● Editing — the file is untouched until you press Save",
+    config_close_confirm: "Close without saving?",
+    config_external_changed: "The config file was changed outside WinRemap.",
+    config_add_app: "Add application",
+    config_capture_app: "Capture the foreground app",
+    config_add_rule: "Add rule",
+    config_keymap_add: "Add keymap",
+    config_keymap_remove: "Delete keymap",
+    config_move_up: "Move up",
+    config_move_down: "Move down",
+    status_saved: "Saved.",
+    config_keys_title: "Key names",
+    config_keys_mods: "Modifiers",
+    config_keys_chars: "Characters",
+    config_keys_chars_list: "a–z 0–9",
+    config_keys_function: "Function",
+    config_keys_function_list: "F1–F24",
+    config_keys_special: "Special",
+    config_file_changed: "Changed on disk — not loaded yet",
+    config_breadcrumb_root: "Settings",
+    status_loaded: "Config loaded.",
     config_window_no_config: "No config is loaded.",
     config_general: "General",
     config_keymaps: "Keymaps",
@@ -229,14 +284,38 @@ static JA: Texts = Texts {
     menu_log: "ログを表示",
     menu_quit: "終了",
     config_window_title: "WinRemap — 設定",
-    config_window_file: "設定ファイル",
     config_window_open_in_editor: "テキストエディタで開く",
-    config_window_readonly: "設定を変更するには、ファイルを編集して再読み込みしてください。",
-    config_window_path: "パス",
-    config_window_file_time: "更新日時",
-    config_column_field: "項目",
-    config_window_loaded_at: "読み込み",
-    config_unknown: "不明",
+    config_open_folder: "フォルダーを開く",
+    config_edit: "編集",
+    config_save: "保存",
+    config_revert: "元に戻す",
+    config_close: "閉じる",
+    config_cancel: "キャンセル",
+    config_switch_locked: "編集中はファイルを切り替えられません",
+    config_overwrite: "上書き保存",
+    config_reread: "読み直す（編集を破棄）",
+    config_next_issue: "次へ ▸",
+    config_edit_notice: "● 編集中 — ［保存］を押すまで設定ファイルは変わりません",
+    config_close_confirm: "保存せずに閉じますか?",
+    config_external_changed: "設定ファイルが WinRemap の外で変更されています。",
+    config_add_app: "アプリを追加",
+    config_capture_app: "今の前面アプリから取得",
+    config_add_rule: "規則を追加",
+    config_keymap_add: "キーマップを追加",
+    config_keymap_remove: "キーマップを削除",
+    config_move_up: "上へ",
+    config_move_down: "下へ",
+    status_saved: "保存しました",
+    config_keys_title: "使えるキー名",
+    config_keys_mods: "修飾",
+    config_keys_chars: "文字",
+    config_keys_chars_list: "a〜z 0〜9",
+    config_keys_function: "ファンクション",
+    config_keys_function_list: "F1〜F24",
+    config_keys_special: "特殊",
+    config_file_changed: "ディスク上で変更されています（未読み込み）",
+    config_breadcrumb_root: "設定",
+    status_loaded: "読み込み完了しました",
     config_window_no_config: "設定が読み込まれていません。",
     config_general: "全体設定",
     config_keymaps: "キーマップ",
@@ -326,6 +405,118 @@ pub fn startup_loaded(count: usize, path: &Path) -> String {
     }
 }
 
+/// The status bar's "running since" segment (v0.4 screen design §5).
+pub fn status_started(time: &str) -> String {
+    match lang() {
+        Lang::En => format!("Started: {time}"),
+        Lang::Ja => format!("起動: {time}"),
+    }
+}
+
+/// Why edit mode could not start (unreadable file). Shown in the status
+/// bar; the reason stays technical English (guidelines §11).
+pub fn edit_cannot_start(reason: &str) -> String {
+    match lang() {
+        Lang::En => format!("Cannot start editing: {reason}"),
+        Lang::Ja => format!("編集を開始できません: {reason}"),
+    }
+}
+
+/// A save that failed on I/O or on non-validation grounds (screen design
+/// §7.2).
+pub fn save_failed(reason: &str) -> String {
+    match lang() {
+        Lang::En => format!("Could not save: {reason}"),
+        Lang::Ja => format!("保存できませんでした: {reason}"),
+    }
+}
+
+/// A chord in human words: `C-S-h` → "Ctrl + Shift + h". The modifier names
+/// are product names, identical in both languages, so only the shape is
+/// fixed here (word-order-free by construction — it is a joined list).
+pub fn combo_human(combo: &KeyCombo) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    for (flag, name) in [
+        (Mods::CTRL, "Ctrl"),
+        (Mods::ALT, "Alt"),
+        (Mods::SHIFT, "Shift"),
+        (Mods::WIN, "Win"),
+    ] {
+        if combo.mods.contains(flag) {
+            parts.push(name.to_owned());
+        }
+    }
+    parts.push(vk_display_name(combo.vk));
+    parts.join(" + ")
+}
+
+/// A rule input in human words (screen design §6.1): a chord as
+/// `combo_human`, a sequence as "Alt+x, then h (two strokes)".
+pub fn input_human(pattern: &InputPattern) -> String {
+    match pattern {
+        InputPattern::Single(combo) => combo_human(combo),
+        InputPattern::Sequence(first, second) => {
+            let (first, second) = (combo_human(first), combo_human(second));
+            match lang() {
+                Lang::En => format!("{first}, then {second} (two strokes)"),
+                Lang::Ja => format!("{first} に続けて {second}（2 ストローク）"),
+            }
+        }
+    }
+}
+
+/// A rule output in human words: one chord plainly, several as the macro's
+/// step sequence.
+pub fn output_human(combos: &[KeyCombo]) -> String {
+    match combos {
+        [single] => combo_human(single),
+        several => {
+            let steps = several
+                .iter()
+                .map(combo_human)
+                .collect::<Vec<_>>()
+                .join(" → ");
+            match lang() {
+                Lang::En => format!("{steps} (macro)"),
+                Lang::Ja => format!("{steps}（マクロ）"),
+            }
+        }
+    }
+}
+
+/// The capture button while it counts down (B4, screen design §6.3).
+pub fn capture_countdown(seconds: u64) -> String {
+    match lang() {
+        Lang::En => format!("{seconds}… bring the target app to the front"),
+        Lang::Ja => format!("{seconds}… 対象アプリを前面にしてください"),
+    }
+}
+
+/// An unknown key name with its nearest real one (screen design §6.2).
+pub fn unknown_key_suggestion(got: &str, suggest: &str) -> String {
+    match lang() {
+        Lang::En => format!("unknown key name \"{got}\" — did you mean \"{suggest}\"?"),
+        Lang::Ja => format!("未知のキー名 \"{got}\"。\"{suggest}\" のことですか?"),
+    }
+}
+
+/// The validation footer: how many issues, and the one under the cursor
+/// (screen design §6.4). Issue text itself stays technical English.
+pub fn issues_found(count: usize, first: &str) -> String {
+    match lang() {
+        Lang::En => format!("⚠ {count} issue(s): {first}"),
+        Lang::Ja => format!("⚠ {count} 件の問題があります: {first}"),
+    }
+}
+
+/// Logged when the address bar switches the active config file (ADR 0050).
+pub fn action_switch_file(name: &str) -> String {
+    match lang() {
+        Lang::En => format!("Switch config file: {name}"),
+        Lang::Ja => format!("設定ファイルを切り替え: {name}"),
+    }
+}
+
 /// Opens the log: when this run of WinRemap started, and which build it is.
 /// The version is repeated here (rather than only in `startup_loaded`) because
 /// this is the line a pasted log is read from.
@@ -402,6 +593,19 @@ pub fn gui_failed(error: &str) -> String {
 
 /// The shell refused to open the config file (no `.toml` association, or the
 /// file is gone). Says which file, so the user can open it by hand.
+pub fn open_folder_failed(path: &str) -> String {
+    match lang() {
+        Lang::En => format!(
+            "could not open the config folder:
+{path}"
+        ),
+        Lang::Ja => format!(
+            "設定フォルダーを開けませんでした:
+{path}"
+        ),
+    }
+}
+
 pub fn open_editor_failed(path: &str) -> String {
     match lang() {
         Lang::En => format!(
@@ -789,5 +993,31 @@ pub fn macro_record_banner_replaying(app: &str, commands: &[KeyCombo]) -> String
     match lang() {
         Lang::En => format!("Replaying in {app}:  {steps}"),
         Lang::Ja => format!("{app} で再生中:  {steps}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use winremap::keymap::{parse_input_pattern, parse_key_combo};
+
+    // LANG is never initialized under test, so everything renders English.
+    #[test]
+    fn renders_notation_in_human_words() {
+        let combo = parse_key_combo("C-S-h").expect("parses");
+        assert_eq!(combo_human(&combo), "Ctrl + Shift + h");
+
+        let sequence = parse_input_pattern("A-x h").expect("parses");
+        assert_eq!(input_human(&sequence), "Alt + x, then h (two strokes)");
+
+        let single = parse_input_pattern("C-h").expect("parses");
+        assert_eq!(input_human(&single), "Ctrl + h");
+
+        let steps = [
+            parse_key_combo("C-Right").expect("parses"),
+            parse_key_combo("C-Left").expect("parses"),
+        ];
+        assert_eq!(output_human(&steps), "Ctrl + Right → Ctrl + Left (macro)");
+        assert_eq!(output_human(&steps[..1]), "Ctrl + Right");
     }
 }

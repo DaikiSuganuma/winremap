@@ -45,6 +45,19 @@ const UI_ICONS: &[&str] = &[
     "file-earmark-text",
     "trash",
     "clipboard",
+    // v0.4 config editing (screen design doc §9.2).
+    "folder",
+    "gear",
+    "keyboard",
+    "pencil",
+    "floppy",
+    "arrow-counterclockwise",
+    "plus",
+    "dash",
+    "arrow-up",
+    "arrow-down",
+    "x",
+    "hourglass",
 ];
 
 fn main() {

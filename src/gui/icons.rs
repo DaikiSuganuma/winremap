@@ -29,10 +29,32 @@ pub enum Icon {
     External,
     /// Leaves WinRemap for the browser.
     Link,
-    File,
     Reload,
     Clear,
     Copy,
+    /// The config folder in the address bar (v0.4 screen design §2).
+    Folder,
+    /// The general-settings entry in the navigation tree.
+    Gear,
+    /// The keymap group heading in the navigation tree.
+    Keyboard,
+    /// Enters edit mode.
+    Pencil,
+    /// Saves the draft.
+    Floppy,
+    /// Discards the draft (arrow-counterclockwise).
+    Revert,
+    /// Adds a row or a keymap.
+    Plus,
+    /// Deletes the selected keymap.
+    Dash,
+    /// Reorders the selected keymap.
+    ArrowUp,
+    ArrowDown,
+    /// Deletes one table row.
+    Close,
+    /// The foreground-capture countdown (B4).
+    Hourglass,
 }
 
 impl Icon {
@@ -47,10 +69,21 @@ impl Icon {
             Icon::Notation => "question-circle",
             Icon::External => "box-arrow-up-right",
             Icon::Link => "link-45deg",
-            Icon::File => "file-earmark-text",
             Icon::Reload => "arrow-clockwise",
             Icon::Clear => "trash",
             Icon::Copy => "clipboard",
+            Icon::Folder => "folder",
+            Icon::Gear => "gear",
+            Icon::Keyboard => "keyboard",
+            Icon::Pencil => "pencil",
+            Icon::Floppy => "floppy",
+            Icon::Revert => "arrow-counterclockwise",
+            Icon::Plus => "plus",
+            Icon::Dash => "dash",
+            Icon::ArrowUp => "arrow-up",
+            Icon::ArrowDown => "arrow-down",
+            Icon::Close => "x",
+            Icon::Hourglass => "hourglass",
         }
     }
 
@@ -66,10 +99,23 @@ impl Icon {
                 include_bytes!(concat!(env!("OUT_DIR"), "/ui-box-arrow-up-right.rgba"))
             }
             Icon::Link => include_bytes!(concat!(env!("OUT_DIR"), "/ui-link-45deg.rgba")),
-            Icon::File => include_bytes!(concat!(env!("OUT_DIR"), "/ui-file-earmark-text.rgba")),
             Icon::Reload => include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-clockwise.rgba")),
             Icon::Clear => include_bytes!(concat!(env!("OUT_DIR"), "/ui-trash.rgba")),
             Icon::Copy => include_bytes!(concat!(env!("OUT_DIR"), "/ui-clipboard.rgba")),
+            Icon::Folder => include_bytes!(concat!(env!("OUT_DIR"), "/ui-folder.rgba")),
+            Icon::Gear => include_bytes!(concat!(env!("OUT_DIR"), "/ui-gear.rgba")),
+            Icon::Keyboard => include_bytes!(concat!(env!("OUT_DIR"), "/ui-keyboard.rgba")),
+            Icon::Pencil => include_bytes!(concat!(env!("OUT_DIR"), "/ui-pencil.rgba")),
+            Icon::Floppy => include_bytes!(concat!(env!("OUT_DIR"), "/ui-floppy.rgba")),
+            Icon::Revert => {
+                include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-counterclockwise.rgba"))
+            }
+            Icon::Plus => include_bytes!(concat!(env!("OUT_DIR"), "/ui-plus.rgba")),
+            Icon::Dash => include_bytes!(concat!(env!("OUT_DIR"), "/ui-dash.rgba")),
+            Icon::ArrowUp => include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-up.rgba")),
+            Icon::ArrowDown => include_bytes!(concat!(env!("OUT_DIR"), "/ui-arrow-down.rgba")),
+            Icon::Close => include_bytes!(concat!(env!("OUT_DIR"), "/ui-x.rgba")),
+            Icon::Hourglass => include_bytes!(concat!(env!("OUT_DIR"), "/ui-hourglass.rgba")),
         }
     }
 }
@@ -86,6 +132,17 @@ pub fn button(ui: &mut egui::Ui, icon: Icon, text: &str) -> egui::Response {
         .fit_to_exact_size(egui::vec2(size, size))
         .tint(tint);
     ui.add(egui::Button::image_and_text(image, text))
+}
+
+/// An icon-only button, for chrome where a label would crowd the row; the
+/// caller supplies the name as a tooltip instead.
+pub fn icon_button(ui: &mut egui::Ui, icon: Icon) -> egui::Response {
+    let tint = ui.visuals().widgets.inactive.fg_stroke.color;
+    let size = theme::button_icon_size(ui);
+    let image = image(ui.ctx(), icon)
+        .fit_to_exact_size(egui::vec2(size, size))
+        .tint(tint);
+    ui.add(egui::Button::image(image))
 }
 
 /// A link that says where it goes: the icon marks it as leaving WinRemap.

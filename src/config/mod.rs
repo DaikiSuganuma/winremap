@@ -9,6 +9,7 @@
 
 pub mod comments;
 mod compile;
+pub mod draft;
 mod raw;
 #[cfg(test)]
 mod tests;

@@ -46,12 +46,17 @@ fn run() -> anyhow::Result<()> {
     // help text parse_args may print.
     i18n::init(extract_lang(&args)?);
     let cli = parse_args(&args)?;
-    let config_path = cli.config_path;
+    // Absolute from the start: the settings window's address bar shows the
+    // parent folder and lists its .toml files for switching (ADR 0050), and
+    // a relative `--config x.toml` has no parent to show or read.
+    let config_path = std::path::absolute(&cli.config_path).unwrap_or(cli.config_path);
     hook::set_debug(cli.debug);
     // Remembered so closing the log window restores this instead of
     // silencing a `--debug` session that was running before it opened.
     gui::log::set_cli_debug(cli.debug);
     gui::set_config_path(config_path.clone());
+    // The status bar shows this timestamp for the whole run.
+    gui::mark_started();
 
     let instance = hook::acquire_single_instance().context("failed to create instance mutex")?;
     let Some(_instance) = instance else {
@@ -85,8 +90,7 @@ fn run() -> anyhow::Result<()> {
     window::refresh_foreground_cache();
     let event_hook = window::install_foreground_watch().context("failed to watch foreground")?;
     let keyboard_hook = hook::install().context("failed to install keyboard hook")?;
-    let tray = tray::init(config_path, keymap_count, cli.macro_delay_ms)
-        .context("failed to set up tray")?;
+    let tray = tray::init(keymap_count, cli.macro_delay_ms).context("failed to set up tray")?;
     // IME indicator touch point: starts its thread only when the config
     // enables the feature (ADR 0020).
     ime_indicator::sync_with_config();

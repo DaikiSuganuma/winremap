@@ -186,3 +186,19 @@ fn sequences_resolve_via_prefix_then_second_stroke() {
         None
     );
 }
+
+#[test]
+fn suggests_the_nearest_key_name_for_a_slip() {
+    assert_eq!(suggest_key_name("Bak"), Some("Back"));
+    assert_eq!(suggest_key_name("Entre"), Some("Enter"));
+    assert_eq!(suggest_key_name("capslok"), Some("CapsLock"));
+    // Too far from anything: no wild guesses.
+    assert_eq!(suggest_key_name("qqqqqq"), None);
+}
+
+#[test]
+fn special_key_names_all_parse() {
+    for name in SPECIAL_KEY_NAMES {
+        assert!(key_name_to_vk(name).is_some(), "{name} should parse");
+    }
+}
