@@ -29,8 +29,11 @@ if (Test-Path $root) {
 }
 Write-Output "promoted entries: $promoted"
 
-# The flag is read when the icon is registered, so the instance that created
-# the entry has to go and the shell has to reload before the scenario starts.
+# The flag is read when the icon is registered, so only the instance that
+# created the entry has to go — the scenario's own launch picks the flag up.
+# Explorer is deliberately left alone: restarting it made the icon fail to
+# register at all in about half the runs, which looks exactly like the bug
+# these scenarios are meant to catch.
 Get-Process winremap -ErrorAction SilentlyContinue | Stop-Process -Force
-Stop-Process -Name explorer -Force   # the shell restarts itself
-Start-Sleep -Seconds 12
+Start-Sleep -Seconds 3
+Write-Output "done"

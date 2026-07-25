@@ -178,15 +178,18 @@ function Save-Diagnostics {
 # guest\promote-tray-icon.ps1 for why the scenarios cannot open that flyout.
 function Set-TrayIconPromoted {
     $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-    Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
-        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\promote-tray-icon.ps1" | Out-Null
-    Write-Host "  tray icon promoted out of the overflow" -ForegroundColor Gray
+    # Its output says how many registry entries were promoted — worth seeing,
+    # since "no icon on the taskbar" is the failure it is meant to prevent.
+    $out = Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
+        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\promote-tray-icon.ps1"
+    Write-Host "  promote-tray-icon: $($out -join ' / ')" -ForegroundColor Gray
 }
 
 function Invoke-Scenario {
     param([System.IO.FileInfo]$File)
 
-    $prompt = (Get-Content $File.FullName -Raw).TrimEnd()
+    # Directive lines configure the run and are not part of the prompt.
+    $prompt = ((Get-Content $File.FullName -Raw) -replace '(?m)^#\s*needs:.*\r?\n', '').TrimEnd()
     # The guest's PATH does not include npm's global bin in a non-login shell,
     # and the token lives in the User environment (never in this repo).
     # Set-Location matters: vmrun starts the command in C:\Windows\System32,
@@ -213,13 +216,22 @@ claude -p `$prompt --dangerously-skip-permissions
     # says; the entry script reports that through its exit code.
     if ($LASTEXITCODE -ne 0) { return "ERROR" }
 
-    # Only a line that is nothing but the verdict counts. The entry script
-    # echoes the command it runs — prompt included — so a substring match
-    # would find the "print exactly PASS" of the instructions themselves.
-    # -cmatch keeps prose like "passed" out of it.
+    # Read the verdict from the guest's own log rather than from the streamed
+    # copy above: the entry script stops streaming the moment it sees the
+    # completion marker, which can cut off the very last lines — the verdict
+    # among them. The file on the guest is always complete by then.
+    $log = Join-Path $env:TEMP "winremap-ui-verdict.log"
+    Remove-Item $log -Force -ErrorAction SilentlyContinue
+    Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "C:\Setup\run-output.log" $log | Out-Null
+    $lines = if (Test-Path $log) { Get-Content $log -Encoding UTF8 } else { $output }
+
+    # Only a line that is nothing but the verdict counts: the agent is asked to
+    # end with one, and its own report quotes the instruction ("print exactly
+    # PASS"). -cmatch keeps prose like "passed" out of it, and ** ** allows the
+    # markdown emphasis the agent sometimes adds.
     $verdict = "NO VERDICT"
-    foreach ($line in $output) {
-        if ("$line" -cmatch '^\s*(?:\|\s*)?(PASS|FAIL)[.\s]*$') { $verdict = $Matches[1] }
+    foreach ($line in $lines) {
+        if ("$line" -cmatch '^\s*(?:\|\s*)?\**(PASS|FAIL)\**[.\s]*$') { $verdict = $Matches[1] }
     }
     return $verdict
 }
@@ -238,10 +250,18 @@ $files = @(
             Where-Object { $_.Name -notlike "_*" } | Sort-Object Name
     }
     else {
-        Get-ChildItem (Join-Path $scenarioDir "$Scenario.txt")
+        # Comma-separated names run a subset, e.g. -Scenario 02-...,03-...
+        foreach ($name in $Scenario -split ',') {
+            Get-ChildItem (Join-Path $scenarioDir "$($name.Trim()).txt")
+        }
     }
 )
 if ($files.Count -eq 0) { throw "no scenario matched '$Scenario' in $scenarioDir" }
+
+$needsTray = @{}
+foreach ($file in $files) {
+    $needsTray[$file.BaseName] = (Get-Content $file.FullName -Raw) -match '(?m)^#\s*needs:\s*tray\s*$'
+}
 
 $results = [ordered]@{}
 foreach ($file in $files) {
@@ -253,12 +273,11 @@ foreach ($file in $files) {
     $exe = Build-Binary -TestInject $needsInject
     if (-not $NoRevert) { Reset-Guest }
     Copy-Payload -Exe $exe
-    # Only the scenarios that use the tray need it, and it costs ~20 seconds.
-    if ((Get-Content $file.FullName -Raw) -match 'notification area|tray') {
-        if ((Get-Content $file.FullName -Raw) -notmatch 'Do not touch the notification area') {
-            Set-TrayIconPromoted
-        }
-    }
+    # A scenario asks for the tray with a `# needs: tray` directive line.
+    # Sniffing the prompt wording for it was silently wrong the moment a
+    # scenario was reworded — scenario 02 then looked for an icon nothing had
+    # promoted, and blamed the app.
+    if ($needsTray[$name]) { Set-TrayIconPromoted }
     $verdict = Invoke-Scenario -File $file
     if ($verdict -ne "PASS") { Save-Diagnostics -Name $name }
     $results[$name] = $verdict

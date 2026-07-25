@@ -1,9 +1,13 @@
+# needs: tray
 Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
 
+Output rule: perform all the steps first, then print a line containing ONLY the word PASS or the word FAIL, and only after that line write your short report. Never end without that verdict line, and never stop to ask a question — if something is ambiguous, choose the closest match and say so in the report.
+
 1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
-2. Wait 5 seconds, then right-click the notification-area icon whose name contains "WinRemap" and click the menu item named "Show log". The icon sits directly on the taskbar — it has been promoted out of the overflow, so do NOT open the overflow flyout (that flyout does not open reliably under automation).
-3. Wait 3 seconds, then read all the text in the log window and report it verbatim.
+2. Wait 5 seconds, then right-click the notification-area icon whose name contains "WinRemap". The icon sits directly on the taskbar — it has been promoted out of the overflow, so do NOT open the overflow flyout (that flyout does not open reliably under automation).
+3. Click the menu item whose name is exactly: Show log
+4. Wait 3 seconds. This window is drawn with OpenGL: its contents are NOT exposed in the UIA tree, which shows only the title bar, so do not search the tree for its text. Capture a screenshot of the window and read the text from the image.
 
-The startup lines are expected to state that WinRemap started, and that 1 keymap was loaded from C:\Test\minimal.toml.
+The startup lines are expected to say that WinRemap started, and that 1 keymap was loaded from C:\Test\minimal.toml.
 
-On the final line print exactly PASS if the log window is visible and its text says one keymap was loaded from C:\Test\minimal.toml, otherwise print exactly FAIL.
+Print PASS if the log window is visible and its text says one keymap was loaded from C:\Test\minimal.toml. Otherwise print FAIL. Then list the lines you could read.

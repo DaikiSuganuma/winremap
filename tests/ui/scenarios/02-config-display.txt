@@ -1,3 +1,4 @@
+# needs: tray
 Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
 
 1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
