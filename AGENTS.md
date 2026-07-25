@@ -28,7 +28,7 @@ WinRemap の開発作業（実装・レビュー・ドキュメント作成）�
 
 ## 技術的不変条件（違反禁止・レビューで差し戻し）
 
-1. **自己送出ループの防止**: フックコールバックで `KBDLLHOOKSTRUCT.flags` の `LLKHF_INJECTED` を必ず確認し、`SendInput` で注入されたイベント（自分・他ソフトとも）は変換せず素通しする
+1. **自己送出ループの防止**: フックコールバックで `KBDLLHOOKSTRUCT.flags` の `LLKHF_INJECTED` を必ず確認し、`SendInput` で注入されたイベント（自分・他ソフトとも）は変換せず素通しする。例外は 1 つのみ: UI テスト自動化用のビルド（既定 OFF の Cargo feature `test-inject` ＋ `--accept-injected`、ADR 0053）では**他ソフトの注入だけ**を変換する。自分の注入（`sender.rs` のマーカー付き）はこのモードでも無条件で素通しすること — ここを緩めるとループが閉じない
 2. **フックコールバック内の処理制限**: コールバック内でのヒープ確保、ロック待ち、ファイル I/O、ログ出力、重い Win32 API 呼び出しを禁止。設定は事前構築の読み取り専用構造を参照するのみとし、リロードは atomic swap（`arc-swap` 等）で行う。明示的な例外は 4 つのみ: `--debug` 時の自スレッドへの `PostThreadMessageW`（ADR 0016）、利用者が `--macro-delay` を指定した場合の有界な sleep（上限 15ms × 8、ADR 0018）、IME インジケーター有効時のトグル候補キー検知での indicator スレッドへの `PostThreadMessageW`（ADR 0020）、マクロ記憶機能有効時の、記憶キー検知に伴う macro-record スレッドおよび自スレッドへの `PostThreadMessageW`（ADR 0044。**マクロの再生自体をコールバック内で行ってはならない** — 20 コマンド × 15ms は `LowLevelHooksTimeout` の既定 300ms に達する）
 3. **unsafe の隔離**: `unsafe` は `hook.rs` / `sender.rs` / `window.rs`、IME インジケーター関連の `src/ime_indicator/`（detect.rs / overlay.rs）と検証用 `examples/ime_probe.rs`（ADR 0020）、コンソール接続・通知ダイアログの `notify.rs`（ADR 0031）、GUI のウィンドウアイコン・関連付け起動の `src/gui/win32.rs`（ADR 0038）、ログのセッション境界用ローカル時刻の `src/clock.rs`（ADR 0041）、およびマクロ記憶中・再生中バナーの `src/macro_record/banner.rs`（ADR 0044。同ディレクトリの `mod.rs` / `recorder.rs` は unsafe を含まない）のみ。各 unsafe に `// SAFETY:` コメント必須
 4. **抑止と送出の順序**: 置換時は元イベントを抑止（コールバックが非 0 を返す）してから置換キーを送出。キーリピートと keydown/keyup の対応を正しく扱い、modifier の押下状態を壊さない

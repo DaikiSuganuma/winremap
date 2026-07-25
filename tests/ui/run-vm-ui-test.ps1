@@ -113,11 +113,13 @@ function Build-Binary {
     Write-Host "  building ($label)..." -ForegroundColor Gray
     Push-Location $repoRoot
     try {
+        # Out-Host, not the pipeline: anything cargo writes to stdout would
+        # otherwise be returned alongside the path this function yields.
         if ($TestInject) {
-            cargo build --release --features test-inject --target-dir $targetDir
+            cargo build --release --features test-inject --target-dir $targetDir | Out-Host
         }
         else {
-            cargo build --release --target-dir $targetDir
+            cargo build --release --target-dir $targetDir | Out-Host
         }
         if ($LASTEXITCODE -ne 0) { throw "cargo build failed" }
     }
@@ -153,7 +155,9 @@ $prompt
 claude -p `$prompt --dangerously-skip-permissions
 "@
 
-    $output = & $EntryScript -Command $command -TimeoutMin $TimeoutMin 2>&1 | ForEach-Object {
+    # The entry script reports through Write-Host, so the guest's output only
+    # reaches the pipeline with the information stream redirected (6>&1).
+    $output = & $EntryScript -Command $command -TimeoutMin $TimeoutMin 6>&1 2>&1 | ForEach-Object {
         Write-Host $_
         $_
     }
@@ -171,12 +175,16 @@ claude -p `$prompt --dangerously-skip-permissions
 $script:vmrun = Resolve-Vmrun
 $script:vm = Get-VmConfig
 
-$files = if ($Scenario -eq "all") {
-    @(Get-ChildItem (Join-Path $scenarioDir "*.txt") | Sort-Object Name)
-}
-else {
-    @(Get-ChildItem (Join-Path $scenarioDir "$Scenario.txt"))
-}
+# The @() must wrap the whole statement: assigning from an if unwraps a
+# single match back to a scalar, and .Count then fails under StrictMode.
+$files = @(
+    if ($Scenario -eq "all") {
+        Get-ChildItem (Join-Path $scenarioDir "*.txt") | Sort-Object Name
+    }
+    else {
+        Get-ChildItem (Join-Path $scenarioDir "$Scenario.txt")
+    }
+)
 if ($files.Count -eq 0) { throw "no scenario matched '$Scenario' in $scenarioDir" }
 
 $results = [ordered]@{}
