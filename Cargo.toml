@@ -25,7 +25,7 @@ test-inject = []
 [dependencies]
 anyhow = "1"
 arc-swap = "1.9.2"
-eframe = { version = "0.35.0", default-features = false, features = ["glow", "default_fonts"] }
+eframe = { version = "0.35.0", default-features = false, features = ["accesskit", "glow", "default_fonts"] }
 notify = "8.2.0"
 serde = { version = "1", features = ["derive"] }
 sys-locale = "0.3.2"
