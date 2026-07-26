@@ -105,7 +105,9 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 
 > 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
 
-> **winget 初回登録の状況（2026-07-23 時点）**: v0.3.0 の提出（[PR #405731](https://github.com/microsoft/winget-pkgs/pull/405731)）は上記 0. の依存が原因で検証に失敗した。リリース済みバイナリは差し替えられないため、**この PR は取り下げ、初回登録は v0.4.0 でやり直す**（オーナー決定 2026-07-23。経緯と手順は[作業ノート](./v0.4/notes/20260723_winget-0.3.0-validation.md)）。
+> **winget 初回登録の状況（2026-07-26 更新）**: v0.3.0 の提出（[PR #405731](https://github.com/microsoft/winget-pkgs/pull/405731)）は上記 0. の依存が原因で検証に失敗した。リリース済みバイナリは差し替えられないため、この PR は取り下げ、初回登録は v0.4.0 でやり直すことにした（オーナー決定 2026-07-23。経緯は[作業ノート](./v0.4/notes/20260723_winget-0.3.0-validation.md)）。
+>
+> **2026-07-26 実施**: v0.4.0 で再提出した（[PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875)）。提出前に 0. のチェック（出力が空）、`winget validate`、公開済み `winremap-setup.exe` を実際に落として SHA256 が manifest と一致することを確認済み。あわせて #405731 を理由を書いて close した。**初回登録は審査に時間がかかる**ため、マージされるまで `winget install DaikiSuganuma.WinRemap` は解決しない。
 
 ## 4. 配布ポリシー（ブリーフ §10-3）
 
