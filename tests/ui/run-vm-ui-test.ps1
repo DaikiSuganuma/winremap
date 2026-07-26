@@ -29,6 +29,7 @@
     .\run-vm-ui-test.ps1
     .\run-vm-ui-test.ps1 -Scenario 05-remap-notepad -NoRevert
     .\run-vm-ui-test.ps1 -DumpUia
+    .\run-vm-ui-test.ps1 -VmConfig test-vm.win11-test.json
 #>
 
 param(
@@ -45,7 +46,12 @@ param(
     # Runs no scenario. Opens the settings and log windows and prints what they
     # expose to UI Automation, so the selectors in the scenarios can be read
     # off a machine instead of guessed. Run this after changing the GUI.
-    [switch]$DumpUia
+    [switch]$DumpUia,
+    # File name under windows-utility's .secrets (or a full path) naming the VM
+    # to run against. The default is whichever VM that repo currently points
+    # at; name one explicitly when more than one guest exists, e.g.
+    # -VmConfig test-vm.win11-test.json.
+    [string]$VmConfig = "test-vm.json"
 )
 
 Set-StrictMode -Version Latest
@@ -67,16 +73,47 @@ function Resolve-Vmrun {
     throw "vmrun.exe not found. Install VMware Workstation (Hyper-V cannot run the OpenGL GUI)."
 }
 
-function Get-VmConfig {
+function Get-SecretsDir {
     if (-not (Test-Path $EntryScript)) {
         throw "Entry script not found: $EntryScript (pass -EntryScript <path to run-in-vm-vmware.ps1>)"
     }
     $utilityRoot = Split-Path (Split-Path (Split-Path $EntryScript -Parent) -Parent) -Parent
-    $configPath = Join-Path $utilityRoot ".secrets\test-vm.json"
+    return (Join-Path $utilityRoot ".secrets")
+}
+
+function Get-VmConfig {
+    $configPath = if ([System.IO.Path]::IsPathRooted($VmConfig)) { $VmConfig }
+    else { Join-Path (Get-SecretsDir) $VmConfig }
     if (-not (Test-Path $configPath)) {
         throw "VM connection details not found: $configPath (run windows-utility's setup-01-vmware.ps1 first)"
     }
+    $script:vmConfigPath = $configPath
     Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+}
+
+# The guest-command entry script reads .secrets\test-vm.json and takes no
+# parameter for it, so naming a different VM here is only half the job: a run
+# whose scenarios go to one guest while the payload was prepared on another
+# fails in a way that looks nothing like its cause. It happened — the default
+# was repointed mid-run and the last scenario launched against a VM this
+# script had never touched. So put the chosen config in place for the duration
+# and always put the original back.
+function Set-DefaultVmConfig {
+    $default = Join-Path (Get-SecretsDir) "test-vm.json"
+    if ((Resolve-Path $script:vmConfigPath).Path -eq (Resolve-Path $default).Path) { return }
+    $script:vmConfigBackup = Join-Path $env:TEMP "winremap-test-vm.json.bak"
+    Copy-Item $default $script:vmConfigBackup -Force
+    Copy-Item $script:vmConfigPath $default -Force
+    Write-Host "  entry script repointed at $($script:vm.VMName) for this run" -ForegroundColor Yellow
+    Write-Host "  (windows-utility's default is restored when it ends)" -ForegroundColor Yellow
+}
+
+function Restore-DefaultVmConfig {
+    if (-not $script:vmConfigBackup) { return }
+    Copy-Item $script:vmConfigBackup (Join-Path (Get-SecretsDir) "test-vm.json") -Force
+    Remove-Item $script:vmConfigBackup -Force -ErrorAction SilentlyContinue
+    $script:vmConfigBackup = $null
+    Write-Host "  windows-utility's default VM config restored" -ForegroundColor Gray
 }
 
 # `vmrun start` launches the VMware Workstation GUI when it is not already
@@ -256,14 +293,26 @@ function Invoke-Scenario {
     # and the terminator MCP server never becomes healthy when spawned with
     # that as its working directory — claude then hangs before its first tool
     # call, with no output at all.
+    # The prompt goes in on stdin, not as an argument. Windows PowerShell 5.1
+    # mangles a native-command argument containing double quotes: it strips
+    # them, and once they are unbalanced the rest of the argument is lost. A
+    # 2557-character prompt arrived as 1687 characters, cut mid-sentence at
+    # `("Settings" and "Show` — and the agent, given four of seven steps, did
+    # those four and stopped without a verdict. It read as the app failing.
+    #
+    # $OutputEncoding is what PowerShell encodes a pipe to a native command
+    # with; left at the console default it turns every non-ASCII character
+    # into "?". Both together make what the agent reads byte-identical to the
+    # scenario file.
     $command = @"
 `$env:CLAUDE_CODE_OAUTH_TOKEN = [Environment]::GetEnvironmentVariable('CLAUDE_CODE_OAUTH_TOKEN','User')
 `$env:Path = `$env:Path + ';' + `$env:APPDATA + '\npm'
 Set-Location `$env:USERPROFILE
+`$OutputEncoding = New-Object System.Text.UTF8Encoding `$false
 `$prompt = @'
 $prompt
 '@
-claude -p `$prompt --dangerously-skip-permissions
+`$prompt | claude -p --dangerously-skip-permissions
 "@
 
     # The entry script reports through Write-Host, so the guest's output only
@@ -299,25 +348,31 @@ claude -p `$prompt --dangerously-skip-permissions
 # ---------------------------------------------------------------------------
 
 $script:vmrun = Resolve-Vmrun
+$script:vmConfigBackup = $null
 $script:vm = Get-VmConfig
+Write-Host "  VM: $($script:vm.VMName)" -ForegroundColor Gray
+Set-DefaultVmConfig
 
-if ($DumpUia) {
-    Write-Host "`n=== UIA dump ===" -ForegroundColor Cyan
-    $exe = Build-Binary -TestInject $false
-    if (-not $NoRevert) { Reset-Guest }
-    Copy-Payload -Exe $exe
-    if (-not (Set-TrayIconPromoted)) { throw "the tray icon was not promoted" }
-    $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-    Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
-        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\dump-uia.ps1" | Out-Null
-    $dump = Join-Path $env:TEMP "winremap-uia-dump.txt"
-    Remove-Item $dump -Force -ErrorAction SilentlyContinue
-    Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\uia-dump.txt" $dump | Out-Null
-    if (-not (Test-Path $dump)) { throw "the guest produced no dump" }
-    Get-Content $dump -Encoding UTF8 | Write-Host
-    Write-Host "`nsaved: $dump" -ForegroundColor Gray
-    exit 0
-}
+try {
+
+    if ($DumpUia) {
+        Write-Host "`n=== UIA dump ===" -ForegroundColor Cyan
+        $exe = Build-Binary -TestInject $false
+        if (-not $NoRevert) { Reset-Guest }
+        Copy-Payload -Exe $exe
+        if (-not (Set-TrayIconPromoted)) { throw "the tray icon was not promoted" }
+        $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
+            "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\dump-uia.ps1" | Out-Null
+        $dump = Join-Path $env:TEMP "winremap-uia-dump.txt"
+        Remove-Item $dump -Force -ErrorAction SilentlyContinue
+        Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\uia-dump.txt" $dump | Out-Null
+        if (-not (Test-Path $dump)) { throw "the guest produced no dump" }
+        Get-Content $dump -Encoding UTF8 | Write-Host
+        Write-Host "`nsaved: $dump" -ForegroundColor Gray
+        Restore-DefaultVmConfig
+        exit 0
+    }
 
 # The @() must wrap the whole statement: assigning from an if unwraps a
 # single match back to a scalar, and .Count then fails under StrictMode.
@@ -329,7 +384,10 @@ $files = @(
     }
     else {
         # Comma-separated names run a subset, e.g. -Scenario 02-...,03-...
-        foreach ($name in $Scenario -split ',') {
+        # Split on whitespace too: PowerShell binds a comma-separated argument
+        # as an array and joins it with spaces on the way into [string], so
+        # splitting on commas alone looked for one file with a very long name.
+        foreach ($name in $Scenario -split '[,\s]+') {
             Get-ChildItem (Join-Path $scenarioDir "$($name.Trim()).txt")
         }
     }
@@ -379,7 +437,14 @@ foreach ($name in $results.Keys) {
     $color = if ($verdict -eq "PASS") { "Green" } else { "Red" }
     Write-Host ("  {0,-24} {1}" -f $name, $verdict) -ForegroundColor $color
 }
-if ($results.Values -contains "PASS" -and -not ($results.Values | Where-Object { $_ -ne "PASS" })) {
-    exit 0
+    if ($results.Values -contains "PASS" -and -not ($results.Values | Where-Object { $_ -ne "PASS" })) {
+        $script:exitCode = 0
+    }
+    else { $script:exitCode = 1 }
 }
-exit 1
+finally {
+    # Runs on Ctrl-C and on any throw above, so the other guest's config is
+    # never left pointing at ours.
+    Restore-DefaultVmConfig
+}
+exit $script:exitCode

@@ -197,6 +197,18 @@ if ($settings) {
 # --- log window ---------------------------------------------------------
 Open-TrayMenuItem $icon "Show log" 0x53 2 | Out-Null
 Start-Sleep -Seconds 4
-Write-WindowTree "*log*" "LOG WINDOW" | Out-Null
+$log = Write-WindowTree "*log*" "LOG WINDOW"
+
+if ($log) {
+    $clear = Find-Named $log "Clear"
+    if ($clear) {
+        Say ""
+        Say "--- invoking Button 'Clear' through UIA ---"
+        Invoke-Element $clear
+        Start-Sleep -Seconds 3
+        Write-WindowTree "*log*" "LOG WINDOW after Clear" | Out-Null
+    }
+    else { Say "Button 'Clear' not found" }
+}
 
 $out | Set-Content $dumpPath -Encoding UTF8

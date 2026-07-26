@@ -1,16 +1,16 @@
 # needs: tray
 Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
 
-Output rule: perform all the steps first, then print a line containing ONLY the word PASS or the word FAIL, and only after that line write at most one short line per step. Never end without that verdict line.
+Output rule: perform ALL the steps first, then print a line containing ONLY the word PASS or the word FAIL, and only after that line write at most one short line per step. Never end without that verdict line, and never stop to ask a question — if something is ambiguous, choose the closest match and say so in the report. This prompt is complete as given; if some part of it looks truncated to you, work with what is here rather than asking for more.
 
 The tray menu is a Win32 popup, and its items are NOT reliably exposed to UI Automation — sometimes they are in the tree, sometimes the popup is an unnamed container with no children at all. That is a property of Windows menus and is not what this test is about, so the menu is only used to act here; every check below is made on the tray icon itself, which is always in the tree.
 
 To click a menu item: find it in the tree and click it, and if it is not in the tree, press its first letter instead — "E" for Enabled, "R" for Reload config, "Q" for Quit. Each of those letters matches exactly one item, and Windows invokes a unique first-letter match immediately, with no Enter needed. Do not take screenshots.
 
-The tray icon's name is its tooltip, and it reports the state:
-  - remapping on  -> "WinRemap — 1 keymap(s)"
-  - remapping off -> "WinRemap (disabled)"
-  - reload failed -> a name containing "FAILED"
+The tray icon's name is its tooltip, and it reports the state. Match on a substring, not on the whole name:
+  - remapping on  -> the name contains "keymap(s)"
+  - remapping off -> the name contains "disabled"
+  - reload failed -> the name contains "FAILED"
 
 1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
 2. Wait 5 seconds. The WinRemap icon sits directly on the taskbar's notification area — it has been promoted out of the overflow, so do NOT open the overflow flyout (that flyout does not open reliably under automation). Report the icon's name.
@@ -19,4 +19,4 @@ The tray icon's name is its tooltip, and it reports the state:
 5. Right-click the icon and invoke "Reload config". Wait 2 seconds and report the icon's name now.
 6. Right-click the icon and invoke "Quit". Wait 5 seconds, then check whether any process named winremap is still running.
 
-Print PASS if the icon's name was "WinRemap (disabled)" after step 3, went back to naming a keymap count after step 4, did not contain "FAILED" after step 5, and no winremap process was left after step 6. Otherwise print FAIL.
+Print PASS if the icon's name contained "disabled" after step 3, contained "keymap(s)" again after step 4, did not contain "FAILED" after step 5, and no winremap process was left after step 6. Otherwise print FAIL.

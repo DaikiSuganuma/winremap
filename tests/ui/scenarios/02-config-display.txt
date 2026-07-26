@@ -1,6 +1,8 @@
 # needs: tray
 Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
 
+Output rule: perform ALL the steps first, then print a line containing ONLY the word PASS or the word FAIL, and only after that line write your short report. Never end without that verdict line, and never stop to ask a question — if something is ambiguous, choose the closest match and say so in the report. Opening the settings window is step 2 of 6, not the end of the test.
+
 Do not take screenshots and do not read anything from an image. Every check below is answerable from the UI Automation tree. If an element is missing, that is the result — report it as missing rather than looking at the picture to see whether it is "really" there.
 
 1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
@@ -10,6 +12,7 @@ Do not take screenshots and do not read anything from an image. Every check belo
 4. Report how the loaded config file is shown at the top of the window. It is split in two: a text element with the folder, and a combo box whose value is the file name. Report both.
 5. Report the names of the navigation entries on the left ("General", "Keymaps", and the keymaps below them).
 6. Click the element role:Text|name:notepad in that navigation tree, wait 3 seconds, and list the window's elements again.
+   That entry exposes no Invoke pattern, so an invoke or select action on it will fail. Click it with the mouse, at its own position. If it does not respond after two attempts, say so and carry on to the verdict — do not keep retrying.
 
 The config file C:\Test\minimal.toml defines one keymap named "notepad", whose application list is notepad.exe and whose single rule remaps C-h to Back.
 

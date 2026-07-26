@@ -12,7 +12,7 @@ Do not take screenshots and do not read anything from an image. Every check belo
 4. Wait 3 seconds, then list the UI elements (role and name) of the window whose name contains "log".
 5. Report the log lines. Each line is its own text element; quote them verbatim.
 6. Report whether a check box named "Follow newest" and buttons named "Clear" and "Copy all" are present, and what the check box's toggle state is.
-7. Click role:Button|name:Clear, wait 2 seconds, and list the window's text elements again.
+7. Click role:Button|name:Clear, wait 2 seconds, and list the window's text elements again. Fetch the window's tree afresh for this — do not answer from the listing you already took, which was captured before the click.
 
 The window is expected to open on a session line naming the version, such as "2026-07-25 12:00:00  WinRemap v0.4.0 started". Which config file was loaded is NOT written to this window today — do not treat its absence as a failure.
 

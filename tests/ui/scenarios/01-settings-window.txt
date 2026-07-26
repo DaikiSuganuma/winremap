@@ -1,6 +1,8 @@
 # needs: tray
 Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
 
+Output rule: perform ALL the steps first, then print a line containing ONLY the word PASS or the word FAIL, and only after that line write your short report. Never end without that verdict line, and never stop to ask a question — if something is ambiguous, choose the closest match and say so in the report. Opening the settings window is step 4 of 7, not the end of the test.
+
 Do not take screenshots and do not read anything from an image. Every check below is answerable from the UI Automation tree. If an element is missing, that is the result — report it as missing rather than looking at the picture to see whether it is "really" there.
 
 1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
