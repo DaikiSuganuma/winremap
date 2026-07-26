@@ -490,14 +490,26 @@ fn rebuild_keymaps(doc: &mut DocumentMut, original: &ConfigDraft, edited: &Confi
         }
         new.push(table);
     }
-    if let Some(lead) = lead
-        && let Some(first) = new.get_mut(0)
-    {
-        let own = decor_text(first.decor().prefix());
-        // `lead` already ends the line it sits on; the newline the table
-        // carried for its own separation would leave a blank one.
-        let own = own.strip_prefix('\n').unwrap_or(&own);
-        first.decor_mut().set_prefix(format!("{lead}{own}"));
+    if let Some(lead) = lead {
+        match new.get_mut(0) {
+            Some(first) => {
+                let own = decor_text(first.decor().prefix());
+                // `lead` already ends the line it sits on; the newline the
+                // table carried for its own separation would leave a blank one.
+                let own = own.strip_prefix('\n').unwrap_or(&own);
+                first.decor_mut().set_prefix(format!("{lead}{own}"));
+            }
+            // No keymap is left for the block to introduce, but it is still
+            // the user's text: deleting the only keymap of a file that opens
+            // with one emptied the file outright (owner report 2026-07-26).
+            // Keymaps come last in a config, so what follows them is where
+            // the block belongs.
+            None => {
+                let trailing = decor_text(Some(doc.trailing()));
+                let lead = lead.trim_start_matches('\n');
+                doc.set_trailing(format!("{lead}{trailing}"));
+            }
+        }
     }
     if !new.is_empty() {
         doc.as_table_mut()
@@ -1042,6 +1054,24 @@ CapsLock = "LCtrl"
             saved.starts_with("# file header\n# second line\n\n[[keymap]]\nname = \"b\""),
             "{saved}"
         );
+    }
+
+    /// Deleting the *only* keymap left nothing for the header to sit above,
+    /// and the whole file — comments included — went with it (owner report
+    /// 2026-07-26, on `examples/minimal.toml`).
+    #[test]
+    fn deleting_the_last_keymap_still_keeps_the_file_header() {
+        let source = "# file header\n# second line\n\n[[keymap]]\nname = \"a\"\n\
+                      application = [\"a.exe\"]\n\n[keymap.remap]\n\"C-h\" = \"Back\"\n";
+        let original = parse(source).expect("parses");
+        let mut edited = original.clone();
+        edited.keymaps.clear();
+        let saved = apply(source, &original, &edited).expect("applies");
+        assert!(
+            saved.starts_with("# file header\n# second line\n"),
+            "{saved}"
+        );
+        assert!(!saved.contains("[[keymap]]"), "{saved}");
     }
 
     #[test]

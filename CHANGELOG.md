@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-26
+
 ### Added
 
 - **Config editing in the settings window** (milestone B2, ADR 0049): the
@@ -50,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Deleting the last keymap of a config no longer empties the file. The comment
+  block a file opens with belonged to the first `[[keymap]]`, so removing the
+  only one took the whole header with it.
 - Saving no longer rewrites a config file's line endings. A file written with
   Windows line endings came back with every line changed, so a one-word edit
   showed up as a whole-file diff.
