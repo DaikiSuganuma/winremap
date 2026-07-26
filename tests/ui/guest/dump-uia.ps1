@@ -17,6 +17,17 @@ $out = New-Object System.Collections.Generic.List[string]
 function Say([string]$s) { $out.Add($s) }
 $dumpPath = "C:\Test\uia-dump.txt"
 
+# Pressing is checked here rather than in the agent-driven scenarios. Through
+# terminator the same two buttons worked about half the time — "Edit" 2 of 6,
+# "Clear" 2 of 4 — while a plain UIA client has yet to miss. A check that
+# fails half the time cannot tell a regression from a bad day, so the agent
+# reads and this asserts.
+$checks = [ordered]@{}
+function Check([string]$name, [bool]$ok, [string]$detail) {
+    $checks[$name] = $ok
+    Say ("CHECK {0,-28} {1}  {2}" -f $name, $(if ($ok) { "pass" } else { "FAIL" }), $detail)
+}
+
 # Whatever happens, the host gets a file: vmrun does not carry guest stdout
 # back, so a script that dies silently here is indistinguishable from one that
 # never ran at all.
@@ -169,6 +180,8 @@ Say ("tray icon: '" + $icon.Current.Name + "' class=" + $icon.Current.ClassName)
 Open-TrayMenuItem $icon "Settings" 0x53 1 | Out-Null
 Start-Sleep -Seconds 4
 $settings = Write-WindowTree "*settings*" "SETTINGS WINDOW"
+Check "settings-window-exposed" ([bool]$settings -and $settings.FindAll($desc, $anything).Count -gt 20) `
+    "the settings window's own controls reach UI Automation, not just its title bar"
 
 if ($settings) {
     $node = Find-Named $settings "notepad"
@@ -180,9 +193,11 @@ if ($settings) {
         Write-WindowTree "*settings*" "SETTINGS WINDOW after selecting notepad" | Out-Null
     }
     else { Say "tree item 'notepad' not found" }
+    Check "keymap-detail-shown" ([bool](Find-Named $settings "notepad.exe") -and [bool](Find-Named $settings "C-h")) `
+        "selecting the keymap shows its application and rule"
 
-    # Pressing a control through UIA is the half this cannot cover by reading,
-    # so exercise it here rather than assume it follows from the tree.
+    # Pressing a control is the half this cannot cover by reading, so press one
+    # and require the window to change.
     $edit = Find-Named $settings "Edit"
     if ($edit) {
         Say ""
@@ -192,12 +207,19 @@ if ($settings) {
         Write-WindowTree "*settings*" "SETTINGS WINDOW in edit mode" | Out-Null
     }
     else { Say "Button 'Edit' not found" }
+    Check "edit-button-presses" ([bool](Find-Named $settings "Save") -and [bool](Find-Named $settings "Revert")) `
+        "pressing Edit puts the window in edit mode"
 }
 
 # --- log window ---------------------------------------------------------
 Open-TrayMenuItem $icon "Show log" 0x53 2 | Out-Null
 Start-Sleep -Seconds 4
 $log = Write-WindowTree "*log*" "LOG WINDOW"
+$textCond = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::Text)
+Check "log-lines-readable" ([bool]$log -and $log.FindAll($desc, $textCond).Count -gt 0) `
+    "the log lines are readable as elements"
 
 if ($log) {
     $clear = Find-Named $log "Clear"
@@ -209,6 +231,14 @@ if ($log) {
         Write-WindowTree "*log*" "LOG WINDOW after Clear" | Out-Null
     }
     else { Say "Button 'Clear' not found" }
+    Check "clear-button-presses" ($log.FindAll($desc, $textCond).Count -eq 0) `
+        "pressing Clear empties the log"
 }
 
+$failed = @($checks.Keys | Where-Object { -not $checks[$_] })
+Say ""
+Say ("RESULT: {0} of {1} checks passed" -f ($checks.Count - $failed.Count), $checks.Count)
+if ($failed.Count) { Say ("FAILED: " + ($failed -join ', ')) }
 $out | Set-Content $dumpPath -Encoding UTF8
+if ($failed.Count) { exit 1 }
+exit 0

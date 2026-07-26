@@ -1,7 +1,7 @@
 # needs: tray
 Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
 
-Output rule: perform ALL the steps first, then print a line containing ONLY the word PASS or the word FAIL, and only after that line write your short report. Never end without that verdict line, and never stop to ask a question — if something is ambiguous, choose the closest match and say so in the report. Opening the settings window is step 4 of 7, not the end of the test.
+Output rule: perform ALL the steps first, then print a line containing ONLY the word PASS or the word FAIL, and only after that line write your short report. Never end without that verdict line, and never stop to ask a question — if something is ambiguous, choose the closest match and say so in the report. Opening the settings window is step 4 of 6, not the end of the test.
 
 Do not take screenshots and do not read anything from an image. Every check below is answerable from the UI Automation tree. If an element is missing, that is the result — report it as missing rather than looking at the picture to see whether it is "really" there.
 
@@ -9,13 +9,14 @@ Do not take screenshots and do not read anything from an image. Every check belo
 2. Wait 5 seconds for its tray icon to appear in the notification area.
 3. Right-click the notification-area icon whose name contains "WinRemap". It sits directly on the taskbar — it has been promoted out of the overflow, so do NOT open the overflow flyout (that flyout does not open reliably under automation).
 4. Click the menu item named "Settings".
-   The tray menu is a Win32 popup, and its items are NOT reliably exposed to UI Automation — sometimes they are in the tree, sometimes the popup is an unnamed container with no children at all. That is a property of Windows menus and is not what this test is about. If you cannot find the item in the tree, do NOT report the menu as broken and do NOT take a screenshot. Drive it the way Windows itself allows: with the menu open, press the S key once, then press Enter. ("Settings" and "Show log" both start with S, so the first press only highlights "Settings" — Windows invokes on a first-letter match only when the match is unique.)
+   The tray menu is a Win32 popup, and its items are NOT reliably exposed to UI Automation — sometimes they are in the tree, sometimes the popup is an unnamed container with no children at all. That is a property of Windows menus and is not what this test is about. If you cannot find the item in the tree, do NOT report the menu as broken and do NOT take a screenshot. Drive it the way Windows itself allows: with the menu open, press the S key once, then press Enter. ("Settings" and "Show log" both start with S, so the first press only highlights "Settings" — Windows invokes on a first-letter match only when the match is unique.) Your own press_key and press_key_global tools cannot reach this popup — they fail with "Element not found" or "Failed to press key on focused element". Send the keystrokes at OS level instead, for example SendKeys from a PowerShell command.
 5. Wait 3 seconds, then list the UI elements (role and name) of the window whose name contains "settings".
 6. Report which of these are present and which are missing:
    - a Button named "Edit"
    - a text element named "General" and one named "Keymaps"
    - a text element named "notepad"
    - a text element whose name starts with "WinRemap v"
-7. Click role:Button|name:Edit, wait 3 seconds, and list the window's buttons again. The two header buttons are expected to become "Save" and "Revert".
 
-On the final line print exactly PASS if every element in step 6 was found AND, after step 7, buttons named "Save" and "Revert" are in the tree. Otherwise print exactly FAIL. Then write at most one short line per step.
+Pressing the buttons is deliberately not part of this scenario — the harness checks that separately, without an agent, in 00-uia-actuation. Do not click "Edit".
+
+On the final line print exactly PASS if every element in step 6 was found. Otherwise print exactly FAIL. Then write at most one short line per step.

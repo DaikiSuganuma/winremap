@@ -38,7 +38,12 @@ param(
     # windows-utility's guest-command entry point; its repo root holds .secrets.
     [string]$EntryScript = "D:\Projects\GitLab\windows-utility\test-vm\scripts\run-in-vm-vmware.ps1",
     [string]$Snapshot = "ready",
-    [int]$TimeoutMin = 15,
+    # Generous on purpose: a green run measured 11:54 / 14:05 / 3:34 / 12:23 /
+    # 1:38, so anything near 15 turns a slow scenario into a false ERROR — and
+    # a false ERROR costs more than a slow pass, because it sends someone
+    # looking for a defect that is not there. A scenario can ask for its own
+    # budget with `# timeout: <minutes>`.
+    [int]$TimeoutMin = 25,
     # Reuses the running guest as-is. For iterating on a prompt only: results
     # are not reproducible once a scenario has left state behind.
     [switch]$NoRevert,
@@ -282,11 +287,35 @@ function Set-TrayIconPromoted {
     return $false
 }
 
+# The deterministic half of the suite. Everything an agent has to interpret
+# lives in the scenarios; this presses buttons through a plain UI Automation
+# client and checks the windows actually changed. Through terminator the same
+# two buttons landed about half the time, and a check that flaky reports bad
+# days as regressions — this one has yet to miss.
+function Invoke-UiaChecks {
+    param([bool]$Verbose)
+    $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+    Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
+        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\dump-uia.ps1" | Out-Null
+    $dump = Join-Path $env:TEMP "winremap-uia-dump.txt"
+    Remove-Item $dump -Force -ErrorAction SilentlyContinue
+    Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\uia-dump.txt" $dump | Out-Null
+    if (-not (Test-Path $dump)) { return "ERROR" }
+    $lines = Get-Content $dump -Encoding UTF8
+    if ($Verbose) { $lines | Write-Host }
+    else { $lines | Where-Object { $_ -match '^(CHECK|RESULT|FAILED)' } | Write-Host }
+    Write-Host "  saved: $dump" -ForegroundColor Gray
+    # The dump is the record; its own tally is the verdict.
+    if ($lines | Where-Object { $_ -match '^FAILED:' }) { return "FAIL" }
+    if ($lines | Where-Object { $_ -match '^RESULT: \d+ of \d+ checks passed' }) { return "PASS" }
+    return "ERROR"
+}
+
 function Invoke-Scenario {
-    param([System.IO.FileInfo]$File)
+    param([System.IO.FileInfo]$File, [int]$Minutes)
 
     # Directive lines configure the run and are not part of the prompt.
-    $prompt = ((Get-Content $File.FullName -Raw) -replace '(?m)^#\s*needs:.*\r?\n', '').TrimEnd()
+    $prompt = ((Get-Content $File.FullName -Raw) -replace '(?m)^#\s*(needs|timeout):.*\r?\n', '').TrimEnd()
     # The guest's PATH does not include npm's global bin in a non-login shell,
     # and the token lives in the User environment (never in this repo).
     # Set-Location matters: vmrun starts the command in C:\Windows\System32,
@@ -317,7 +346,7 @@ $prompt
 
     # The entry script reports through Write-Host, so the guest's output only
     # reaches the pipeline with the information stream redirected (6>&1).
-    $output = & $EntryScript -Command $command -TimeoutMin $TimeoutMin 6>&1 2>&1 | ForEach-Object {
+    $output = & $EntryScript -Command $command -TimeoutMin $Minutes 6>&1 2>&1 | ForEach-Object {
         Write-Host $_
         $_
     }
@@ -361,17 +390,10 @@ try {
         if (-not $NoRevert) { Reset-Guest }
         Copy-Payload -Exe $exe
         if (-not (Set-TrayIconPromoted)) { throw "the tray icon was not promoted" }
-        $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-        Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
-            "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\dump-uia.ps1" | Out-Null
-        $dump = Join-Path $env:TEMP "winremap-uia-dump.txt"
-        Remove-Item $dump -Force -ErrorAction SilentlyContinue
-        Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\uia-dump.txt" $dump | Out-Null
-        if (-not (Test-Path $dump)) { throw "the guest produced no dump" }
-        Get-Content $dump -Encoding UTF8 | Write-Host
-        Write-Host "`nsaved: $dump" -ForegroundColor Gray
+        $verdict = Invoke-UiaChecks -Verbose $true
+        Write-Host "`n  $verdict" -ForegroundColor $(if ($verdict -eq "PASS") { "Green" } else { "Red" })
         Restore-DefaultVmConfig
-        exit 0
+        exit $(if ($verdict -eq "PASS") { 0 } else { 1 })
     }
 
 # The @() must wrap the whole statement: assigning from an if unwraps a
@@ -400,6 +422,18 @@ foreach ($file in $files) {
 }
 
 $results = [ordered]@{}
+
+# Part of a full run, not a separate command to remember: the scenarios check
+# what the windows expose, this checks that pressing what they expose works.
+if ($Scenario -eq "all") {
+    Write-Host "`n=== 00-uia-actuation ===" -ForegroundColor Cyan
+    $exe = Build-Binary -TestInject $false
+    if (-not $NoRevert) { Reset-Guest }
+    Copy-Payload -Exe $exe
+    $results["00-uia-actuation"] = if (Set-TrayIconPromoted) { Invoke-UiaChecks -Verbose $false }
+    else { "SETUP FAILED" }
+}
+
 foreach ($file in $files) {
     $name = $file.BaseName
     Write-Host "`n=== $name ===" -ForegroundColor Cyan
@@ -413,9 +447,20 @@ foreach ($file in $files) {
     # Sniffing the prompt wording for it was silently wrong the moment a
     # scenario was reworded — scenario 02 then looked for an icon nothing had
     # promoted, and blamed the app.
+    # A scenario that works the tray menu is far slower than one that does not,
+    # because the popup is exposed to UI Automation only sometimes and the
+    # agent falls back to raw keystrokes. Rather than give every scenario the
+    # slowest one's budget — which would let a genuine hang burn it too — a
+    # scenario asks for its own with `# timeout: <minutes>`.
+    $minutes = if ((Get-Content $file.FullName -Raw) -match '(?m)^#\s*timeout:\s*(\d+)\s*$') {
+        [int]$Matches[1]
+    }
+    else { $TimeoutMin }
+    if ($minutes -ne $TimeoutMin) { Write-Host "  timeout: $minutes min" -ForegroundColor Gray }
+
     $ready = if ($needsTray[$name]) { Set-TrayIconPromoted } else { $true }
     $verdict = if ($ready) {
-        Invoke-Scenario -File $file
+        Invoke-Scenario -File $file -Minutes $minutes
     }
     else {
         Write-Host "  skipped: the tray icon was not promoted" -ForegroundColor Red
