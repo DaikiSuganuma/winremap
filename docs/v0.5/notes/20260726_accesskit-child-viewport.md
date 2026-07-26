@@ -48,7 +48,35 @@ eframe 0.35 で `init_accesskit` を呼んでいるのは 2 箇所だけで、�
 - egui の最新リリースは **0.35.0（2026-06-25）** で、本プロジェクトが使っている版がすでに最新。**新しい版に上げれば直る、という話ではない**
 - `emilk/egui` の issue を `accesskit` で検索した範囲では、子ビューポートに関する報告は見当たらなかった（検索は網羅的ではない）
 
+## パッチの実測（ADR 0055 決定 4・同日実施）
+
+eframe 0.35.0 のソースをローカルに複製して改変し、`[patch.crates-io]` で一時的に指して測った（改変版は作業用のため未コミット。内容は下記）。
+
+**結果: 効く。**
+
+| 測定 | 結果 |
+|---|---|
+| 子ビューポートの子孫 | **10 個**。`Text 'ProbeHeading'`・`Text 'ProbeLabel'`・**`Button 'ProbeButton'`**・動的ラベル（`clicks seen by the host: 0`）＋ タイトルバー等 |
+| ボタンの操作 | `InvokePattern` が露出しており、UIA から `Invoke()` を呼ぶと**プローブ側に `ProbeButton clicked` が出た** |
+
+読めるだけでなく**押せる**ことまで確認できた。Phase A が必要としていたのはまさにこれである。
+
+### 改変の中身（2 箇所）
+
+1. `GlutinWindowContext` に `accesskit_proxy: Option<EventLoopProxy<UserEvent>>` を持たせ、`initialize_window` で**ウィンドウを持つ全ビューポート**にアダプターを作る（`ViewportId::ROOT` 決め打ちをやめる）。`ActiveEventLoop` にはプロキシ生成が無いため、フィールドで持ち回る必要がある
+2. **ウィンドウを一旦隠したまま作る。** これは実測して初めて分かった制約で、最初のパッチはこう落ちた:
+
+   > `The AccessKit winit adapter must be created before the window is shown (made visible) for the first time.`（`accesskit_winit-0.32.2/src/lib.rs:198`）
+
+   ルートは白いちらつき対策（[egui #2279](https://github.com/emilk/egui/pull/2279)）で元から `visible(false)` で作られるため踏まなかった。子ビューポートは可視で作られるので踏む。アダプターを付けてから `set_visible(true)` する形にした
+
+### 上流 PR にする前に要ること
+
+- **wgpu バックエンドにも同じ変更**（`wgpu_integration.rs`。本プロジェクトは使わないが、片方だけ直すのは PR として不完全）
+- egui のコントリビューション手順（CHANGELOG への記載、CI）に合わせる
+- `#[cfg_attr(not(feature = "accesskit"), expect(unused_mut))]` のような細工を、上流の書き方に寄せて整理する
+
 ## 未確認のまま残したこと
 
-- **パッチが実際に効くか**は試していない。`[patch.crates-io]` でローカル改変版を指して、子ビューポートの子孫が UIA に出ることを確かめるところまでやれば、ADR 0055 の選択に迷いが無くなる
 - wgpu バックエンドは確認していない（本プロジェクトは glow のみ）
+- WinRemap 本体（設定・ログウィンドウ）での確認はこれから。プローブは構成を同じにしただけの最小再現である

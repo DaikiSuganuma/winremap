@@ -1,6 +1,6 @@
 # ADR 0055: 子ビューポートに AccessKit を付ける方式
 
-- ステータス: **提案（オーナー承認待ち）**
+- ステータス: **承認**（オーナー承認 2026-07-26）。決定 4 の実測も同日完了し、**パッチが効くことを確認済み**（[調査記録](../notes/20260726_accesskit-child-viewport.md)）
 - 日付: 2026-07-26
 - 作成: Claude Code（AI モデル: claude-opus-5）
 - 参照: [AccessKit](https://accesskit.dev/)、[eframe 0.35.0 `glow_integration.rs`](https://docs.rs/eframe/0.35.0/src/eframe/native/glow_integration.rs.html)、[ADR 0037（不可視ホスト＋子ビューポート）](../../v0.2/decisions/0037-gui-invisible-host-viewport.md)、[ADR 0035（単一 EventLoop）](../../v0.2/decisions/0035-single-event-loop.md)、[調査記録](../notes/20260726_accesskit-child-viewport.md)、[v0.5 開発計画 §2](../01_development-plan.md)
@@ -23,7 +23,9 @@ v0.4 の UI テストは設定ウィンドウとログウィンドウを**スク
 1. **eframe の子ビューポート生成経路に AccessKit の初期化を足し、`emilk/egui` へ upstream PR を出す。** 位置は `glow_integration.rs` の `viewport.egui_winit.get_or_insert_with(...)`。イベントループのプロキシをその場まで引き回す必要がある
 2. **マージを待つ間は `[patch.crates-io]` でフォークを指す。** ADR に外す条件を書く: **upstream にマージされ、それを含む eframe が公開されたら patch を外す**。フォークは `DaikiSuganuma/egui` に置き、対象ブランチとコミットを本 ADR に追記する
 3. **`accesskit` feature は本番ビルドでも有効にする。** テスト専用の feature にはしない
-4. 実装の前に、`[patch.crates-io]` を使ったローカル改変版で**子ビューポートの子孫が UIA に出ることを実測**する。ここで出なければ本 ADR は差し戻し、決定 5 の代替案を検討する
+4. 実装の前に、`[patch.crates-io]` を使ったローカル改変版で**子ビューポートの子孫が UIA に出ることを実測**する。ここで出なければ本 ADR は差し戻し、代替案を検討する
+   - **実施済み（2026-07-26）**: 子孫 10 個が見え、`InvokePattern` 経由でボタンを押すと実際にクリックが届いた。**読めるだけでなく押せる**
+   - 実測して初めて分かった制約が 1 つある。**アダプターはウィンドウを最初に表示する前に作らなければならない**（`accesskit_winit` が panic する）。ルートは白いちらつき対策で元から不可視で作られるため踏まないが、子ビューポートは可視で作られるので踏む。**一旦隠して作り、アダプターを付けてから表示する**必要がある — 上流 PR にもこの扱いが要る
 
 ## 理由
 
