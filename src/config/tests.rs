@@ -285,8 +285,8 @@ fn rejects_rules_that_normalize_to_the_same_combo() {
 }
 
 #[test]
-fn suganuma_example_uses_the_macro_table() {
-    let source = include_str!("../../examples/suganuma.toml");
+fn personal_example_uses_the_macro_table() {
+    let source = include_str!("../../examples/personal-ja.toml");
     let table = crate::config::parse_str(source).expect("example config must be valid");
     assert_eq!(table.macro_delay_ms, 8);
     let comments = crate::config::comments::parse(source);

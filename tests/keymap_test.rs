@@ -76,8 +76,8 @@ fn emacs_example_parses_and_resolves() {
 /// Two-stroke sequences are currently commented out in the sample, so they
 /// are covered by the unit tests in src/config/tests.rs instead.
 #[test]
-fn suganuma_example_covers_exclude_and_macros() {
-    let table = load_example("suganuma.toml");
+fn personal_example_covers_exclude_and_macros() {
+    let table = load_example("personal-ja.toml");
     let exe = "notepad.exe";
 
     // Macro pacing for WinUI apps (ADR 0019) must survive edits.

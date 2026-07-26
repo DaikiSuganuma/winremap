@@ -1,13 +1,33 @@
-# WinRemap minimal example.
+# WinRemap configuration.
 #
-# Maps Ctrl+H to a plain Backspace, but only inside Notepad. Since Notepad's
-# default Ctrl+H opens the Replace dialog, this doubles as an easy way to
-# verify WinRemap is working: press Ctrl+H in Notepad and a character is
-# deleted instead. Other applications are not affected.
+# A config file is a list of keymaps. Each one names the applications it
+# applies to and the rules that apply there. The first keymap matching the
+# foreground application wins, and an app-specific keymap beats a global one.
+#
+#   [[keymap]]
+#   name = "notepad"               # optional label, shown in the settings window
+#   application = ["notepad.exe"]  # exe names, case-insensitive; ["*"] = every app
+#   exclude = ["game.exe"]         # only allowed together with ["*"]
+#
+#   [keymap.remap]
+#   "C-h" = "Back"                 # one chord in, one chord out
+#   "A-x u" = "C-z"                # two-stroke input: A-x, then u
+#   "C-t" = ["C-Right", "C-Left"]  # macro: the chords are sent in this order
+#
+# Modifier prefixes are C- Ctrl, A- Alt, S- Shift, W- Win, and key names are
+# the Windows ones (Back, Delete, Enter, Home, F1 …). Settings that are not
+# about one application live in [macro] and [ime_indicator].
+# Every option: https://daikisuganuma.github.io/winremap/config.html
+
+# --- This file -------------------------------------------------------------
+# The smallest config worth running: Ctrl+H becomes Backspace, and only in
+# Notepad. Notepad's own Ctrl+H opens the Replace dialog, so this doubles as a
+# check that WinRemap is working — press it and a character is deleted
+# instead. Nothing else on the system is affected.
 
 [[keymap]]
 name = "notepad"
 application = ["notepad.exe"]
 
 [keymap.remap]
-"C-h" = "Back"
+"C-h" = "Back" # delete the character to the left, instead of opening Replace

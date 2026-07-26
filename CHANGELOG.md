@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The example configs now open with the same header — what a config file is,
+  and a short example of every form a rule can take — and every rule carries a
+  one-line comment saying what it does. `examples/suganuma.toml` is now
+  `examples/personal-ja.toml`, with its prose in Japanese.
 - Deleting a remap rule now keeps the comment *lines* above it and moves them
   down to the next rule, whatever the blank lines around them look like — only
   the rule's own line and the comment written on it go (ADR 0054). A heading
