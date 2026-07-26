@@ -1,10 +1,31 @@
-# Emacs-style keybindings for WinRemap (inspired by fakeymacs).
+# WinRemap configuration.
 #
-# v0.1 supports single-chord remaps only: no key sequences (C-x C-c), no
-# mark mode (C-Space), and no app exclusion lists yet. Because of that, list
-# the applications you want Emacs bindings in explicitly — a global ["*"]
-# section would also affect terminals and IDEs that already have their own
-# Emacs-style handling.
+# A config file is a list of keymaps. Each one names the applications it
+# applies to and the rules that apply there. The first keymap matching the
+# foreground application wins, and an app-specific keymap beats a global one.
+#
+#   [[keymap]]
+#   name = "notepad"               # optional label, shown in the settings window
+#   application = ["notepad.exe"]  # exe names, case-insensitive; ["*"] = every app
+#   exclude = ["game.exe"]         # only allowed together with ["*"]
+#
+#   [keymap.remap]
+#   "C-h" = "Back"                 # one chord in, one chord out
+#   "A-x u" = "C-z"                # two-stroke input: A-x, then u
+#   "C-t" = ["C-Right", "C-Left"]  # macro: the chords are sent in this order
+#
+# Modifier prefixes are C- Ctrl, A- Alt, S- Shift, W- Win, and key names are
+# the Windows ones (Back, Delete, Enter, Home, F1 …). Settings that are not
+# about one application live in [macro] and [ime_indicator].
+# Every option: https://daikisuganuma.github.io/winremap/config.html
+
+# --- This file -------------------------------------------------------------
+# Emacs-style keybindings, inspired by fakeymacs. The applications are listed
+# by name rather than with ["*"]: terminals and IDEs bring their own
+# Emacs-style handling, and remapping on top of it fights them. Add the ones
+# you want on the `application` line below.
+#
+# Single chords come first, then the C-x map at the end of the rule table.
 
 [[keymap]]
 name = "emacs-basics"
@@ -12,30 +33,46 @@ application = ["notepad.exe"] # add your applications here
 
 [keymap.remap]
 # --- Cursor movement ---
-"C-b" = "Left"
-"C-f" = "Right"
-"C-p" = "Up"
-"C-n" = "Down"
-"C-a" = "Home"
-"C-e" = "End"
-"C-v" = "PageDown" # shadows the usual Paste shortcut; use C-y instead
-"A-v" = "PageUp"
-"A-b" = "C-Left"  # word backward
-"A-f" = "C-Right" # word forward
+"C-b" = "Left"     # backward-char
+"C-f" = "Right"    # forward-char
+"C-p" = "Up"       # previous-line
+"C-n" = "Down"     # next-line
+"C-a" = "Home"     # move-beginning-of-line
+"C-e" = "End"      # move-end-of-line
+"C-v" = "PageDown" # scroll-up — shadows the usual Paste, which moves to C-y
+"A-v" = "PageUp"   # scroll-down
+"A-b" = "C-Left"   # backward-word
+"A-f" = "C-Right"  # forward-word
 
 # --- Editing ---
-"C-h" = "Back"      # delete backward char
-"C-d" = "Delete"    # delete forward char
-"A-Back" = "C-Back" # delete word backward
-"A-d" = "C-Delete"  # delete word forward
-"C-m" = "Enter"
-"C-i" = "Tab"
+"C-h" = "Back"      # delete-backward-char
+"C-d" = "Delete"    # delete-forward-char
+"A-Back" = "C-Back" # backward-kill-word
+"A-d" = "C-Delete"  # kill-word
+"C-m" = "Enter"     # newline
+"C-i" = "Tab"       # indent-for-tab-command
 
 # --- Kill/yank mapped to the OS clipboard ---
-"C-w" = "C-x" # kill region  -> cut
-"A-w" = "C-c" # copy region  -> copy
-"C-y" = "C-v" # yank         -> paste
+"C-w" = "C-x" # kill-region    -> cut
+"A-w" = "C-c" # kill-ring-save -> copy
+"C-y" = "C-v" # yank           -> paste
 
 # --- Misc ---
-"C-s" = "C-f" # incremental search -> app find
-"C-g" = "Esc" # keyboard-quit      -> escape
+"C-s" = "C-f" # isearch-forward -> the application's own find
+"C-g" = "Esc" # keyboard-quit   -> escape
+
+# --- The C-x prefix (two-stroke sequences) ---
+# C-x on its own does nothing: it is held, and the next keystroke decides.
+# There is no timeout, as in Emacs, and a second stroke with no rule below is
+# swallowed — a mistyped sequence never reaches the application.
+#
+# This does take Ctrl+X away from Cut. In this scheme cut is C-w, which is
+# where an Emacs user reaches for it anyway. A chord used as a prefix cannot
+# also be a rule of its own, so there is no way to keep both.
+"C-x C-s" = "C-s"   # save-buffer               -> save
+"C-x C-w" = "C-S-s" # write-file                -> save as
+"C-x C-f" = "C-o"   # find-file                 -> open
+"C-x k" = "C-w"     # kill-buffer               -> close the document or tab
+"C-x u" = "C-z"     # undo
+"C-x h" = "C-a"     # mark-whole-buffer         -> select all
+"C-x C-c" = "A-F4"  # save-buffers-kill-emacs   -> close the window

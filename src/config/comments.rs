@@ -166,8 +166,10 @@ fn array_comments(item: Option<&Item>) -> HashMap<String, String> {
 }
 
 /// The rule's input as the settings window renders it, so a comment can be
-/// looked up by what is on screen rather than by what was typed.
-fn canonical_input(written: &str) -> Option<String> {
+/// looked up by what is on screen rather than by what was typed. Public for
+/// the edit mode, which holds raw spellings (ADR 0049) but still wants to
+/// show the comments written next to them.
+pub fn canonical_input(written: &str) -> Option<String> {
     match parse_input_pattern(written).ok()? {
         InputPattern::Single(combo) => Some(combo.to_string()),
         InputPattern::Sequence(first, second) => Some(format!("{first} {second}")),

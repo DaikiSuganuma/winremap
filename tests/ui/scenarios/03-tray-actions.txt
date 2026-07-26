@@ -1,0 +1,14 @@
+# needs: tray
+Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
+
+Output rule: perform all the steps first, then print a line containing ONLY the word PASS or the word FAIL, and only after that line write at most one short line per step. Never end without that verdict line.
+
+1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
+2. Wait 5 seconds. The WinRemap icon sits directly on the taskbar's notification area — it has been promoted out of the overflow, so do NOT open the overflow flyout (that flyout does not open reliably under automation).
+3. Right-click the icon whose name contains "WinRemap". Note the menu items. The first is a disabled caption showing the version.
+4. Click the item whose name is exactly: Enabled — this turns remapping off. Right-click the icon again and note whether that item is now unchecked, then close the menu with Escape.
+5. Right-click the icon and click the item whose name is exactly: Enabled — this turns it back on. Right-click again and note whether it is checked once more, then close the menu with Escape.
+6. Right-click the icon and click the item whose name is exactly: Reload config — note whether any error appeared (none is expected).
+7. Right-click the icon and click the item whose name is exactly: Quit. Wait 5 seconds, then check whether any process named winremap is still running.
+
+Print PASS if the Enabled item toggled off and back on, the reload produced no error, and no winremap process is left after Quit. Otherwise print FAIL.

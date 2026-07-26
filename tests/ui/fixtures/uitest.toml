@@ -1,0 +1,15 @@
+# Config for the UI test scenarios (tests/ui). Not an example for users.
+#
+# The remap output is a printable character on purpose. The obvious choice —
+# examples/minimal.toml's C-h to Back — makes success mean "a character
+# disappeared", and the test agent's own Backspace does not reach Notepad
+# reliably, so a passing remap and a broken harness look alike. An insertion
+# is unambiguous: "abc" becomes "abcx" only if WinRemap suppressed Ctrl+H and
+# sent x in its place.
+
+[[keymap]]
+name = "notepad"
+application = ["notepad.exe"]
+
+[keymap.remap]
+"C-h" = "x"

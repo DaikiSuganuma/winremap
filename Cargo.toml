@@ -1,6 +1,6 @@
 [package]
 name = "winremap"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 license = "MIT"
 description = "A per-application key remapper for Windows, written in Rust"
@@ -14,10 +14,19 @@ categories = ["os::windows-apis"]
 lto = "thin"
 strip = true
 
+# `test-inject` lets the UI-test agent's SendInput be remapped, which the
+# unconditional pass-through of injected events otherwise prevents (ADR 0053).
+# Default OFF: release artifacts must never contain it. Build test binaries
+# with `cargo build --release --features test-inject`.
+[features]
+default = []
+test-inject = []
+
 [dependencies]
 anyhow = "1"
 arc-swap = "1.9.2"
 eframe = { version = "0.35.0", default-features = false, features = ["glow", "default_fonts"] }
+notify = "8.2.0"
 serde = { version = "1", features = ["derive"] }
 sys-locale = "0.3.2"
 thiserror = "2"

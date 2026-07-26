@@ -23,10 +23,17 @@ use super::icons::{self, Icon};
 // read and adjusted in one place.
 use crate::i18n;
 use crate::theme;
-use crate::theme::{CELL_PAD, EDGE_PAD, NOTE_GAP, SECTION_GAP, SECTION_TEXT, TITLE_TEXT};
+use crate::theme::{CELL_PAD, EDGE_PAD, NOTE_GAP, SECTION_GAP, SECTION_TEXT};
 use winremap::config::comments::{ConfigComments, KeymapComments};
-use winremap::ime_indicator_settings::IndicatorSettings;
-use winremap::keymap::{AppFilter, Keymap, Output, RemapTable, vk_display_name};
+use winremap::config::draft::{self, ConfigDraft, KeymapDraft, RuleDraft};
+use winremap::ime_indicator_settings::{
+    IndicatorSettings, MAX_INDICATOR_DURATION_MS, MAX_INDICATOR_SIZE, MIN_INDICATOR_DURATION_MS,
+    MIN_INDICATOR_SIZE,
+};
+use winremap::keymap::{
+    AppFilter, KeyCombo, KeyParseError, Keymap, MAX_MACRO_DELAY_MS, Output, RemapTable,
+    SPECIAL_KEY_NAMES, parse_input_pattern, parse_key_combo, suggest_key_name, vk_display_name,
+};
 
 /// Which entry the left list has selected.
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
@@ -44,77 +51,191 @@ pub struct ConfigWindow {
     /// re-read when a reload swaps in a new one (ADR 0003) rather than every
     /// frame. Compared, never dereferenced.
     comments_for: Option<usize>,
-    /// The config file's modification time, and when it was last read off
-    /// disk. See `file_time`.
-    file_time: Option<(Instant, String)>,
+    /// The address bar's view of the config folder; see [`FileList`].
+    files: FileList,
+    /// `Some` = edit mode (ADR 0049). The window shows the draft, never the
+    /// live table, until Save or Revert ends it.
+    edit: Option<EditState>,
+    /// A button press from the previous frame; see [`PendingAction`].
+    pending: Option<PendingAction>,
 }
 
-/// How stale the file's timestamp is allowed to get. Short enough that saving
-/// in an editor shows up while the window is open, long enough that painting
-/// stays free of disk access.
-const FILE_TIME_INTERVAL: Duration = Duration::from_secs(2);
+/// Everything edit mode holds: the draft being edited, the pristine copy the
+/// save diffs against (ADR 0036 — untouched lines must stay untouched), and
+/// the file identity for the external-change check.
+struct EditState {
+    original: ConfigDraft,
+    draft: ConfigDraft,
+    stamp: Option<draft::FileStamp>,
+    /// Validation results of the last failed save attempt (screen design
+    /// §6.4).
+    issues: Vec<winremap::config::Issue>,
+    issue_cursor: usize,
+    notice: Option<Notice>,
+    /// A running foreground capture (B4): which keymap asked, and when the
+    /// countdown fires.
+    capture: Option<Capture>,
+}
+
+struct Capture {
+    keymap: usize,
+    /// Which of the keymap's two lists the captured exe lands on — both carry
+    /// the button, and only the one that was pressed may count down.
+    target: CaptureTarget,
+    deadline: Instant,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CaptureTarget {
+    Apps,
+    Exclude,
+}
+
+/// The grace the capture gives for bringing the target app to the front —
+/// pressing the button makes the settings window the foreground app, which
+/// is exactly the wrong answer (screen design §6.3).
+const CAPTURE_DELAY: Duration = Duration::from_secs(3);
+
+/// What the footer band is currently asking or reporting (screen design
+/// §6.4/§7). One at a time: each replaces the last.
+#[derive(Clone)]
+enum Notice {
+    ExternalChange,
+    SaveFailed(String),
+    ConfirmClose,
+}
+
+/// What a header or footer button asked for. Recorded rather than performed:
+/// every one of these changes which panels the window has, and doing that
+/// halfway through a frame leaves egui's second layout pass disagreeing with
+/// the first about what sits where — which it reports by outlining the
+/// window in red for that frame (owner feedback 2026-07-26, acceptance C-11).
+/// Applied at the top of the next frame instead, where every pass sees the
+/// same window.
+enum PendingAction {
+    Edit,
+    Save,
+    Revert,
+    Overwrite,
+    Reread,
+    CloseDiscard,
+    /// Dismiss the footer's question without acting on it.
+    DismissNotice,
+}
+
+/// How stale the folder listing and the change marks may get when the
+/// notify watch (ADR 0051) could not start and polling is the fallback.
+/// Short enough that an external save shows up while the window is open,
+/// long enough that painting stays free of disk access.
+const FILE_POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+/// The `*.toml` files beside the active config, with their change marks
+/// (v0.4 screen design §2.2–2.3).
+#[derive(Default)]
+struct FileList {
+    checked: Option<Instant>,
+    entries: Vec<FileEntry>,
+    /// The stamp each file had when first listed. ● on another file means
+    /// "differs from this"; on the active file it means "differs from what
+    /// is loaded" — the state the removed timestamps used to convey.
+    first_seen: HashMap<String, draft::FileStamp>,
+    /// The loaded stamp the marks were computed against, so a reload —
+    /// which produces no folder event — still clears the active file's ●.
+    loaded_seen: Option<draft::FileStamp>,
+}
+
+struct FileEntry {
+    name: String,
+    changed: bool,
+}
+
+impl FileList {
+    fn refresh(&mut self, path: &Path) {
+        let cue = super::watch::take_dirty();
+        let loaded = super::loaded_stamp();
+        if super::watch::active() {
+            // Event-driven (ADR 0051): the folder is looked at again on a
+            // watch cue, on a reload, or on the first frame — otherwise
+            // painting never touches the disk at all.
+            if !cue && loaded == self.loaded_seen && self.checked.is_some() {
+                return;
+            }
+        } else if !cue
+            && let Some(checked) = self.checked
+            && checked.elapsed() < FILE_POLL_INTERVAL
+        {
+            return;
+        }
+        self.checked = Some(Instant::now());
+        self.loaded_seen = loaded;
+        self.entries.clear();
+        let Some(folder) = path.parent() else { return };
+        let Ok(dir) = std::fs::read_dir(folder) else {
+            return;
+        };
+        let mut names: Vec<String> = dir
+            .flatten()
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+            .filter_map(|entry| {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                name.to_ascii_lowercase().ends_with(".toml").then_some(name)
+            })
+            .collect();
+        names.sort_by_key(|name| name.to_ascii_lowercase());
+        let active = file_name(path);
+        for name in names {
+            let stamp = draft::stamp(&folder.join(&name)).ok();
+            let changed = if name.eq_ignore_ascii_case(&active) {
+                matches!((loaded, stamp), (Some(loaded), Some(stamp)) if loaded != stamp)
+            } else {
+                matches!(
+                    (self.first_seen.get(&name), stamp),
+                    (Some(first), Some(stamp)) if *first != stamp
+                )
+            };
+            if let Some(stamp) = stamp {
+                self.first_seen.entry(name.clone()).or_insert(stamp);
+            }
+            self.entries.push(FileEntry { name, changed });
+        }
+    }
+
+    fn is_changed(&self, name: &str) -> bool {
+        self.entries
+            .iter()
+            .any(|entry| entry.name == name && entry.changed)
+    }
+}
+
+/// The file's name for display; the path up to it is the folder's job.
+fn file_name(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
 
 impl ConfigWindow {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         let texts = i18n::t();
-        let path = super::config_path()
-            .lock()
-            .map(|path| path.clone())
-            .unwrap_or_default();
+        let path = super::active_config_path();
         // A snapshot for the whole frame: the hook may swap the table at any
         // moment (ADR 0003), and the list and the detail pane have to agree.
         let table = crate::hook::REMAP_TABLE.load_full();
         self.sync_comments(table.as_ref(), &path);
+        // Before anything is laid out, so this frame is built once from one
+        // state (see `PendingAction`).
+        if let Some(action) = self.pending.take() {
+            self.apply(action, &path);
+        }
 
-        let file_time = self.file_time(&path);
-        // A filled band, like the log window's header (owner decision
-        // 2026-07-21): it names the file everything below is read from, so
-        // it reads as chrome rather than as the first section of the pane.
-        egui::Panel::top("config-header")
-            .frame(theme::chrome_frame(ui.visuals()))
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    icons::show(ui, Icon::File, SECTION_TEXT);
-                    ui.label(egui::RichText::new(texts.config_window_file).strong());
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label(
-                            egui::RichText::new(format!(
-                                "{} v{}",
-                                texts.app_name,
-                                env!("CARGO_PKG_VERSION")
-                            ))
-                            .weak(),
-                        );
-                    });
-                });
-                ui.add_space(NOTE_GAP);
-                // The table keeps a fixed width and the controls that act on the
-                // file sit to its right, level with it: this window shows, the
-                // editor changes, the button applies (owner decision
-                // 2026-07-21).
-                let table_width = ui.available_width() * theme::FILE_TABLE_WIDTH_RATIO;
-                ui.horizontal(|ui| {
-                    ui.scope(|ui| {
-                        ui.set_max_width(table_width);
-                        file_table(ui, &path, &file_time);
-                    });
-                    ui.add_space(SECTION_GAP);
-                    // Stacked and left-aligned beside the table: they act on the
-                    // file it describes (owner decision 2026-07-21).
-                    ui.vertical(|ui| {
-                        if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
-                            open_in_default_editor(&path);
-                        }
-                        ui.add_space(NOTE_GAP);
-                        if icons::button(ui, Icon::Reload, texts.menu_reload).clicked() {
-                            super::log::action(texts.menu_reload);
-                            super::request_reload();
-                        }
-                    });
-                });
-                ui.add_space(NOTE_GAP);
-                ui.label(egui::RichText::new(texts.config_window_readonly).weak());
-            });
+        self.header_ui(ui, &path);
+        statusbar_ui(ui);
+        self.footer_ui(ui);
+
+        if self.edit.is_some() {
+            self.edit_body_ui(ui);
+            return;
+        }
 
         let Some(table) = table else {
             egui::CentralPanel::default().show(ui, |ui| {
@@ -143,6 +264,7 @@ impl ConfigWindow {
         }
 
         egui::CentralPanel::default().show(ui, |ui| {
+            breadcrumb_ui(ui, &table, self.selection);
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| match self.selection {
@@ -159,25 +281,345 @@ impl ConfigWindow {
         });
     }
 
-    /// The config file's own timestamp, re-read at most every
-    /// `FILE_TIME_INTERVAL` — this is called from a paint, and hitting the
-    /// disk on every frame to answer a question that changes once an hour
-    /// would be silly.
-    fn file_time(&mut self, path: &Path) -> String {
-        if let Some((read_at, shown)) = &self.file_time
-            && read_at.elapsed() < FILE_TIME_INTERVAL
-        {
-            return shown.clone();
+    /// The Explorer-style address bar (v0.4 screen design §2): the folder,
+    /// the file as a dropdown over the folder's `*.toml`s, reload, and — at
+    /// the right end — the edit button (owner decision 2026-07-22). While
+    /// editing, the band takes the edit colour, the dropdown goes inert, the
+    /// reload button hides, and the right end turns into Save / Revert
+    /// (§2.4) — the same spot, so the hand does not travel.
+    fn header_ui(&mut self, ui: &mut egui::Ui, path: &Path) {
+        let texts = i18n::t();
+        let editing = self.edit.is_some();
+        let frame = if editing {
+            theme::edit_mode_frame(ui.visuals())
+        } else {
+            theme::chrome_frame(ui.visuals())
+        };
+        let mut action = None;
+        egui::Panel::top("config-header")
+            .frame(frame)
+            .show(ui, |ui| {
+                self.files.refresh(path);
+                let active = file_name(path);
+                // The row's height is fixed *before* laying anything out.
+                // `ui.horizontal` pins its centring axis to the default
+                // interact height, so short labels ride high and anything
+                // taller sags below it — `set_height` cannot move that axis
+                // (owner feedback 2026-07-22). The height comes from a real
+                // galley of the button label: the labels are Japanese, and
+                // the JP fallback face stands taller than the Latin font's
+                // nominal row height.
+                let label = if editing {
+                    texts.config_save
+                } else {
+                    texts.config_edit
+                };
+                let font = egui::TextStyle::Button.resolve(ui.style());
+                let text_height = ui
+                    .painter()
+                    .layout_no_wrap(label.to_owned(), font, egui::Color32::PLACEHOLDER)
+                    .size()
+                    .y;
+                let row_height =
+                    text_height.max(theme::button_icon_size(ui)) + 2.0 * theme::BUTTON_PADDING;
+                let row_size = egui::vec2(ui.available_width(), row_height);
+                let layout = egui::Layout::left_to_right(egui::Align::Center);
+                ui.allocate_ui_with_layout(row_size, layout, |ui| {
+                    // ComboBox lays itself out on an interact_size-high axis
+                    // of its own; with the app's button padding it outgrows
+                    // that axis, sags below centre and drags the row taller
+                    // (verified with a headless probe). Matching the
+                    // interact height to the row pins every widget to one
+                    // axis.
+                    ui.spacing_mut().interact_size.y = row_height;
+                    icons::show(ui, Icon::Folder, theme::body_icon_size(ui));
+                    let folder = path
+                        .parent()
+                        .map(|folder| folder.display().to_string())
+                        .unwrap_or_default();
+                    ui.label(egui::RichText::new(folder).monospace().weak());
+                    ui.label(egui::RichText::new("›").weak());
+                    if editing {
+                        // Switching files mid-edit would orphan the draft.
+                        ui.add_enabled_ui(false, |ui| {
+                            egui::ComboBox::from_id_salt("config-file-switch")
+                                .selected_text(egui::RichText::new(active.clone()).monospace())
+                                .show_ui(ui, |_| {});
+                        })
+                        .response
+                        .on_hover_text(texts.config_switch_locked);
+                    } else {
+                        let changed = self.files.is_changed(&active);
+                        let shown = if changed {
+                            format!("{active} ●")
+                        } else {
+                            active.clone()
+                        };
+                        let combo = egui::ComboBox::from_id_salt("config-file-switch")
+                            .selected_text(egui::RichText::new(shown).monospace())
+                            .show_ui(ui, |ui| file_menu_ui(ui, &self.files, path, &active));
+                        if changed {
+                            combo.response.on_hover_text(texts.config_file_changed);
+                        }
+                        ui.add_space(4.0);
+                        if icons::icon_button(ui, Icon::Reload)
+                            .on_hover_text(texts.menu_reload)
+                            .clicked()
+                        {
+                            super::log::action(texts.menu_reload);
+                            super::request_reload();
+                        }
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if editing {
+                            // Right-to-left: Revert lands rightmost, Save to
+                            // its left — reading order Save, Revert (§2.4).
+                            if icons::button(ui, Icon::Revert, texts.config_revert).clicked() {
+                                action = Some(PendingAction::Revert);
+                            }
+                            if icons::button(ui, Icon::Floppy, texts.config_save).clicked() {
+                                action = Some(PendingAction::Save);
+                            }
+                        } else if icons::button(ui, Icon::Pencil, texts.config_edit).clicked() {
+                            action = Some(PendingAction::Edit);
+                        }
+                    });
+                });
+            });
+        self.queue(ui, action);
+    }
+
+    /// Holds a button press until the next frame, and makes sure there is
+    /// one — the click already woke the loop, but the frame that acts on it
+    /// must not depend on further input arriving.
+    fn queue(&mut self, ui: &egui::Ui, action: Option<PendingAction>) {
+        if action.is_some() {
+            self.pending = action;
+            ui.ctx().request_repaint();
         }
-        let shown = std::fs::metadata(path)
-            .and_then(|meta| meta.modified())
-            .ok()
-            .and_then(crate::clock::local_from)
-            // A file that cannot be stat'ed is worth showing as unknown rather
-            // than as an empty gap: it usually means it was moved or deleted.
-            .unwrap_or_else(|| i18n::t().config_unknown.to_owned());
-        self.file_time = Some((Instant::now(), shown.clone()));
-        shown
+    }
+
+    /// Performs what a button asked for last frame; see [`PendingAction`].
+    fn apply(&mut self, action: PendingAction, path: &Path) {
+        match action {
+            PendingAction::Edit | PendingAction::Reread => self.start_edit(path),
+            PendingAction::Save => self.save(path, false),
+            PendingAction::Overwrite => self.save(path, true),
+            PendingAction::Revert => self.revert(),
+            PendingAction::CloseDiscard => {
+                self.edit = None;
+                super::hide_config();
+            }
+            PendingAction::DismissNotice => {
+                if let Some(edit) = self.edit.as_mut() {
+                    edit.notice = None;
+                }
+            }
+        }
+    }
+
+    /// Reads the file into a fresh draft and enters edit mode (ADR 0049
+    /// decision 2: the file, not the live table, is the edit's origin).
+    fn start_edit(&mut self, path: &Path) {
+        match draft::read(path) {
+            Ok((parsed, stamp)) => {
+                super::log::action(i18n::t().config_edit);
+                self.edit = Some(EditState {
+                    original: parsed.clone(),
+                    draft: parsed,
+                    stamp: Some(stamp),
+                    issues: Vec::new(),
+                    issue_cursor: 0,
+                    notice: None,
+                    capture: None,
+                });
+            }
+            Err(error) => super::set_status(&i18n::edit_cannot_start(&error.to_string())),
+        }
+    }
+
+    fn revert(&mut self) {
+        super::log::action(i18n::t().config_revert);
+        self.edit = None;
+    }
+
+    /// The save transaction (design doc §4): stamp check, re-read, apply the
+    /// draft's diff, validate with the same parser the CLI and tray use,
+    /// write atomically, reload. Any failure keeps edit mode — the draft is
+    /// never the casualty.
+    fn save(&mut self, path: &Path, force: bool) {
+        let Some(edit) = self.edit.as_mut() else {
+            return;
+        };
+        edit.issues.clear();
+        edit.issue_cursor = 0;
+        edit.notice = None;
+        if !force
+            && let (Some(opened), Ok(now)) = (edit.stamp, draft::stamp(path))
+            && opened != now
+        {
+            // Never silently overwrite an outside edit (design doc §6.2).
+            edit.notice = Some(Notice::ExternalChange);
+            return;
+        }
+        let source = match std::fs::read_to_string(path) {
+            Ok(source) => source,
+            Err(error) => {
+                edit.notice = Some(Notice::SaveFailed(error.to_string()));
+                return;
+            }
+        };
+        let text = match draft::apply(&source, &edit.original, &edit.draft) {
+            Ok(text) => text,
+            Err(error) => {
+                edit.notice = Some(Notice::SaveFailed(error.to_string()));
+                return;
+            }
+        };
+        match winremap::config::parse_str(&text) {
+            Ok(_) => {}
+            Err(winremap::config::ConfigError::Invalid(issues)) => {
+                edit.issues = issues;
+                return;
+            }
+            Err(other) => {
+                edit.notice = Some(Notice::SaveFailed(other.to_string()));
+                return;
+            }
+        }
+        if let Err(error) = draft::write_atomic(path, &text) {
+            edit.notice = Some(Notice::SaveFailed(error.to_string()));
+            return;
+        }
+        super::log::action(i18n::t().config_save);
+        super::set_status(i18n::t().status_saved);
+        self.edit = None;
+        // The tray reloads it back in: read, atomic swap, stamp (ADR 0003).
+        super::request_reload();
+    }
+
+    /// Called when the window is asked to close. An unsaved draft turns the
+    /// close into a footer confirmation instead (screen design §7.3); a
+    /// clean one is discarded silently.
+    pub fn intercept_close(&mut self) -> bool {
+        match self.edit.as_mut() {
+            Some(edit) if edit.draft != edit.original => {
+                edit.notice = Some(Notice::ConfirmClose);
+                true
+            }
+            _ => {
+                self.edit = None;
+                false
+            }
+        }
+    }
+
+    /// The edit-mode footer band: validation results and confirmations
+    /// (screen design §6.4/§7). Absent when there is nothing to say.
+    fn footer_ui(&mut self, ui: &mut egui::Ui) {
+        let Some(edit) = self.edit.as_mut() else {
+            return;
+        };
+        if edit.notice.is_none() && edit.issues.is_empty() {
+            return;
+        }
+        let texts = i18n::t();
+        let mut action = None;
+        let notice = edit.notice.clone();
+        egui::Panel::bottom("config-footer")
+            .frame(theme::warn_band_frame(ui.visuals()))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| match notice {
+                    Some(Notice::ExternalChange) => {
+                        ui.label(texts.config_external_changed);
+                        if ui.button(texts.config_overwrite).clicked() {
+                            action = Some(PendingAction::Overwrite);
+                        }
+                        if ui.button(texts.config_reread).clicked() {
+                            action = Some(PendingAction::Reread);
+                        }
+                        if ui.button(texts.config_cancel).clicked() {
+                            action = Some(PendingAction::DismissNotice);
+                        }
+                    }
+                    Some(Notice::SaveFailed(reason)) => {
+                        ui.label(i18n::save_failed(&reason));
+                        if ui.button(texts.config_cancel).clicked() {
+                            action = Some(PendingAction::DismissNotice);
+                        }
+                    }
+                    Some(Notice::ConfirmClose) => {
+                        ui.label(texts.config_close_confirm);
+                        if ui.button(texts.config_close).clicked() {
+                            action = Some(PendingAction::CloseDiscard);
+                        }
+                        if ui.button(texts.config_cancel).clicked() {
+                            action = Some(PendingAction::DismissNotice);
+                        }
+                    }
+                    None => {
+                        let count = edit.issues.len();
+                        if let Some(issue) = edit.issues.get(edit.issue_cursor) {
+                            ui.label(i18n::issues_found(count, &issue.to_string()));
+                        }
+                        if count > 1 && ui.button(texts.config_next_issue).clicked() {
+                            edit.issue_cursor = (edit.issue_cursor + 1) % count;
+                        }
+                    }
+                });
+            });
+        self.queue(ui, action);
+    }
+
+    /// The window body in edit mode: everything shows the draft, never the
+    /// live table (ADR 0049) — a tray reload changes what the hook does, not
+    /// what is being edited.
+    fn edit_body_ui(&mut self, ui: &mut egui::Ui) {
+        let selection = &mut self.selection;
+        let comments = &self.comments;
+        let Some(edit) = self.edit.as_mut() else {
+            return;
+        };
+        let EditState { draft, capture, .. } = edit;
+
+        egui::Panel::left("config-list")
+            .default_size(220.0)
+            .show(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| edit_list_ui(ui, selection, draft));
+            });
+
+        let shown = *selection;
+        if matches!(shown, Selection::Keymap(index) if index < draft.keymaps.len()) {
+            egui::Panel::right("config-notation")
+                .default_size(240.0)
+                .show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, notation_help_ui);
+                });
+        }
+
+        egui::CentralPanel::default().show(ui, |ui| {
+            breadcrumb_edit_ui(ui, draft, shown);
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| match shown {
+                    Selection::Keymap(index) if index < draft.keymaps.len() => {
+                        // Comments belong to the file the draft came from,
+                        // so they are looked up by the keymap's origin.
+                        let origin = draft.keymaps[index].origin;
+                        let keymap_comments = origin.and_then(|i| comments.keymap(i));
+                        keymap_edit_ui(
+                            ui,
+                            &mut draft.keymaps[index],
+                            keymap_comments,
+                            capture,
+                            index,
+                        );
+                    }
+                    _ => general_edit_ui(ui, draft),
+                });
+        });
     }
 
     /// Whether the detail pane is currently showing a keymap. Mirrors the
@@ -195,51 +637,796 @@ impl ConfigWindow {
         self.comments = winremap::config::comments::read(path);
     }
 
+    /// The navigation tree (v0.4 screen design §3): icons, an indent for the
+    /// keymaps under their heading, no expand/collapse.
     fn list_ui(&mut self, ui: &mut egui::Ui, table: &RemapTable) {
         let texts = i18n::t();
         ui.add_space(4.0);
-        ui.selectable_value(
-            &mut self.selection,
-            Selection::General,
+        if nav_row(
+            ui,
+            self.selection == Selection::General,
+            false,
+            Icon::Gear,
             texts.config_general,
-        );
+        )
+        .clicked()
+        {
+            self.selection = Selection::General;
+        }
         ui.add_space(8.0);
-        ui.label(egui::RichText::new(texts.config_keymaps).strong());
+        // The group heading draws the tree's hierarchy; it is not a
+        // destination itself.
+        ui.horizontal(|ui| {
+            ui.add_space(6.0);
+            icons::show(ui, Icon::Keyboard, theme::body_icon_size(ui));
+            ui.label(egui::RichText::new(texts.config_keymaps).strong());
+        });
         if table.keymaps.is_empty() {
             ui.label(egui::RichText::new(texts.config_no_keymaps).weak());
         }
         for (index, keymap) in table.keymaps.iter().enumerate() {
-            ui.selectable_value(
-                &mut self.selection,
-                Selection::Keymap(index),
-                keymap_label(keymap),
-            );
+            if nav_row(
+                ui,
+                self.selection == Selection::Keymap(index),
+                true,
+                Icon::Apps,
+                &keymap_label(keymap),
+            )
+            .clicked()
+            {
+                self.selection = Selection::Keymap(index);
+            }
         }
     }
 }
 
-/// Where the config came from and how current it is.
-///
-/// A table rather than a run of labels: the two timestamps only mean anything
-/// read against each other, since a file saved but not reloaded is the one
-/// state this window cannot otherwise show.
-fn file_table(ui: &mut egui::Ui, path: &Path, file_time: &str) {
+/// The address bar's dropdown: every `*.toml` beside the active file — ✓ on
+/// the one in use, ● on any that changed on disk — plus the file actions,
+/// which live here rather than as more header icons (owner decision
+/// 2026-07-22).
+fn file_menu_ui(ui: &mut egui::Ui, files: &FileList, path: &Path, active: &str) {
     let texts = i18n::t();
-    let columns = [texts.config_column_field, texts.config_column_value];
-    table(ui, "config-file", &columns, 120.0, |ui| {
-        for (label, value) in [
-            (texts.config_window_path, path.display().to_string()),
-            (texts.config_window_file_time, file_time.to_owned()),
-            (
-                texts.config_window_loaded_at,
-                super::config_loaded_at().unwrap_or_else(|| texts.config_none.to_owned()),
-            ),
-        ] {
-            ui.label(label);
-            ui.label(egui::RichText::new(value).monospace());
+    for entry in &files.entries {
+        let current = entry.name == active;
+        let label = format!(
+            "{}{}{}",
+            if current { "✓ " } else { "  " },
+            entry.name,
+            if entry.changed { " ●" } else { "" }
+        );
+        let row = ui.selectable_label(current, egui::RichText::new(label).monospace());
+        let row = if entry.changed {
+            row.on_hover_text(texts.config_file_changed)
+        } else {
+            row
+        };
+        if row.clicked()
+            && !current
+            && let Some(folder) = path.parent()
+        {
+            // Switching = swap the path, then the ordinary reload path does
+            // the loading (ADR 0050). A file that fails to load behaves like
+            // any failed reload: the live table stays.
+            super::log::action(&i18n::action_switch_file(&entry.name));
+            super::set_config_path(folder.join(&entry.name));
+            super::request_reload();
+        }
+    }
+    ui.separator();
+    // Breathing room around the action links (owner decision 2026-07-22):
+    // they read as a menu section of their own, not as more list rows.
+    ui.add_space(f32::from(CELL_PAD));
+    ui.horizontal(|ui| {
+        ui.add_space(NOTE_GAP);
+        if icons::link(ui, Icon::External, texts.config_window_open_in_editor) {
+            open_in_default_editor(path);
+        }
+        ui.add_space(NOTE_GAP);
+    });
+    ui.add_space(f32::from(CELL_PAD));
+    ui.horizontal(|ui| {
+        ui.add_space(NOTE_GAP);
+        if icons::link(ui, Icon::Folder, texts.config_open_folder)
+            && let Some(folder) = path.parent()
+        {
+            super::log::action(texts.config_open_folder);
+            if !super::win32::open_folder(folder) {
+                crate::notify::error(&i18n::open_folder_failed(&folder.display().to_string()));
+            }
+        }
+        ui.add_space(NOTE_GAP);
+    });
+    ui.add_space(f32::from(CELL_PAD));
+}
+
+/// One row of the navigation tree: an icon, a label, and — when selected —
+/// a full-width grey fill like Explorer's (owner decision 2026-07-22).
+/// egui's `selectable_value` highlights only the text, hence hand-drawn.
+fn nav_row(
+    ui: &mut egui::Ui,
+    selected: bool,
+    indented: bool,
+    icon: Icon,
+    label: &str,
+) -> egui::Response {
+    let size = egui::vec2(ui.available_width(), theme::NAV_ROW_HEIGHT);
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    if ui.is_rect_visible(rect) {
+        if selected {
+            ui.painter().rect_filled(
+                rect,
+                egui::CornerRadius::same(2),
+                theme::sidebar_selection_fill(ui.visuals()),
+            );
+        } else if response.hovered() {
+            ui.painter().rect_filled(
+                rect,
+                egui::CornerRadius::same(2),
+                theme::sidebar_hover_fill(ui.visuals()),
+            );
+        }
+        let inner = rect.shrink2(egui::vec2(6.0, 0.0));
+        let mut child = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(inner)
+                .layout(egui::Layout::left_to_right(egui::Align::Center)),
+        );
+        // The label must not be text-selectable: egui's selectable labels
+        // claim the pointer for drag-selection, which swallowed clicks on
+        // the text and left only the blank end of the row clickable (owner
+        // feedback 2026-07-22). The row is a button; its text is not prose.
+        child.style_mut().interaction.selectable_labels = false;
+        if indented {
+            child.add_space(theme::NAV_INDENT);
+        }
+        let icon_size = theme::body_icon_size(&child);
+        icons::show(&mut child, icon, icon_size);
+        child.add_space(4.0);
+        child.label(label);
+    }
+    response
+}
+
+/// The breadcrumb over the detail pane: where you are, Explorer-style
+/// (v0.4 screen design §4.1). Display only — the tree does the moving.
+fn breadcrumb_ui(ui: &mut egui::Ui, table: &RemapTable, selection: Selection) {
+    let texts = i18n::t();
+    ui.add_space(f32::from(CELL_PAD));
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(texts.config_breadcrumb_root).weak());
+        ui.label(egui::RichText::new(">").weak());
+        match selection {
+            Selection::General => {
+                ui.label(texts.config_general);
+            }
+            Selection::Keymap(index) => match table.keymaps.get(index) {
+                Some(keymap) => {
+                    ui.label(egui::RichText::new(texts.config_keymaps).weak());
+                    ui.label(egui::RichText::new(">").weak());
+                    ui.label(keymap_label(keymap));
+                }
+                // Mirrors the detail pane's reload fallback.
+                None => {
+                    ui.label(texts.config_general);
+                }
+            },
+        }
+    });
+}
+
+/// The navigation tree in edit mode: the same rows over the draft, plus the
+/// keymap add/delete/reorder controls (screen design §3.1).
+fn edit_list_ui(ui: &mut egui::Ui, selection: &mut Selection, draft: &mut ConfigDraft) {
+    let texts = i18n::t();
+    ui.add_space(4.0);
+    if nav_row(
+        ui,
+        *selection == Selection::General,
+        false,
+        Icon::Gear,
+        texts.config_general,
+    )
+    .clicked()
+    {
+        *selection = Selection::General;
+    }
+    ui.add_space(8.0);
+    ui.horizontal(|ui| {
+        ui.add_space(6.0);
+        icons::show(ui, Icon::Keyboard, theme::body_icon_size(ui));
+        ui.label(egui::RichText::new(texts.config_keymaps).strong());
+    });
+    if draft.keymaps.is_empty() {
+        ui.label(egui::RichText::new(texts.config_no_keymaps).weak());
+    }
+    for (index, keymap) in draft.keymaps.iter().enumerate() {
+        if nav_row(
+            ui,
+            *selection == Selection::Keymap(index),
+            true,
+            Icon::Apps,
+            &keymap_draft_label(keymap),
+        )
+        .clicked()
+        {
+            *selection = Selection::Keymap(index);
+        }
+    }
+    ui.add_space(NOTE_GAP);
+    let selected = match *selection {
+        Selection::Keymap(index) if index < draft.keymaps.len() => Some(index),
+        _ => None,
+    };
+    ui.horizontal(|ui| {
+        if icons::icon_button(ui, Icon::Plus)
+            .on_hover_text(texts.config_keymap_add)
+            .clicked()
+        {
+            draft.keymaps.push(KeymapDraft::default());
+            *selection = Selection::Keymap(draft.keymaps.len() - 1);
+        }
+        // Only a selected keymap can be deleted or moved; General and the
+        // heading are not list entries.
+        ui.add_enabled_ui(selected.is_some(), |ui| {
+            if icons::icon_button(ui, Icon::Dash)
+                .on_hover_text(texts.config_keymap_remove)
+                .clicked()
+                && let Some(index) = selected
+            {
+                draft.keymaps.remove(index);
+                *selection = if draft.keymaps.is_empty() {
+                    Selection::General
+                } else {
+                    Selection::Keymap(index.min(draft.keymaps.len() - 1))
+                };
+            }
+            if icons::icon_button(ui, Icon::ArrowUp)
+                .on_hover_text(texts.config_move_up)
+                .clicked()
+                && let Some(index) = selected
+                && index > 0
+                && index < draft.keymaps.len()
+            {
+                draft.keymaps.swap(index - 1, index);
+                *selection = Selection::Keymap(index - 1);
+            }
+            if icons::icon_button(ui, Icon::ArrowDown)
+                .on_hover_text(texts.config_move_down)
+                .clicked()
+                && let Some(index) = selected
+                && index + 1 < draft.keymaps.len()
+            {
+                draft.keymaps.swap(index, index + 1);
+                *selection = Selection::Keymap(index + 1);
+            }
+        });
+    });
+}
+
+/// List label for a draft keymap; mirrors `keymap_label` for compiled ones.
+fn keymap_draft_label(keymap: &KeymapDraft) -> String {
+    let texts = i18n::t();
+    if !keymap.name.is_empty() {
+        return keymap.name.clone();
+    }
+    if keymap.application.iter().any(|app| app == "*") {
+        return texts.config_apps_all.to_owned();
+    }
+    if keymap.application.is_empty() {
+        return texts.config_none.to_owned();
+    }
+    keymap.application.join(", ")
+}
+
+/// The edit-mode breadcrumb: the same crumbs over the draft, with the
+/// editing banner at the right end (screen design §4.1) — the header colour
+/// says it, this spells it out.
+fn breadcrumb_edit_ui(ui: &mut egui::Ui, draft: &ConfigDraft, selection: Selection) {
+    let texts = i18n::t();
+    ui.add_space(f32::from(CELL_PAD));
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(texts.config_breadcrumb_root).weak());
+        ui.label(egui::RichText::new(">").weak());
+        match selection {
+            Selection::Keymap(index) if index < draft.keymaps.len() => {
+                ui.label(egui::RichText::new(texts.config_keymaps).weak());
+                ui.label(egui::RichText::new(">").weak());
+                ui.label(keymap_draft_label(&draft.keymaps[index]));
+            }
+            _ => {
+                ui.label(texts.config_general);
+            }
+        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let warn = ui.visuals().warn_fg_color;
+            ui.label(egui::RichText::new(texts.config_edit_notice).color(warn));
+        });
+    });
+}
+
+/// The keymap detail pane, editable (screen design §4.3). The section order
+/// and headings are the viewer's; only the cells become inputs. Notation
+/// fields carry their reading or problem beneath them (B3); the shared-input
+/// column is still to come.
+fn keymap_edit_ui(
+    ui: &mut egui::Ui,
+    keymap: &mut KeymapDraft,
+    comments: Option<&KeymapComments>,
+    capture: &mut Option<Capture>,
+    index: usize,
+) {
+    let texts = i18n::t();
+    ui.add_space(8.0);
+    ui.horizontal(|ui| {
+        ui.label(texts.config_field_name);
+        ui.label(egui::RichText::new("name").monospace().weak());
+        ui.add(
+            egui::TextEdit::singleline(&mut keymap.name)
+                .font(egui::TextStyle::Monospace)
+                .desired_width(240.0),
+        );
+    });
+
+    // The same rule the viewer applies, read from the draft's own strings.
+    let all_apps = keymap.application.iter().any(|app| app == "*");
+
+    section(ui, Icon::Apps, texts.config_field_apps, "application");
+    edit_string_table(ui, "apps-edit", &mut keymap.application);
+    ui.add_space(f32::from(CELL_PAD));
+    // With "*" on the list every application already matches, so adding one,
+    // capturing one, or asking for "*" again all say nothing — the buttons go
+    // rather than sit there inert (owner decision 2026-07-26). Removing the
+    // "*" row brings them back.
+    if !all_apps {
+        ui.horizontal(|ui| {
+            if icons::button(ui, Icon::Plus, texts.config_add_app).clicked() {
+                keymap.application.push(String::new());
+            }
+            capture_button(
+                ui,
+                &mut keymap.application,
+                capture,
+                index,
+                CaptureTarget::Apps,
+            );
+            if icons::button(ui, Icon::Apps, texts.config_target_all_apps).clicked() {
+                // Replaces rather than appends: "*" beside exe names is a
+                // validation error, not a wider list (config-spec §3).
+                keymap.application = vec!["*".to_owned()];
+            }
+        });
+    }
+    ui.add_space(NOTE_GAP);
+    own_note(ui, texts.config_apps_case_note);
+
+    // Exclusions only mean anything against "*".
+    if all_apps {
+        section(ui, Icon::Exclude, texts.config_field_exclude, "exclude");
+        edit_string_table(ui, "excludes-edit", &mut keymap.exclude);
+        ui.add_space(f32::from(CELL_PAD));
+        ui.horizontal(|ui| {
+            if icons::button(ui, Icon::Plus, texts.config_add_app).clicked() {
+                keymap.exclude.push(String::new());
+            }
+            // Same capture, other list: naming the app in front is how a
+            // keymap learns an exe name, whichever list it is going on
+            // (owner decision 2026-07-26).
+            capture_button(
+                ui,
+                &mut keymap.exclude,
+                capture,
+                index,
+                CaptureTarget::Exclude,
+            );
+        });
+    }
+
+    section(ui, Icon::Rules, texts.config_rules, "[keymap.remap]");
+    edit_rules_table(ui, &mut keymap.rules, comments);
+    ui.add_space(f32::from(CELL_PAD));
+    ui.horizontal(|ui| {
+        if icons::button(ui, Icon::Plus, texts.config_add_rule).clicked() {
+            keymap.rules.push(RuleDraft::default());
+        }
+        key_names_help(ui, "key-names-rules");
+    });
+}
+
+/// What a key-notation field's feedback line says (screen design §6.1–6.2):
+/// the reading of a valid value, the reason for an invalid one.
+enum NotationCheck {
+    Valid(String),
+    Invalid(String),
+}
+
+/// Which notation a field holds, and so how it is parsed and read back.
+#[derive(Clone, Copy)]
+enum Notation {
+    /// A rule input: a chord or a two-stroke sequence.
+    Input,
+    /// A rule output: a chord, or a comma-separated macro.
+    Output,
+    /// A single chord (the recording keys).
+    Chord,
+    /// Comma-separated chords (the IME trigger keys).
+    ChordList,
+}
+
+fn check_notation(kind: Notation, text: &str) -> Option<NotationCheck> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        // A row still being typed; the save-time validation still gates.
+        return None;
+    }
+    let rendered = match kind {
+        Notation::Input => parse_input_pattern(trimmed).map(|pattern| i18n::input_human(&pattern)),
+        Notation::Chord => parse_key_combo(trimmed).map(|combo| i18n::combo_human(&combo)),
+        Notation::Output => parse_combo_list(trimmed).map(|combos| i18n::output_human(&combos)),
+        Notation::ChordList => parse_combo_list(trimmed).map(|combos| {
+            combos
+                .iter()
+                .map(i18n::combo_human)
+                .collect::<Vec<_>>()
+                .join(" / ")
+        }),
+    };
+    Some(match rendered {
+        Ok(reading) => NotationCheck::Valid(reading),
+        Err(error) => NotationCheck::Invalid(notation_error_text(&error)),
+    })
+}
+
+fn parse_combo_list(text: &str) -> Result<Vec<KeyCombo>, KeyParseError> {
+    text.split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(parse_key_combo)
+        .collect()
+}
+
+/// The reason line under an invalid field: the parser's technical English,
+/// except an unknown key name with a near miss, which earns the friendlier
+/// "did you mean" (screen design §6.2).
+fn notation_error_text(error: &KeyParseError) -> String {
+    if let KeyParseError::UnknownKey(name) = error
+        && let Some(suggest) = suggest_key_name(name)
+    {
+        return i18n::unknown_key_suggestion(name, suggest);
+    }
+    error.to_string()
+}
+
+/// A key-notation edit cell: the box — warn-bordered when invalid — with its
+/// reading (ⓘ) or the problem (⚠) directly beneath (screen design §6).
+/// The check runs against the text as of this frame's start; one frame of
+/// lag, invisible in use.
+fn notation_cell(ui: &mut egui::Ui, kind: Notation, text: &mut String, width: f32) {
+    let check = check_notation(kind, text);
+    let invalid = matches!(check, Some(NotationCheck::Invalid(_)));
+    ui.vertical(|ui| {
+        ui.scope(|ui| {
+            if invalid {
+                let visuals = ui.visuals_mut();
+                let warn = visuals.warn_fg_color;
+                visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, warn);
+                visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, warn);
+            }
+            ui.add(
+                egui::TextEdit::singleline(text)
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(width),
+            );
+        });
+        match check {
+            Some(NotationCheck::Valid(reading)) => {
+                ui.label(
+                    egui::RichText::new(format!("\u{24d8} {reading}"))
+                        .weak()
+                        .small(),
+                );
+            }
+            Some(NotationCheck::Invalid(reason)) => {
+                let warn = ui.visuals().warn_fg_color;
+                ui.label(
+                    egui::RichText::new(format!("\u{26a0} {reason}"))
+                        .color(warn)
+                        .small(),
+                );
+            }
+            None => {}
+        }
+    });
+}
+
+/// The key-name reference behind a `?` button (screen design §6.5),
+/// generated from the parser's own list so the two cannot drift.
+fn key_names_help(ui: &mut egui::Ui, salt: &str) {
+    let texts = i18n::t();
+    let response = icons::icon_button(ui, Icon::Notation).on_hover_text(texts.config_keys_title);
+    egui::Popup::from_toggle_button_response(&response)
+        .id(egui::Id::new(salt))
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+        .show(|ui| {
+            ui.set_min_width(280.0);
+            ui.label(egui::RichText::new(texts.config_keys_title).strong());
+            ui.add_space(f32::from(CELL_PAD));
+            egui::Grid::new("key-names")
+                .num_columns(2)
+                .spacing(cell_spacing())
+                .show(ui, |ui| {
+                    ui.label(texts.config_keys_mods);
+                    ui.label(egui::RichText::new("C-  A-  S-  W-").monospace());
+                    ui.end_row();
+                    ui.label(texts.config_keys_chars);
+                    ui.label(egui::RichText::new(texts.config_keys_chars_list).monospace());
+                    ui.end_row();
+                    ui.label(texts.config_keys_function);
+                    ui.label(egui::RichText::new(texts.config_keys_function_list).monospace());
+                    ui.end_row();
+                    ui.label(texts.config_keys_special);
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(SPECIAL_KEY_NAMES.join(" ")).monospace(),
+                        )
+                        .wrap(),
+                    );
+                    ui.end_row();
+                });
+        });
+}
+
+/// The "capture the foreground app" button (B4, screen design §6.3).
+/// Pressing it starts a countdown — the press itself puts the settings
+/// window in the foreground, which is exactly the wrong answer — and when
+/// it fires, the exe in front lands in `list`.
+fn capture_button(
+    ui: &mut egui::Ui,
+    list: &mut Vec<String>,
+    capture: &mut Option<Capture>,
+    index: usize,
+    target: CaptureTarget,
+) {
+    let texts = i18n::t();
+    match capture {
+        Some(pending) if pending.keymap == index && pending.target == target => {
+            let now = Instant::now();
+            if pending.deadline <= now {
+                // The exe cache is thread-local and this is the GUI thread,
+                // so refresh here rather than trusting the message loop's
+                // copy. Both calls are the safe public surface of `window`
+                // — no unsafe enters the GUI (invariant 3).
+                crate::window::refresh_foreground_cache();
+                let exe = crate::window::with_foreground_exe(|exe| exe.to_owned());
+                if !exe.is_empty() && !list.iter().any(|app| app.eq_ignore_ascii_case(&exe)) {
+                    list.push(exe);
+                }
+                *capture = None;
+            } else {
+                let seconds = (pending.deadline - now).as_secs_f32().ceil() as u64;
+                ui.add_enabled_ui(false, |ui| {
+                    let _ = icons::button(ui, Icon::Hourglass, &i18n::capture_countdown(seconds));
+                });
+                // Keep painting so the count visibly ticks and the deadline
+                // fires without waiting for other input.
+                ui.ctx().request_repaint_after(Duration::from_millis(100));
+            }
+        }
+        _ => {
+            if icons::button(ui, Icon::Apps, texts.config_capture_app).clicked() {
+                super::log::action(texts.config_capture_app);
+                *capture = Some(Capture {
+                    keymap: index,
+                    target,
+                    deadline: Instant::now() + CAPTURE_DELAY,
+                });
+            }
+        }
+    }
+}
+
+/// One editable exe name per row with a per-row delete, in `table()`'s
+/// shape so view and edit read alike.
+fn edit_string_table(ui: &mut egui::Ui, id: &str, values: &mut Vec<String>) {
+    let texts = i18n::t();
+    let columns = [texts.config_column_app, ""];
+    let mut remove = None;
+    table(ui, id, &columns, 220.0, |ui| {
+        for (index, value) in values.iter_mut().enumerate() {
+            ui.add(
+                egui::TextEdit::singleline(value)
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(260.0),
+            );
+            if icons::icon_button(ui, Icon::Close).clicked() {
+                remove = Some(index);
+            }
             ui.end_row();
         }
     });
+    if let Some(index) = remove {
+        values.remove(index);
+    }
+}
+
+/// Editable remap rules: raw spellings on both sides (ADR 0049 decision 5 —
+/// what the user wrote is what they edit), macros as comma-separated output.
+/// Each side carries its live reading or problem beneath it (B3), and the
+/// comment written next to the rule rides along read-only.
+fn edit_rules_table(
+    ui: &mut egui::Ui,
+    rules: &mut Vec<RuleDraft>,
+    comments: Option<&KeymapComments>,
+) {
+    let texts = i18n::t();
+    let columns = [
+        texts.config_rule_input,
+        texts.config_rule_output,
+        texts.config_rule_comment,
+        "",
+    ];
+    let mut remove = None;
+    table(ui, "rules-edit", &columns, 120.0, |ui| {
+        for (index, rule) in rules.iter_mut().enumerate() {
+            notation_cell(ui, Notation::Input, &mut rule.input, 160.0);
+            notation_cell(ui, Notation::Output, &mut rule.output, 220.0);
+            // Comments are keyed by the canonical form; an input mid-typing
+            // simply finds none and the cell stays empty until it parses.
+            let comment = winremap::config::comments::canonical_input(&rule.input)
+                .and_then(|canonical| comments.and_then(|c| c.rule(&canonical)))
+                .unwrap_or_default();
+            comment_cell(ui, comment);
+            if icons::icon_button(ui, Icon::Close).clicked() {
+                remove = Some(index);
+            }
+            ui.end_row();
+        }
+    });
+    if let Some(index) = remove {
+        rules.remove(index);
+    }
+}
+
+/// General settings, editable (screen design §4.4): sliders for the numeric
+/// ranges — always in-range by construction — checkboxes for the flags, and
+/// key notation as text. The recorded macro stays the live, read-only box.
+fn general_edit_ui(ui: &mut egui::Ui, draft: &mut ConfigDraft) {
+    let texts = i18n::t();
+    ui.add_space(8.0);
+    section(ui, Icon::Macro, texts.config_macro_section, "[macro]");
+    // Show whichever spelling the file uses (ADR 0039); saving keeps it.
+    let delay_key = if draft.uses_legacy_delay_key {
+        "macro_delay_ms"
+    } else {
+        "delay_ms"
+    };
+    ui.horizontal(|ui| {
+        ui.label(texts.config_macro_delay);
+        ui.label(egui::RichText::new(delay_key).monospace().weak());
+        let mut delay = draft.macro_delay.trim().parse::<u32>().unwrap_or(0);
+        if ui
+            .add(egui::Slider::new(&mut delay, 0..=MAX_MACRO_DELAY_MS))
+            .changed()
+        {
+            draft.macro_delay = delay.to_string();
+        }
+    });
+    for (label, key, value) in [
+        (
+            texts.config_macro_record_start,
+            "record_start",
+            &mut draft.macro_record.start,
+        ),
+        (
+            texts.config_macro_record_stop,
+            "record_stop",
+            &mut draft.macro_record.stop,
+        ),
+        (
+            texts.config_macro_record_play,
+            "record_play",
+            &mut draft.macro_record.play,
+        ),
+    ] {
+        ui.horizontal(|ui| {
+            ui.label(label);
+            ui.label(egui::RichText::new(key).monospace().weak());
+            notation_cell(ui, Notation::Chord, value, 160.0);
+        });
+    }
+    ui.horizontal(|ui| {
+        key_names_help(ui, "key-names-record");
+    });
+
+    // Live runtime state, not a file value — deliberately outside the
+    // editable rows, exactly as in view mode.
+    if crate::macro_record::recorded().is_some() {
+        recorded_macro_ui(ui);
+    }
+
+    section(ui, Icon::Ime, texts.config_ime_indicator, "[ime_indicator]");
+    let defaults = IndicatorSettings::default();
+    let mut enabled = draft.ime.enabled.unwrap_or(defaults.enabled);
+    if ui
+        .checkbox(&mut enabled, texts.config_ime_enabled)
+        .changed()
+    {
+        draft.ime.enabled = Some(enabled);
+    }
+    if enabled {
+        for (label, key, value, min, max, fallback) in [
+            (
+                texts.config_ime_duration,
+                "duration_ms",
+                &mut draft.ime.duration_ms,
+                MIN_INDICATOR_DURATION_MS,
+                MAX_INDICATOR_DURATION_MS,
+                defaults.duration_ms,
+            ),
+            (
+                texts.config_ime_size,
+                "size",
+                &mut draft.ime.size,
+                MIN_INDICATOR_SIZE,
+                MAX_INDICATOR_SIZE,
+                defaults.size,
+            ),
+            (
+                texts.config_ime_opacity,
+                "opacity",
+                &mut draft.ime.opacity,
+                0,
+                255,
+                u32::from(defaults.opacity),
+            ),
+        ] {
+            ui.horizontal(|ui| {
+                ui.label(label);
+                ui.label(egui::RichText::new(key).monospace().weak());
+                let mut number = value.trim().parse::<u32>().unwrap_or(fallback);
+                if ui.add(egui::Slider::new(&mut number, min..=max)).changed() {
+                    *value = number.to_string();
+                }
+            });
+        }
+        let mut show_app = draft.ime.show_app_name.unwrap_or(defaults.show_app_name);
+        if ui
+            .checkbox(&mut show_app, texts.config_ime_show_app_name)
+            .changed()
+        {
+            draft.ime.show_app_name = Some(show_app);
+        }
+        ui.horizontal(|ui| {
+            ui.label(texts.config_ime_triggers);
+            ui.label(egui::RichText::new("trigger_keys").monospace().weak());
+            notation_cell(ui, Notation::ChordList, &mut draft.ime.trigger_keys, 220.0);
+            key_names_help(ui, "key-names-triggers");
+        });
+    }
+}
+
+/// The permanent bottom band (v0.4 screen design §5): the version — its one
+/// home in this window (owner decision 2026-07-22) — when this run started,
+/// and the last thing that happened.
+fn statusbar_ui(ui: &mut egui::Ui) {
+    let texts = i18n::t();
+    egui::Panel::bottom("config-statusbar")
+        .frame(theme::chrome_frame(ui.visuals()))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "{} v{}",
+                        texts.app_name,
+                        env!("CARGO_PKG_VERSION")
+                    ))
+                    .weak(),
+                );
+                ui.separator();
+                ui.label(egui::RichText::new(i18n::status_started(super::started_at())).weak());
+                ui.separator();
+                ui.label(super::status());
+            });
+        });
 }
 
 /// List entry text: the section's `name`, or its target when it has none.
@@ -262,11 +1449,9 @@ fn keymap_ui(
 ) {
     let texts = i18n::t();
     ui.add_space(8.0);
-    ui.label(
-        egui::RichText::new(keymap_label(keymap))
-            .size(TITLE_TEXT)
-            .strong(),
-    );
+    // No pane title: the breadcrumb and the tree already name the keymap,
+    // and a third repetition said nothing new (owner feedback 2026-07-22).
+    // The name row and its same-line comment carry what the file says.
     if !keymap.name.is_empty() {
         field(ui, texts.config_field_name, "name", &keymap.name);
         note(ui, comments.and_then(|c| c.field("name")));
@@ -600,12 +1785,8 @@ fn render_output(output: &Output) -> String {
 fn general_ui(ui: &mut egui::Ui, table: &RemapTable, comments: &ConfigComments) {
     let texts = i18n::t();
     ui.add_space(8.0);
-    ui.label(
-        egui::RichText::new(texts.config_general)
-            .size(TITLE_TEXT)
-            .strong(),
-    );
-
+    // No pane title — same reasoning as the keymap pane: the breadcrumb
+    // already says where you are.
     section(ui, Icon::Macro, texts.config_macro_section, "[macro]");
     // The v0.1 spelling still works, so show whichever key the file uses
     // (ADR 0039) - otherwise the comment column would come up empty.
@@ -795,10 +1976,14 @@ fn field(ui: &mut egui::Ui, label: &str, key: &str, value: &str) {
 
 /// The comment the user wrote on that line, if any, kept clear of the list it
 /// introduces so the two do not read as one block.
+///
+/// Shown without the `#`: it is a note here, not a line of TOML, and the rule
+/// table's comment column has never carried the marker either (owner feedback
+/// 2026-07-26).
 fn note(ui: &mut egui::Ui, comment: Option<&str>) {
     if let Some(comment) = comment {
         ui.indent("note", |ui| {
-            ui.label(egui::RichText::new(format!("# {comment}")).weak());
+            ui.label(egui::RichText::new(comment).weak());
         });
         ui.add_space(NOTE_GAP);
     }

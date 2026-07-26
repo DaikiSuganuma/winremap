@@ -14,8 +14,8 @@ mod table;
 mod tests;
 
 pub use parse::{
-    InputPattern, KeyParseError, is_modifier_vk, key_name_to_vk, parse_input_pattern,
-    parse_key_combo, vk_display_name,
+    InputPattern, KeyParseError, SPECIAL_KEY_NAMES, is_modifier_vk, key_name_to_vk,
+    parse_input_pattern, parse_key_combo, suggest_key_name, vk_display_name,
 };
 pub use table::{AppFilter, Keymap, Output, RemapTable, Resolution};
 

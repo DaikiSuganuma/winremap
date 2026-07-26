@@ -76,6 +76,13 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 
 winget / scoop のマニフェストは公式 Releases の資産（URL と SHA256）を指すため、**タグを打って Release を公開したあとに**更新・提出する（[ADR 0045](./v0.3/decisions/0045-package-manager-channels.md)）。提出物の control copy は [`packaging/`](../packaging/) にある（書き方・ローカル検証は [`packaging/README.md`](../packaging/README.md)）。
 
+0. **提出前チェック**: リリースする `winremap.exe` が OS 同梱以外の DLL に依存していないことを確認する。依存があるとインストールは通っても**起動時に `STATUS_DLL_NOT_FOUND` で落ち**、winget の検証で弾かれる（v0.3.0 で実際に発生。[作業ノート](./v0.4/notes/20260723_winget-0.3.0-validation.md)）。CRT は静的リンク済みなので（[ADR 0052](./v0.4/decisions/0052-static-crt.md)）、下記の出力が空であればよい:
+
+   ```powershell
+   $t = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes('.\winremap.exe'))
+   [regex]::Matches($t, '(?i)(vcruntime|msvcp|api-ms-win-crt)[A-Za-z0-9_\-\.]*\.dll') | ForEach-Object Value | Sort-Object -Unique
+   ```
+
 1. `packaging/winget/*.yaml` と `packaging/scoop/winremap.json` の `PackageVersion` / `version`・`InstallerUrl` / `url`・SHA256 を新バージョンに更新する（ハッシュは Release の `SHA256SUMS` から。**winget は大文字**、scoop は小文字）
 2. **winget**: `manifests/d/DaikiSuganuma/WinRemap/<version>/` として [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) へ PR（`wingetcreate submit packaging\winget` が楽。事前に `winget validate --manifest packaging\winget`）
 3. **scoop**: **保留中**（[ADR 0048](./v0.3/decisions/0048-scoop-defer-extras.md)）。Extras は知名度基準未達でクローズ済み。基準到達後に再開する。`winremap.json` は `packaging/scoop/` に温存
@@ -83,6 +90,8 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 5. 更新自動化（[winget-releaser](https://github.com/vedantmgoyal9/winget-releaser) 等）を入れるかは [ADR 0045](./v0.3/decisions/0045-package-manager-channels.md) 決定 6 に従って判断する
 
 > 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
+
+> **winget 初回登録の状況（2026-07-23 時点）**: v0.3.0 の提出（[PR #405731](https://github.com/microsoft/winget-pkgs/pull/405731)）は上記 0. の依存が原因で検証に失敗した。リリース済みバイナリは差し替えられないため、**この PR は取り下げ、初回登録は v0.4.0 でやり直す**（オーナー決定 2026-07-23。経緯と手順は[作業ノート](./v0.4/notes/20260723_winget-0.3.0-validation.md)）。
 
 ## 4. 配布ポリシー（ブリーフ §10-3）
 
