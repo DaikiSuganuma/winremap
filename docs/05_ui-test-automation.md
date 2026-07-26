@@ -89,7 +89,8 @@ cd D:\Projects\GitHub\winremap\tests\ui
   - **理由は「OpenGL で描いているから」ではない**（当初そう書いていたが誤り。オーナー指摘 2026-07-26）。UIA への露出は描画方式と無関係で、egui は [AccessKit](https://accesskit.dev/) 経由でアクセシビリティツリーを出せる。出ていないのは次の 2 点による
     1. `Cargo.toml` が eframe を `default-features = false` で取っており、**既定機能である `accesskit` が外れている**（`accesskit_winit` → `accesskit_windows` の UIA プロバイダーが binary に入らない）
     2. 有効にしても足りない。**eframe 0.35 は AccessKit アダプターを ROOT ビューポートにしか作らない**（`eframe-0.35.0/src/native/glow_integration.rs:275-286`、`ViewportId::ROOT` 決め打ち）。WinRemap の root は不可視 1×1 のホストで、設定・ログは遅延子ビューポート（[ADR 0037](v0.2/decisions/0037-gui-invisible-host-viewport.md)）なので、実ウィンドウにはアダプターが付かない
-  - つまり UIA で読めるようにする道はあるが、feature を足すだけでは済まず、**ホスト構成の変更か eframe への子ビューポート対応の追加**が要る。実現すればスクリーンショット判定を捨てて決定論的な検証にできるため、費用対効果を見て別途判断する（未着手）
+  - つまり UIA で読めるようにする道はあるが、feature を足すだけでは済まず、**ホスト構成の変更か eframe への子ビューポート対応の追加**が要る。実現すればスクリーンショット判定を捨てて決定論的な検証にできる
+  - **v0.5.0 で扱う**（オーナー決定 2026-07-26）。v0.4.0 はスクリーンショット判定のまま出す
 
 ### 期待結果の置き方（実際に踏んだ落とし穴）
 

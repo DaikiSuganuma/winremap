@@ -51,8 +51,9 @@ flowchart TD
   Launching never flashes a console window
 - **Settings window**: see the config that is in effect right now — every
   keymap, its target apps and its rules, with your own comments beside them
-  and a key-notation legend. Read-only in this release; edit the file and
-  reload
+  and a key-notation legend — and **edit it in place**. Rules are checked as
+  you type, saving validates before it writes, and everything you did not
+  touch (comments, blank lines, ordering, spellings) comes back unchanged
 - **Log window**: watch WinRemap decide, key by key, without starting it from
   a terminal. Nothing is ever written to disk
 - **IME status indicator** (opt-in): the moment the IME turns on, a
@@ -224,11 +225,40 @@ only one of them can win. A key-notation legend sits beside the rules, and
 the `[macro]` section lists the recording keys plus whatever is recorded
 right now — marked as memory-only, since it is not in the file.
 
-The window is **read-only in this release**. Edit the file (the **Open in text
-editor** link hands it to whatever you associated with `.toml`) and press
-**Reload config**; the display follows. The file's modification time and the
-load time are shown side by side, so a config you saved but did not reload is
-visible at a glance.
+The address bar at the top names the folder your config lives in and lists the
+`.toml` files beside it: pick another one and WinRemap switches to it. A ●
+next to a file name means it changed on disk since it was loaded — press ↻ to
+reload, or open the file in your usual editor from the same dropdown.
+
+### Editing it
+
+Press **Edit** and the same window becomes an editor for the file. Names,
+target apps, exclusions and rules turn into fields; keymaps can be added,
+deleted and reordered from the tree; the general settings sit on sliders and
+checkboxes.
+
+- Each key-notation field says what it reads as while you type — `A-x u`
+  shows "Alt+x, then u" — and marks what it cannot parse, with a suggestion
+  when the key name is close to a real one.
+- **Save** validates the whole file with the same parser the command line
+  uses. If anything is wrong nothing is written; the problems are listed at
+  the bottom with their line numbers.
+- A valid save is written atomically and reloaded, so the new rules are in
+  effect before the window returns to viewing.
+- **Everything you did not edit stays byte for byte as it was**: comments,
+  blank lines, the order of your rules, the spelling you used, and the file's
+  line endings. Deleting a rule takes its line and the comment on that line,
+  and leaves the comments above it for the rule that follows.
+- If the file changed outside WinRemap while you were editing, Save stops and
+  asks rather than overwriting. Closing with unsaved changes asks too, and a
+  save that fails (read-only file, no space) keeps your edits.
+
+**Capture the foreground app** fills in an application name for you: press
+it, bring the app you mean to the front within three seconds, and its exe
+name lands on the list.
+
+Remapping never pauses while the window is open, or while a save is going
+through — the running rules are swapped in one step.
 
 Not sure what to put in `application`? Right-click the tray icon and pick
 **Show log**, then switch windows: the log shows each foreground app's full
