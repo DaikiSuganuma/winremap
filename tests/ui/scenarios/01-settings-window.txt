@@ -1,12 +1,19 @@
 # needs: tray
 Use the terminator MCP tools to test a Windows desktop app. Do exactly these steps and do not improvise extra ones.
 
+Do not take screenshots and do not read anything from an image. Every check below is answerable from the UI Automation tree. If an element is missing, that is the result — report it as missing rather than looking at the picture to see whether it is "really" there.
+
 1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
 2. Wait 5 seconds for its tray icon to appear in the notification area.
 3. Right-click the notification-area icon whose name contains "WinRemap". It sits directly on the taskbar — it has been promoted out of the overflow, so do NOT open the overflow flyout (that flyout does not open reliably under automation).
 4. Click the menu item named "Settings".
-5. Wait 3 seconds, then list the UI elements (role and name) of the settings window (its title starts with "WinRemap" and contains "settings").
+   The tray menu is a Win32 popup, and its items are NOT reliably exposed to UI Automation — sometimes they are in the tree, sometimes the popup is an unnamed container with no children at all. That is a property of Windows menus and is not what this test is about. If you cannot find the item in the tree, do NOT report the menu as broken and do NOT take a screenshot. Drive it the way Windows itself allows: with the menu open, press the S key once, then press Enter. ("Settings" and "Show log" both start with S, so the first press only highlights "Settings" — Windows invokes on a first-letter match only when the match is unique.)
+5. Wait 3 seconds, then list the UI elements (role and name) of the window whose name contains "settings".
+6. Report which of these are present and which are missing:
+   - a Button named "Edit"
+   - a text element named "General" and one named "Keymaps"
+   - a text element named "notepad"
+   - a text element whose name starts with "WinRemap v"
+7. Click role:Button|name:Edit, wait 3 seconds, and list the window's buttons again. The two header buttons are expected to become "Save" and "Revert".
 
-The settings window draws with OpenGL, and a failure there shows up as a window that is blank, black, or has no readable controls. Report the element names you found.
-
-On the final line print exactly PASS if the settings window opened and its controls are rendered (you can read control names such as Edit, Reload, or the "General" and "Keymaps" tree items), otherwise print exactly FAIL.
+On the final line print exactly PASS if every element in step 6 was found AND, after step 7, buttons named "Save" and "Revert" are in the tree. Otherwise print exactly FAIL. Then write at most one short line per step.

@@ -76,7 +76,29 @@ eframe 0.35.0 のソースをローカルに複製して改変し、`[patch.crat
 - egui のコントリビューション手順（CHANGELOG への記載、CI）に合わせる
 - `#[cfg_attr(not(feature = "accesskit"), expect(unused_mut))]` のような細工を、上流の書き方に寄せて整理する
 
+## WinRemap 本体での確認（同日実施）
+
+プローブは最小再現にすぎないため、**本体の設定ウィンドウ・ログウィンドウ**を VM 上で実測した。採取は [`tests/ui/guest/dump-uia.ps1`](../../../tests/ui/guest/dump-uia.ps1)（`.\run-vm-ui-test.ps1 -DumpUia`）で行い、**AI を介在させていない**。
+
+**結果: 本体でも効いている。**
+
+| ウィンドウ | 子孫 | 中身 |
+|---|---|---|
+| `WinRemap — settings`（表示モード・全体設定） | **43** | `Button 'Edit'`、`ComboBox` (value=`minimal.toml`)、`Text 'C:\Test'`、ナビの `General`／`Keymaps`／`notepad`、`Text 'WinRemap v0.5.0'` |
+| 同（`notepad` 選択後） | **59** | 上記＋ `Text 'notepad.exe'`・`Text 'C-h'`・`Text 'Back'`・コメント行 |
+| 同（`Edit` を UIA から押した後） | **72** | ヘッダーが `Button 'Revert'`＋`Button 'Save'` に変わり、`Edit` 要素が値付きで出る（`notepad` / `notepad.exe` / `C-h` / `Back`）。`Add application`・`Capture the foreground app`・`Target all applications`・`Add rule` も名前付きボタンとして見える |
+| `WinRemap — log` | **7** | `CheckBox 'Follow newest'`(Toggle=On)、`Button 'Clear'`、`Button 'Copy all'`、ログ行がそれぞれ `Text` |
+
+**押せることも本体で確認した。** `Button 'Edit'` を `InvokePattern` で叩くと編集モードに入り、ツリーが 59 → 72 に変わった。読み取りだけでなく操作が届いている。
+
+v0.4 で編集機能に入れた要素（アプリ追加・前面アプリ取得・全アプリ対象・規則追加）がすべて名前付きで出ているため、**Phase B の回帰自動化はこのまま機械判定に載せられる**見込みが立った。
+
+### 分かった制約: トレイメニューは UIA に出ない
+
+トレイの右クリックメニューは Win32 のポップアップ（クラス `#32768`）で、**この UIA クライアントからは中身のない `Pane` にしか見えない**（項目が 1 つもツリーに出ない）。AccessKit とは無関係で、Windows のメニューの性質である。採取スクリプトは Windows 本来の操作（頭文字で選択 → Enter）で開いている。
+
+シナリオ側は terminator MCP がメニュー項目を扱えているため、ここは影響しない。
+
 ## 未確認のまま残したこと
 
 - wgpu バックエンドは確認していない（本プロジェクトは glow のみ）
-- WinRemap 本体（設定・ログウィンドウ）での確認はこれから。プローブは構成を同じにしただけの最小再現である
