@@ -21,7 +21,10 @@ v0.4 の UI テストは設定ウィンドウとログウィンドウを**スク
 ## 決定（案）
 
 1. **eframe の子ビューポート生成経路に AccessKit の初期化を足し、`emilk/egui` へ upstream PR を出す。** 位置は `glow_integration.rs` の `viewport.egui_winit.get_or_insert_with(...)`。イベントループのプロキシをその場まで引き回す必要がある
+   - **PR は未提出（2026-07-26 時点）。** 出す前に **wgpu バックエンドにも同じ変更**が要る（`wgpu_integration.rs`。`initialize_window` の呼び出し規約が glow と違い、プロキシの引き回し方も変わる）。本プロジェクトは glow しか使わないため検証手段が無く、片方だけの PR は不完全になる。フォークのブランチは glow のみで先に運用し、PR を仕立てる段で wgpu を足す
 2. **マージを待つ間は `[patch.crates-io]` でフォークを指す。** ADR に外す条件を書く: **upstream にマージされ、それを含む eframe が公開されたら patch を外す**。フォークは `DaikiSuganuma/egui` に置き、対象ブランチとコミットを本 ADR に追記する
+   - **実施済み（2026-07-26）**: [`DaikiSuganuma/egui` の `accesskit-child-viewports`](https://github.com/DaikiSuganuma/egui/tree/accesskit-child-viewports)（`3058f43e`）。**タグ `0.35.0` から分岐**しており、差分は glow バックエンドの 1 ファイル（+47 行）だけである。master から切っていないのは、未公開の変更を巻き込まないため
+   - `Cargo.toml` の `[patch.crates-io]` に**外す条件をコメントで書いてある**。この pin を放置すると egui スタック全体が 0.35.0 に固定される
 3. **`accesskit` feature は本番ビルドでも有効にする。** テスト専用の feature にはしない
 4. 実装の前に、`[patch.crates-io]` を使ったローカル改変版で**子ビューポートの子孫が UIA に出ることを実測**する。ここで出なければ本 ADR は差し戻し、代替案を検討する
    - **実施済み（2026-07-26）**: 子孫 10 個が見え、`InvokePattern` 経由でボタンを押すと実際にクリックが届いた。**読めるだけでなく押せる**
