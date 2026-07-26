@@ -171,7 +171,14 @@ impl Tray {
                 // edit (config-spec §4). The user just asked for this reload,
                 // so a dialog (when there is no console) is expected rather
                 // than intrusive — silence would look like success.
-                crate::notify::error(&i18n::reload_failed(&e.to_string()));
+                let message = i18n::reload_failed(&e.to_string());
+                // The settings window says so itself as well. `notify::error`
+                // routes to the console when one is attached, and a terminal
+                // behind the window is not where the answer is looked for
+                // (owner feedback 2026-07-26, acceptance B-5); its status bar
+                // would otherwise still read "loaded" from the last success.
+                crate::gui::set_status(&message);
+                crate::notify::error(&message);
                 let _ = self.icon.set_tooltip(Some(i18n::t().tooltip_reload_failed));
             }
         }

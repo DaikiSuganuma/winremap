@@ -26,8 +26,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pane, and a status bar shows the version, when WinRemap started, and the
   last thing that happened.
 
+### Changed
+
+- Deleting a remap rule now keeps the comment *lines* above it and moves them
+  down to the next rule, whatever the blank lines around them look like — only
+  the rule's own line and the comment written on it go (ADR 0054). A heading
+  like `# --- Editing ---` used to disappear along with the first rule under
+  it. Rules the editor writes are quoted the way the ones around them are
+  (`"C-n" = "Down"`), and a comment shown in the settings window no longer
+  carries a `#`: it is a note there, not a line of TOML.
+- The application list of a keymap set to `*` no longer offers to add, capture
+  or widen anything — every application already matches — and a keymap that
+  names its apps gets a "Target all applications" button instead. The
+  exclusion list is now headed "Excluded applications" and carries the same
+  foreground-capture button the application list has.
+
 ### Fixed
 
+- Saving no longer rewrites a config file's line endings. A file written with
+  Windows line endings came back with every line changed, so a one-word edit
+  showed up as a whole-file diff.
+- The comment block at the top of a config file that starts with `[[keymap]]`
+  now stays at the top. It belonged to whichever keymap happened to be first,
+  so reordering the keymaps carried the file's own header along with one of
+  them, and deleting that keymap deleted the header.
+- A config that fails to load now says so in the settings window's status bar
+  as well. Switching to a broken file left the bar reading "Loaded", with the
+  reason on the terminal WinRemap was started from — which reads as success.
+- The settings window no longer rebuilds its panels halfway through a frame
+  when a footer button is pressed, which made debug builds outline the window
+  in red for a moment.
 - The executable no longer depends on `vcruntime140.dll`, so it starts on a
   clean Windows machine without the VC++ redistributable installed. This is
   what crashed winget's validation of v0.3.0 with `STATUS_DLL_NOT_FOUND`;

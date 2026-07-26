@@ -56,6 +56,8 @@ pub struct ConfigWindow {
     /// `Some` = edit mode (ADR 0049). The window shows the draft, never the
     /// live table, until Save or Revert ends it.
     edit: Option<EditState>,
+    /// A button press from the previous frame; see [`PendingAction`].
+    pending: Option<PendingAction>,
 }
 
 /// Everything edit mode holds: the draft being edited, the pristine copy the
@@ -77,7 +79,16 @@ struct EditState {
 
 struct Capture {
     keymap: usize,
+    /// Which of the keymap's two lists the captured exe lands on — both carry
+    /// the button, and only the one that was pressed may count down.
+    target: CaptureTarget,
     deadline: Instant,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CaptureTarget {
+    Apps,
+    Exclude,
 }
 
 /// The grace the capture gives for bringing the target app to the front —
@@ -94,20 +105,22 @@ enum Notice {
     ConfirmClose,
 }
 
-/// What a header button asked for; applied after the panel closes so the
-/// actions can borrow `self` whole.
-enum HeaderAction {
-    None,
+/// What a header or footer button asked for. Recorded rather than performed:
+/// every one of these changes which panels the window has, and doing that
+/// halfway through a frame leaves egui's second layout pass disagreeing with
+/// the first about what sits where — which it reports by outlining the
+/// window in red for that frame (owner feedback 2026-07-26, acceptance C-11).
+/// Applied at the top of the next frame instead, where every pass sees the
+/// same window.
+enum PendingAction {
     Edit,
     Save,
     Revert,
-}
-
-enum FooterAction {
-    None,
     Overwrite,
     Reread,
     CloseDiscard,
+    /// Dismiss the footer's question without acting on it.
+    DismissNotice,
 }
 
 /// How stale the folder listing and the change marks may get when the
@@ -209,10 +222,15 @@ impl ConfigWindow {
         // moment (ADR 0003), and the list and the detail pane have to agree.
         let table = crate::hook::REMAP_TABLE.load_full();
         self.sync_comments(table.as_ref(), &path);
+        // Before anything is laid out, so this frame is built once from one
+        // state (see `PendingAction`).
+        if let Some(action) = self.pending.take() {
+            self.apply(action, &path);
+        }
 
         self.header_ui(ui, &path);
         statusbar_ui(ui);
-        self.footer_ui(ui, &path);
+        self.footer_ui(ui);
 
         if self.edit.is_some() {
             self.edit_body_ui(ui);
@@ -277,7 +295,7 @@ impl ConfigWindow {
         } else {
             theme::chrome_frame(ui.visuals())
         };
-        let mut action = HeaderAction::None;
+        let mut action = None;
         egui::Panel::top("config-header")
             .frame(frame)
             .show(ui, |ui| {
@@ -357,22 +375,46 @@ impl ConfigWindow {
                             // Right-to-left: Revert lands rightmost, Save to
                             // its left — reading order Save, Revert (§2.4).
                             if icons::button(ui, Icon::Revert, texts.config_revert).clicked() {
-                                action = HeaderAction::Revert;
+                                action = Some(PendingAction::Revert);
                             }
                             if icons::button(ui, Icon::Floppy, texts.config_save).clicked() {
-                                action = HeaderAction::Save;
+                                action = Some(PendingAction::Save);
                             }
                         } else if icons::button(ui, Icon::Pencil, texts.config_edit).clicked() {
-                            action = HeaderAction::Edit;
+                            action = Some(PendingAction::Edit);
                         }
                     });
                 });
             });
+        self.queue(ui, action);
+    }
+
+    /// Holds a button press until the next frame, and makes sure there is
+    /// one — the click already woke the loop, but the frame that acts on it
+    /// must not depend on further input arriving.
+    fn queue(&mut self, ui: &egui::Ui, action: Option<PendingAction>) {
+        if action.is_some() {
+            self.pending = action;
+            ui.ctx().request_repaint();
+        }
+    }
+
+    /// Performs what a button asked for last frame; see [`PendingAction`].
+    fn apply(&mut self, action: PendingAction, path: &Path) {
         match action {
-            HeaderAction::None => {}
-            HeaderAction::Edit => self.start_edit(path),
-            HeaderAction::Save => self.save(path, false),
-            HeaderAction::Revert => self.revert(),
+            PendingAction::Edit | PendingAction::Reread => self.start_edit(path),
+            PendingAction::Save => self.save(path, false),
+            PendingAction::Overwrite => self.save(path, true),
+            PendingAction::Revert => self.revert(),
+            PendingAction::CloseDiscard => {
+                self.edit = None;
+                super::hide_config();
+            }
+            PendingAction::DismissNotice => {
+                if let Some(edit) = self.edit.as_mut() {
+                    edit.notice = None;
+                }
+            }
         }
     }
 
@@ -474,7 +516,7 @@ impl ConfigWindow {
 
     /// The edit-mode footer band: validation results and confirmations
     /// (screen design §6.4/§7). Absent when there is nothing to say.
-    fn footer_ui(&mut self, ui: &mut egui::Ui, path: &Path) {
+    fn footer_ui(&mut self, ui: &mut egui::Ui) {
         let Some(edit) = self.edit.as_mut() else {
             return;
         };
@@ -482,7 +524,7 @@ impl ConfigWindow {
             return;
         }
         let texts = i18n::t();
-        let mut action = FooterAction::None;
+        let mut action = None;
         let notice = edit.notice.clone();
         egui::Panel::bottom("config-footer")
             .frame(theme::warn_band_frame(ui.visuals()))
@@ -491,28 +533,28 @@ impl ConfigWindow {
                     Some(Notice::ExternalChange) => {
                         ui.label(texts.config_external_changed);
                         if ui.button(texts.config_overwrite).clicked() {
-                            action = FooterAction::Overwrite;
+                            action = Some(PendingAction::Overwrite);
                         }
                         if ui.button(texts.config_reread).clicked() {
-                            action = FooterAction::Reread;
+                            action = Some(PendingAction::Reread);
                         }
                         if ui.button(texts.config_cancel).clicked() {
-                            edit.notice = None;
+                            action = Some(PendingAction::DismissNotice);
                         }
                     }
                     Some(Notice::SaveFailed(reason)) => {
                         ui.label(i18n::save_failed(&reason));
                         if ui.button(texts.config_cancel).clicked() {
-                            edit.notice = None;
+                            action = Some(PendingAction::DismissNotice);
                         }
                     }
                     Some(Notice::ConfirmClose) => {
                         ui.label(texts.config_close_confirm);
                         if ui.button(texts.config_close).clicked() {
-                            action = FooterAction::CloseDiscard;
+                            action = Some(PendingAction::CloseDiscard);
                         }
                         if ui.button(texts.config_cancel).clicked() {
-                            edit.notice = None;
+                            action = Some(PendingAction::DismissNotice);
                         }
                     }
                     None => {
@@ -526,15 +568,7 @@ impl ConfigWindow {
                     }
                 });
             });
-        match action {
-            FooterAction::None => {}
-            FooterAction::Overwrite => self.save(path, true),
-            FooterAction::Reread => self.start_edit(path),
-            FooterAction::CloseDiscard => {
-                self.edit = None;
-                super::hide_config();
-            }
-        }
+        self.queue(ui, action);
     }
 
     /// The window body in edit mode: everything shows the draft, never the
@@ -933,31 +967,58 @@ fn keymap_edit_ui(
         );
     });
 
+    // The same rule the viewer applies, read from the draft's own strings.
+    let all_apps = keymap.application.iter().any(|app| app == "*");
+
     section(ui, Icon::Apps, texts.config_field_apps, "application");
     edit_string_table(ui, "apps-edit", &mut keymap.application);
     ui.add_space(f32::from(CELL_PAD));
-    ui.horizontal(|ui| {
-        if icons::button(ui, Icon::Plus, texts.config_add_app).clicked() {
-            keymap.application.push(String::new());
-        }
-        // Capturing an exe name for a "*" keymap would be meaningless —
-        // every application is already a target (screen design §4.3).
-        if !keymap.application.iter().any(|app| app == "*") {
-            capture_button(ui, keymap, capture, index);
-        }
-    });
+    // With "*" on the list every application already matches, so adding one,
+    // capturing one, or asking for "*" again all say nothing — the buttons go
+    // rather than sit there inert (owner decision 2026-07-26). Removing the
+    // "*" row brings them back.
+    if !all_apps {
+        ui.horizontal(|ui| {
+            if icons::button(ui, Icon::Plus, texts.config_add_app).clicked() {
+                keymap.application.push(String::new());
+            }
+            capture_button(
+                ui,
+                &mut keymap.application,
+                capture,
+                index,
+                CaptureTarget::Apps,
+            );
+            if icons::button(ui, Icon::Apps, texts.config_target_all_apps).clicked() {
+                // Replaces rather than appends: "*" beside exe names is a
+                // validation error, not a wider list (config-spec §3).
+                keymap.application = vec!["*".to_owned()];
+            }
+        });
+    }
     ui.add_space(NOTE_GAP);
     own_note(ui, texts.config_apps_case_note);
 
-    // Exclusions only make sense against "*" — the same rule the viewer
-    // applies, but read from the draft's own strings.
-    if keymap.application.iter().any(|app| app == "*") {
+    // Exclusions only mean anything against "*".
+    if all_apps {
         section(ui, Icon::Exclude, texts.config_field_exclude, "exclude");
         edit_string_table(ui, "excludes-edit", &mut keymap.exclude);
         ui.add_space(f32::from(CELL_PAD));
-        if icons::button(ui, Icon::Plus, texts.config_add_app).clicked() {
-            keymap.exclude.push(String::new());
-        }
+        ui.horizontal(|ui| {
+            if icons::button(ui, Icon::Plus, texts.config_add_app).clicked() {
+                keymap.exclude.push(String::new());
+            }
+            // Same capture, other list: naming the app in front is how a
+            // keymap learns an exe name, whichever list it is going on
+            // (owner decision 2026-07-26).
+            capture_button(
+                ui,
+                &mut keymap.exclude,
+                capture,
+                index,
+                CaptureTarget::Exclude,
+            );
+        });
     }
 
     section(ui, Icon::Rules, texts.config_rules, "[keymap.remap]");
@@ -1117,16 +1178,17 @@ fn key_names_help(ui: &mut egui::Ui, salt: &str) {
 /// The "capture the foreground app" button (B4, screen design §6.3).
 /// Pressing it starts a countdown — the press itself puts the settings
 /// window in the foreground, which is exactly the wrong answer — and when
-/// it fires, the exe in front lands in the application list.
+/// it fires, the exe in front lands in `list`.
 fn capture_button(
     ui: &mut egui::Ui,
-    keymap: &mut KeymapDraft,
+    list: &mut Vec<String>,
     capture: &mut Option<Capture>,
     index: usize,
+    target: CaptureTarget,
 ) {
     let texts = i18n::t();
     match capture {
-        Some(pending) if pending.keymap == index => {
+        Some(pending) if pending.keymap == index && pending.target == target => {
             let now = Instant::now();
             if pending.deadline <= now {
                 // The exe cache is thread-local and this is the GUI thread,
@@ -1135,13 +1197,8 @@ fn capture_button(
                 // — no unsafe enters the GUI (invariant 3).
                 crate::window::refresh_foreground_cache();
                 let exe = crate::window::with_foreground_exe(|exe| exe.to_owned());
-                if !exe.is_empty()
-                    && !keymap
-                        .application
-                        .iter()
-                        .any(|app| app.eq_ignore_ascii_case(&exe))
-                {
-                    keymap.application.push(exe);
+                if !exe.is_empty() && !list.iter().any(|app| app.eq_ignore_ascii_case(&exe)) {
+                    list.push(exe);
                 }
                 *capture = None;
             } else {
@@ -1159,6 +1216,7 @@ fn capture_button(
                 super::log::action(texts.config_capture_app);
                 *capture = Some(Capture {
                     keymap: index,
+                    target,
                     deadline: Instant::now() + CAPTURE_DELAY,
                 });
             }
@@ -1918,10 +1976,14 @@ fn field(ui: &mut egui::Ui, label: &str, key: &str, value: &str) {
 
 /// The comment the user wrote on that line, if any, kept clear of the list it
 /// introduces so the two do not read as one block.
+///
+/// Shown without the `#`: it is a note here, not a line of TOML, and the rule
+/// table's comment column has never carried the marker either (owner feedback
+/// 2026-07-26).
 fn note(ui: &mut egui::Ui, comment: Option<&str>) {
     if let Some(comment) = comment {
         ui.indent("note", |ui| {
-            ui.label(egui::RichText::new(format!("# {comment}")).weak());
+            ui.label(egui::RichText::new(comment).weak());
         });
         ui.add_space(NOTE_GAP);
     }

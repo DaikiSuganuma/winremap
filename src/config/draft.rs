@@ -9,9 +9,10 @@
 //! edit — comments, blank lines, ordering, spellings — survives verbatim
 //! (ADR 0036).
 //!
-//! The one formatting liberty taken: a renamed rule input is re-formatted by
-//! `toml_edit`'s default key encoder, so `"C-h"` renamed to `C-y` may lose
-//! its quotes. Same meaning, same place, same comment.
+//! Rule keys the draft writes are quoted, matching how the rules around them
+//! are written; `toml_edit`'s own encoder would leave `C-y` bare, which is the
+//! same TOML but reads as a different kind of line (owner feedback
+//! 2026-07-26).
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -255,7 +256,22 @@ pub fn apply(
     let mut doc: DocumentMut = source.parse()?;
     apply_general(&mut doc, original, edited);
     apply_keymaps(&mut doc, original, edited);
-    Ok(doc.to_string())
+    Ok(keep_line_endings(source, doc.to_string()))
+}
+
+/// `toml_edit` ends every line it encodes with `\n`, so a file written on
+/// Windows came back with all of its line endings changed — a one-word edit
+/// produced a whole-file diff, which is the opposite of what ADR 0036
+/// promises (owner acceptance 2026-07-26).
+///
+/// Multi-line strings are the one place a `\n` is content rather than layout,
+/// and this cannot tell the two apart; a file containing one is left alone.
+/// Nothing in the config schema (config-spec §3) is written that way.
+fn keep_line_endings(source: &str, encoded: String) -> String {
+    if !source.contains("\r\n") || source.contains("\"\"\"") || source.contains("'''") {
+        return encoded;
+    }
+    encoded.replace("\r\n", "\n").replace('\n', "\r\n")
 }
 
 /// Writes atomically: a sibling temp file, then a rename over the target.
@@ -429,6 +445,18 @@ fn rebuild_keymaps(doc: &mut DocumentMut, original: &ConfigDraft, edited: &Confi
         }
     }
 
+    // The comment block above the first `[[keymap]]` introduces the place the
+    // keymaps start — in a file that opens with one, it is the file's own
+    // header. `toml_edit` keeps it as that table's prefix, so moving or
+    // deleting that keymap used to carry it off or destroy it (owner
+    // acceptance 2026-07-26; same reasoning as ADR 0054). Detached here and
+    // put back on whichever keymap ends up first.
+    let lead = old.first_mut().and_then(Option::as_mut).map(|table| {
+        let prefix = decor_text(table.decor().prefix());
+        table.decor_mut().set_prefix("\n");
+        prefix
+    });
+
     // The keymaps stay in the stretch of the file they occupied. Sequential
     // positions from its start fit up to a stride's worth of additions
     // before the next non-keymap table — beyond any real editing session.
@@ -461,6 +489,15 @@ fn rebuild_keymaps(doc: &mut DocumentMut, original: &ConfigDraft, edited: &Confi
             remap.set_position(Some(position));
         }
         new.push(table);
+    }
+    if let Some(lead) = lead
+        && let Some(first) = new.get_mut(0)
+    {
+        let own = decor_text(first.decor().prefix());
+        // `lead` already ends the line it sits on; the newline the table
+        // carried for its own separation would leave a blank one.
+        let own = own.strip_prefix('\n').unwrap_or(&own);
+        first.decor_mut().set_prefix(format!("{lead}{own}"));
     }
     if !new.is_empty() {
         doc.as_table_mut()
@@ -588,10 +625,10 @@ fn rewrite_string_array(table: &mut Table, key: &str, original: &[String], edite
 
 /// Rebuilds `[keymap.remap]` in the draft's order, carrying each surviving
 /// entry over whole — key formatting, attached comment, value comment. An
-/// entry the user deleted takes its attached comment with it; a comment
-/// block separated from it by a blank line hops to the next surviving entry
-/// instead (design doc §4.2). One stranded behind the last survivor goes
-/// with the deletion.
+/// entry the user deleted takes the comment on its own line with it; the
+/// comment *lines* above it move to the next surviving entry (design doc
+/// §4.2). Comments stranded behind the last survivor go with the deletion —
+/// there is nothing left for them to introduce.
 fn rewrite_rules(table: &mut Table, original: &KeymapDraft, edited: &KeymapDraft) {
     let mut old = match table.remove("remap") {
         Some(Item::Table(remap)) => remap,
@@ -612,8 +649,8 @@ fn rewrite_rules(table: &mut Table, original: &KeymapDraft, edited: &KeymapDraft
         if survives.contains(&index) {
             if !carry.is_empty() {
                 let prefix = decor_text(key.leaf_decor().prefix());
-                // The carry ends in a blank line; the survivor's own leading
-                // newline would double it up.
+                // The carry already ends the last comment line; the
+                // survivor's own leading newline would leave a blank one.
                 let prefix = prefix.strip_prefix('\n').unwrap_or(&prefix);
                 key.leaf_decor_mut().set_prefix(format!("{carry}{prefix}"));
                 carry.clear();
@@ -632,7 +669,7 @@ fn rewrite_rules(table: &mut Table, original: &KeymapDraft, edited: &KeymapDraft
             Some((index, (mut key, mut item))) => {
                 let orig = &original.rules[index];
                 if rule.input != orig.input {
-                    let mut renamed = Key::new(rule.input.as_str());
+                    let mut renamed = rule_key(&rule.input);
                     *renamed.leaf_decor_mut() = key.leaf_decor().clone();
                     key = renamed;
                 }
@@ -646,21 +683,54 @@ fn rewrite_rules(table: &mut Table, original: &KeymapDraft, edited: &KeymapDraft
                 new.insert_formatted(&key, item);
             }
             None => {
-                new.insert(&rule.input, Item::Value(output_value(&rule.output)));
+                new.insert_formatted(
+                    &rule_key(&rule.input),
+                    Item::Value(output_value(&rule.output)),
+                );
             }
         }
     }
     table.insert("remap", Item::Table(new));
 }
 
-/// The part of a deleted entry's prefix that was *not* attached to it: comment
-/// lines up to and including the last blank line. Nothing, if no blank line
-/// splits the block — then the whole comment belonged to the entry.
+/// A rule key as the file writes them: quoted. `toml_edit` renders a key it
+/// was handed as a string with its default encoder, which leaves `C-n` bare —
+/// legal TOML, but a stray bare key among quoted ones (owner feedback
+/// 2026-07-26). Parsing the quoted form is what attaches that spelling to the
+/// key; the fallback cannot trigger for key notation, which has neither
+/// quotes nor backslashes to escape.
+fn rule_key(input: &str) -> Key {
+    let escaped = input.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("\"{escaped}\"")
+        .parse::<Key>()
+        .unwrap_or_else(|_| Key::new(input))
+}
+
+/// The comment lines standing above a deleted entry, kept so they can move to
+/// the next survivor. Deleting a rule takes the rule's line — and the comment
+/// written *on* that line — with it, but the lines above it are as likely to
+/// introduce the group as the one rule: a `# --- Editing ---` header used to
+/// vanish with the first rule under it (owner feedback 2026-07-26, ADR 0054).
+///
+/// Blank lines between the comments are kept, the ones around the block are
+/// not: the block is being moved, and the spacing of the entry it lands on
+/// takes over from there.
 fn detached_comments(prefix: &str) -> String {
-    match prefix.rfind("\n\n") {
-        Some(split) if prefix[..split].contains('#') => prefix[..split + 2].to_owned(),
-        _ => String::new(),
+    let lines: Vec<&str> = prefix.lines().collect();
+    let is_comment = |line: &&str| line.trim_start().starts_with('#');
+    let Some(first) = lines.iter().position(is_comment) else {
+        return String::new();
+    };
+    let last = lines.iter().rposition(is_comment).unwrap_or(first);
+    let mut kept = String::new();
+    for line in &lines[first..=last] {
+        // Leading, not trailing: the newline before the first comment is what
+        // ends the line the deleted entry used to sit after.
+        kept.push('\n');
+        kept.push_str(line);
     }
+    kept.push('\n');
+    kept
 }
 
 fn decor_text(raw: Option<&toml_edit::RawString>) -> String {
@@ -689,7 +759,10 @@ fn new_keymap_table(keymap: &KeymapDraft) -> Table {
     if !keymap.rules.is_empty() {
         let mut remap = Table::new();
         for rule in &keymap.rules {
-            remap.insert(&rule.input, Item::Value(output_value(&rule.output)));
+            remap.insert_formatted(
+                &rule_key(&rule.input),
+                Item::Value(output_value(&rule.output)),
+            );
         }
         table.insert("remap", Item::Table(remap));
     }
@@ -863,25 +936,46 @@ CapsLock = "LCtrl"
             output: "Down".to_owned(),
         });
         let saved = apply(SOURCE, &original, &edited).expect("applies");
+        // Quoted like the rules around it, not bare as toml_edit would write
+        // it (owner feedback 2026-07-26).
         assert!(
-            saved.contains("\"C-t\" = [\"C-Right\", \"C-Left\"]  # マクロ\nC-n = \"Down\"\n"),
+            saved.contains("\"C-t\" = [\"C-Right\", \"C-Left\"]  # マクロ\n\"C-n\" = \"Down\"\n"),
             "{saved}"
         );
     }
 
     #[test]
-    fn deleted_rule_takes_attached_comment_but_not_detached() {
+    fn deleted_rule_keeps_the_comment_lines_above_it() {
         let original = draft();
         let mut edited = original.clone();
-        // Drop "S-C-h": its attached "# 密着コメント" goes with it, the
-        // blank-line-separated "# 独立コメント" hops to the next entry.
+        // Drop "S-C-h". Both comment blocks above it stand on their own
+        // lines, so both move down to the next entry; only the rule's own
+        // line goes (ADR 0054).
         edited.keymaps[0].rules.remove(1);
         let saved = apply(SOURCE, &original, &edited).expect("applies");
         assert!(!saved.contains("S-C-h"), "{saved}");
-        assert!(!saved.contains("密着コメント"), "{saved}");
-        assert!(saved.contains("独立コメント"), "{saved}");
         assert!(
-            saved.contains("\"C-t\" = [\"C-Right\", \"C-Left\"]  # マクロ"),
+            saved.contains(
+                "# 独立コメント\n\n# 密着コメント\n\"C-t\" = [\"C-Right\", \"C-Left\"]  # マクロ"
+            ),
+            "{saved}"
+        );
+    }
+
+    /// The report that changed the rule (owner, acceptance C-4 2026-07-26): a
+    /// section header sits right on top of the first rule it introduces, so
+    /// "attached to the entry" was the wrong test for what belongs to it.
+    #[test]
+    fn deleting_the_first_rule_of_a_group_keeps_its_header() {
+        let source = "[[keymap]]\napplication = [\"*\"]\n\n[keymap.remap]\n\
+                      # --- Editing ---\n\"C-h\" = \"Back\"\n\"C-d\" = \"Delete\"\n";
+        let original = parse(source).expect("parses");
+        let mut edited = original.clone();
+        edited.keymaps[0].rules.remove(0);
+        let saved = apply(source, &original, &edited).expect("applies");
+        assert!(!saved.contains("C-h"), "{saved}");
+        assert!(
+            saved.contains("# --- Editing ---\n\"C-d\" = \"Delete\""),
             "{saved}"
         );
     }
@@ -892,13 +986,62 @@ CapsLock = "LCtrl"
         let mut edited = original.clone();
         edited.keymaps[0].rules[0].input = "C-y".to_owned();
         let saved = apply(SOURCE, &original, &edited).expect("applies");
-        // Same slot, same trailing comment; the key may lose its quotes
-        // (toml_edit's default formatting — same TOML meaning).
+        // Same slot, same trailing comment, still quoted.
         assert!(
-            saved.contains("C-y = \"Back\"      # 削除\n# 独立コメント"),
+            saved.contains("\"C-y\" = \"Back\"      # 削除\n# 独立コメント"),
             "{saved}"
         );
         assert!(!saved.contains("\"C-h\""), "{saved}");
+    }
+
+    /// Found in the acceptance run's own fixtures (2026-07-26): a file saved
+    /// from the editor came back with every line ending changed, so a
+    /// one-word edit showed up as a whole-file diff.
+    #[test]
+    fn saving_keeps_windows_line_endings() {
+        let source = SOURCE.replace('\n', "\r\n");
+        let original = parse(&source).expect("parses");
+        assert_eq!(
+            apply(&source, &original, &original.clone()).expect("applies"),
+            source,
+            "an untouched draft must write the file back byte for byte"
+        );
+
+        let mut edited = original.clone();
+        edited.keymaps[0].rules[0].output = "Delete".to_owned();
+        let saved = apply(&source, &original, &edited).expect("applies");
+        assert_eq!(
+            saved.matches('\n').count(),
+            saved.matches("\r\n").count(),
+            "no line may come back with a bare LF: {saved:?}"
+        );
+    }
+
+    /// A file that opens with `[[keymap]]` keeps its header comment there —
+    /// `toml_edit` files that block under the first table, so it used to
+    /// travel with that keymap (or die with it). Same run as above.
+    #[test]
+    fn the_file_header_stays_above_the_first_keymap() {
+        let source = "# file header\n# second line\n\n[[keymap]]\nname = \"a\"\n\
+                      application = [\"a.exe\"]\n\n[[keymap]]\nname = \"b\"\n\
+                      application = [\"b.exe\"]\n";
+        let original = parse(source).expect("parses");
+
+        let mut reordered = original.clone();
+        reordered.keymaps.swap(0, 1);
+        let saved = apply(source, &original, &reordered).expect("applies");
+        assert!(
+            saved.starts_with("# file header\n# second line\n\n[[keymap]]\nname = \"b\""),
+            "{saved}"
+        );
+
+        let mut without_first = original.clone();
+        without_first.keymaps.remove(0);
+        let saved = apply(source, &original, &without_first).expect("applies");
+        assert!(
+            saved.starts_with("# file header\n# second line\n\n[[keymap]]\nname = \"b\""),
+            "{saved}"
+        );
     }
 
     #[test]
@@ -940,7 +1083,7 @@ CapsLock = "LCtrl"
         let saved = apply(SOURCE, &original, &edited).expect("applies");
         assert!(saved.contains("name = \"notepad\""), "{saved}");
         assert!(saved.contains("application = [\"notepad.exe\"]"), "{saved}");
-        assert!(saved.contains("C-s = \"C-w\""), "{saved}");
+        assert!(saved.contains("\"C-s\" = \"C-w\""), "{saved}");
         assert!(
             saved.find("notepad").expect("new section") > saved.find("CapsLock").expect("old rule"),
             "{saved}"
