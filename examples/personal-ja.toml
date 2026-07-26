@@ -110,4 +110,3 @@ application = ["WindowsTerminal.exe", "zed.exe", "phpstorm64.exe"]
 
 [keymap.remap]
 "C-d" = "C-d" # 空行での EOF/exit を維持（bash・PSReadLine の DeleteCharOrExit 用）
-#"C-k" = "C-k"

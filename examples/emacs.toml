@@ -24,6 +24,8 @@
 # by name rather than with ["*"]: terminals and IDEs bring their own
 # Emacs-style handling, and remapping on top of it fights them. Add the ones
 # you want on the `application` line below.
+#
+# Single chords come first, then the C-x map at the end of the rule table.
 
 [[keymap]]
 name = "emacs-basics"
@@ -58,3 +60,19 @@ application = ["notepad.exe"] # add your applications here
 # --- Misc ---
 "C-s" = "C-f" # isearch-forward -> the application's own find
 "C-g" = "Esc" # keyboard-quit   -> escape
+
+# --- The C-x prefix (two-stroke sequences) ---
+# C-x on its own does nothing: it is held, and the next keystroke decides.
+# There is no timeout, as in Emacs, and a second stroke with no rule below is
+# swallowed — a mistyped sequence never reaches the application.
+#
+# This does take Ctrl+X away from Cut. In this scheme cut is C-w, which is
+# where an Emacs user reaches for it anyway. A chord used as a prefix cannot
+# also be a rule of its own, so there is no way to keep both.
+"C-x C-s" = "C-s"   # save-buffer               -> save
+"C-x C-w" = "C-S-s" # write-file                -> save as
+"C-x C-f" = "C-o"   # find-file                 -> open
+"C-x k" = "C-w"     # kill-buffer               -> close the document or tab
+"C-x u" = "C-z"     # undo
+"C-x h" = "C-a"     # mark-whole-buffer         -> select all
+"C-x C-c" = "A-F4"  # save-buffers-kill-emacs   -> close the window
