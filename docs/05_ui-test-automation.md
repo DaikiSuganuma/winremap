@@ -85,7 +85,11 @@ cd D:\Projects\GitHub\winremap\tests\ui
 ### トレイと OpenGL 画面の扱い（自動化の 2 つの壁）
 
 - **通知領域のオーバーフロー（∧）は UI 自動化では開けない。** エージェントは ∧ にホバーしたまま 14 分間開けず、探索フェーズごと失敗した。そこで**テスト前にアイコンをタスクバー上へ出す**（`tests/ui/guest/promote-tray-icon.ps1` が `HKCU\Control Panel\NotifyIconSettings` の `IsPromoted` を立てて explorer を再起動する）。ランナーがトレイを使うシナリオの前に自動実行する
-- **設定・ログウィンドウの中身は UIA に見えない。** egui は OpenGL で描くため、UIA ツリーにはタイトルバーしか出ない。**スクリーンショットを撮って読ませる**指示を明示する。「UIA ツリーに要素が無い＝描画失敗」ではないことをプロンプトに書いておかないと、正常な画面を FAIL と判定する
+- **設定・ログウィンドウの中身は UIA に見えない。** UIA ツリーにはタイトルバーしか出ないので、**スクリーンショットを撮って読ませる**指示を明示する。「UIA ツリーに要素が無い＝描画失敗」ではないことをプロンプトに書いておかないと、正常な画面を FAIL と判定する
+  - **理由は「OpenGL で描いているから」ではない**（当初そう書いていたが誤り。オーナー指摘 2026-07-26）。UIA への露出は描画方式と無関係で、egui は [AccessKit](https://accesskit.dev/) 経由でアクセシビリティツリーを出せる。出ていないのは次の 2 点による
+    1. `Cargo.toml` が eframe を `default-features = false` で取っており、**既定機能である `accesskit` が外れている**（`accesskit_winit` → `accesskit_windows` の UIA プロバイダーが binary に入らない）
+    2. 有効にしても足りない。**eframe 0.35 は AccessKit アダプターを ROOT ビューポートにしか作らない**（`eframe-0.35.0/src/native/glow_integration.rs:275-286`、`ViewportId::ROOT` 決め打ち）。WinRemap の root は不可視 1×1 のホストで、設定・ログは遅延子ビューポート（[ADR 0037](v0.2/decisions/0037-gui-invisible-host-viewport.md)）なので、実ウィンドウにはアダプターが付かない
+  - つまり UIA で読めるようにする道はあるが、feature を足すだけでは済まず、**ホスト構成の変更か eframe への子ビューポート対応の追加**が要る。実現すればスクリーンショット判定を捨てて決定論的な検証にできるため、費用対効果を見て別途判断する（未着手）
 
 ### 期待結果の置き方（実際に踏んだ落とし穴）
 
