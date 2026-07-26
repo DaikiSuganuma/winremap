@@ -21,9 +21,14 @@
     VM connection details are read from windows-utility's .secrets\test-vm.json
     and are never echoed.
 
+    -DumpUia runs no scenario at all: it opens the settings and log windows and
+    prints their UI Automation trees, which is where the selectors the
+    scenarios name are read from. Re-run it whenever the GUI changes.
+
 .EXAMPLE
     .\run-vm-ui-test.ps1
     .\run-vm-ui-test.ps1 -Scenario 05-remap-notepad -NoRevert
+    .\run-vm-ui-test.ps1 -DumpUia
 #>
 
 param(
@@ -36,7 +41,11 @@ param(
     # Reuses the running guest as-is. For iterating on a prompt only: results
     # are not reproducible once a scenario has left state behind.
     [switch]$NoRevert,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    # Runs no scenario. Opens the settings and log windows and prints what they
+    # expose to UI Automation, so the selectors in the scenarios can be read
+    # off a machine instead of guessed. Run this after changing the GUI.
+    [switch]$DumpUia
 )
 
 Set-StrictMode -Version Latest
@@ -70,6 +79,36 @@ function Get-VmConfig {
     Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
 }
 
+# `vmrun start` launches the VMware Workstation GUI when it is not already
+# running, and that GUI outlives vmrun by hours. Anything that waits on more
+# than vmrun's own exit therefore waits for the user to quit VMware, and the
+# run sits at "reverting to snapshot" with the guest up and healthy and nothing
+# to show for it. Two ways in, both taken here:
+#
+#   - `& vmrun ... | Out-Null` waits for the stdout pipe to reach EOF, and the
+#     GUI inherits the write end
+#   - `Start-Process -Wait` waits for the process *and its descendants*
+#
+# So: start it ourselves, hand the child fresh pipes instead of this shell's
+# handles, and wait on that one process handle. The streams are deliberately
+# never read — the GUI can hold their write ends open forever. vmrun's own
+# output is a line or two, far short of the pipe buffer it would block on.
+# Returns the exit code; these calls need no credentials.
+function Invoke-VmrunHost {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$VmrunArgs)
+    $psi = [System.Diagnostics.ProcessStartInfo]::new($script:vmrun)
+    foreach ($arg in @("-T", "ws") + $VmrunArgs) { $psi.ArgumentList.Add($arg) }
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    $proc.WaitForExit()
+    $code = $proc.ExitCode
+    $proc.Dispose()
+    return $code
+}
+
 # Guest credentials go on the command line, so callers must not echo the args.
 function Invoke-Vmrun {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$VmrunArgs)
@@ -93,10 +132,10 @@ function Clear-StaleRun {
 
 function Reset-Guest {
     Write-Host "  reverting to snapshot '$Snapshot'..." -ForegroundColor Gray
-    & $script:vmrun -T ws revertToSnapshot $script:vm.VmxPath $Snapshot 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "revertToSnapshot failed (snapshot '$Snapshot' missing?)" }
-    & $script:vmrun -T ws start $script:vm.VmxPath 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "starting the VM failed" }
+    if ((Invoke-VmrunHost revertToSnapshot $script:vm.VmxPath $Snapshot) -ne 0) {
+        throw "revertToSnapshot failed (snapshot '$Snapshot' missing?)"
+    }
+    if ((Invoke-VmrunHost start $script:vm.VmxPath) -ne 0) { throw "starting the VM failed" }
 
     # Tools answering with valid credentials is the first moment the guest can
     # take files; auto-logon completes around the same time.
@@ -152,7 +191,8 @@ function Copy-Payload {
             # is the fixture the remap scenario needs (see its header).
             @{ Local = (Join-Path $repoRoot "examples\minimal.toml"); Guest = "$guestDir\minimal.toml" },
             @{ Local = (Join-Path $PSScriptRoot "fixtures\uitest.toml"); Guest = "$guestDir\uitest.toml" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\promote-tray-icon.ps1"); Guest = "$guestDir\promote-tray-icon.ps1" }
+            @{ Local = (Join-Path $PSScriptRoot "guest\promote-tray-icon.ps1"); Guest = "$guestDir\promote-tray-icon.ps1" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\dump-uia.ps1"); Guest = "$guestDir\dump-uia.ps1" }
         )) {
         Invoke-Vmrun copyFileFromHostToGuest $script:vm.VmxPath $pair.Local $pair.Guest | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "copying $($pair.Local) to the guest failed" }
@@ -178,18 +218,31 @@ function Save-Diagnostics {
 # guest\promote-tray-icon.ps1 for why the scenarios cannot open that flyout.
 function Set-TrayIconPromoted {
     $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-    Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
-        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\promote-tray-icon.ps1" | Out-Null
-
-    # vmrun does not bring guest stdout back, so the script leaves its result
-    # in a file. Reading it turns a silent no-op — which costs the scenario its
-    # entire timeout and reads as an app bug — into an immediate failure.
     $result = Join-Path $env:TEMP "winremap-promote-result.txt"
-    Remove-Item $result -Force -ErrorAction SilentlyContinue
-    Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\promote-result.txt" $result | Out-Null
-    $promoted = if (Test-Path $result) { (Get-Content $result -Raw).Trim() } else { "promoted=?" }
-    Write-Host "  tray icon: $promoted" -ForegroundColor Gray
-    return ($promoted -eq "promoted=1")
+
+    # Shortly after a revert the interactive session is not always ready to
+    # take a program, and vmrun says so only through its exit code — the run
+    # then loses its whole timeout to a tray icon nothing ever promoted. Check
+    # the code, and give the guest one more chance before giving up.
+    foreach ($attempt in 1..2) {
+        Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
+            "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\promote-tray-icon.ps1" | Out-Null
+        $launched = ($LASTEXITCODE -eq 0)
+
+        # vmrun does not bring guest stdout back, so the script leaves its
+        # result in a file. Reading it turns a silent no-op into a failure we
+        # can see.
+        Remove-Item $result -Force -ErrorAction SilentlyContinue
+        Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\promote-result.txt" $result | Out-Null
+        $promoted = if (Test-Path $result) { (Get-Content $result -Raw).Trim() } else { "promoted=?" }
+        if ($promoted -eq "promoted=1") {
+            Write-Host "  tray icon: $promoted" -ForegroundColor Gray
+            return $true
+        }
+        Write-Host "  tray icon: $promoted (attempt $attempt, guest launch ok: $launched)" -ForegroundColor Yellow
+        Start-Sleep -Seconds 15
+    }
+    return $false
 }
 
 function Invoke-Scenario {
@@ -248,6 +301,24 @@ claude -p `$prompt --dangerously-skip-permissions
 $script:vmrun = Resolve-Vmrun
 $script:vm = Get-VmConfig
 
+if ($DumpUia) {
+    Write-Host "`n=== UIA dump ===" -ForegroundColor Cyan
+    $exe = Build-Binary -TestInject $false
+    if (-not $NoRevert) { Reset-Guest }
+    Copy-Payload -Exe $exe
+    if (-not (Set-TrayIconPromoted)) { throw "the tray icon was not promoted" }
+    $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+    Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
+        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\dump-uia.ps1" | Out-Null
+    $dump = Join-Path $env:TEMP "winremap-uia-dump.txt"
+    Remove-Item $dump -Force -ErrorAction SilentlyContinue
+    Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\uia-dump.txt" $dump | Out-Null
+    if (-not (Test-Path $dump)) { throw "the guest produced no dump" }
+    Get-Content $dump -Encoding UTF8 | Write-Host
+    Write-Host "`nsaved: $dump" -ForegroundColor Gray
+    exit 0
+}
+
 # The @() must wrap the whole statement: assigning from an if unwraps a
 # single match back to a scalar, and .Count then fails under StrictMode.
 $files = @(
@@ -299,7 +370,7 @@ foreach ($file in $files) {
 if (-not $NoRevert) {
     # Leaves no resident WinRemap or global hook behind in the guest.
     Write-Host "`ncleaning up..." -ForegroundColor Gray
-    & $script:vmrun -T ws revertToSnapshot $script:vm.VmxPath $Snapshot 2>&1 | Out-Null
+    Invoke-VmrunHost revertToSnapshot $script:vm.VmxPath $Snapshot | Out-Null
 }
 
 Write-Host "`n=== summary ===" -ForegroundColor Cyan
