@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a short example of every form a rule can take — and every rule carries a
   one-line comment saying what it does. `examples/suganuma.toml` is now
   `examples/personal-ja.toml`, with its prose in Japanese.
+- `examples/emacs.toml` gained the `C-x` map — `C-x C-s` to save, `C-x u` to
+  undo, `C-x h` to select all, and four more — using the two-stroke sequences
+  WinRemap has supported since v0.1 (ADR 0013).
 - Deleting a remap rule now keeps the comment *lines* above it and moves them
   down to the next rule, whatever the blank lines around them look like — only
   the rule's own line and the comment written on it go (ADR 0054). A heading

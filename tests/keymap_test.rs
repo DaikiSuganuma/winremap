@@ -70,11 +70,30 @@ fn emacs_example_parses_and_resolves() {
     assert_eq!(chord_target(&table, exe, "A-f"), combo("C-Right"));
     // Not listed -> untouched.
     assert!(table.resolve("explorer.exe", combo("C-b")).is_none());
+
+    // The C-x map: the prefix waits, the second stroke decides, and one that
+    // is not bound is swallowed rather than passed on (config-spec §3.4).
+    assert!(matches!(
+        table.resolve(exe, combo("C-x")),
+        Some(Resolution::Prefix)
+    ));
+    for (second, target) in [("C-s", "C-s"), ("k", "C-w"), ("u", "C-z"), ("h", "C-a")] {
+        match table.resolve_second(exe, combo("C-x"), combo(second)) {
+            Some(Output::Chord(got)) => assert_eq!(*got, combo(target), "C-x {second}"),
+            other => panic!("expected a chord for C-x {second}, got {other:?}"),
+        }
+    }
+    assert!(
+        table
+            .resolve_second(exe, combo("C-x"), combo("q"))
+            .is_none(),
+        "an unbound second stroke has no output"
+    );
 }
 
 /// The personal config exercises exclusion lists and macro outputs.
-/// Two-stroke sequences are currently commented out in the sample, so they
-/// are covered by the unit tests in src/config/tests.rs instead.
+/// Two-stroke sequences are not among them — the Emacs sample above covers
+/// those.
 #[test]
 fn personal_example_covers_exclude_and_macros() {
     let table = load_example("personal-ja.toml");
