@@ -115,7 +115,7 @@ flowchart TD
 
 See [`examples/minimal.toml`](examples/minimal.toml),
 [`examples/emacs.toml`](examples/emacs.toml) (fakeymacs-style Emacs
-bindings), and [`examples/suganuma.toml`](examples/suganuma.toml) (a full
+bindings), and [`examples/personal-ja.toml`](examples/personal-ja.toml) (a full
 personal setup using exclusion lists, macros, and prefix sequences) for
 complete examples.
 

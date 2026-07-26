@@ -89,7 +89,7 @@ flowchart TD
 
 完全な例は [`examples/minimal.toml`](examples/minimal.toml)、
 [`examples/emacs.toml`](examples/emacs.toml)（fakeymacs 風 Emacs キーバインド）、
-[`examples/suganuma.toml`](examples/suganuma.toml)（除外リスト・マクロ・プレフィックスシーケンスを使った実運用例）を参照してください。
+[`examples/personal-ja.toml`](examples/personal-ja.toml)（除外リスト・マクロ・プレフィックスシーケンスを使った実運用例）を参照してください。
 
 ## 設定
 
