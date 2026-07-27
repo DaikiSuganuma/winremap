@@ -1,0 +1,16 @@
+# needs: tray
+Use the terminator MCP tools. This is a diagnostic of the test harness, not a test of the app: pressing the settings window's "Edit" button through your tools does nothing, while pressing it from a plain UI Automation client (both a mouse click at the middle of its bounding rectangle, and InvokePattern.Invoke) works every time. The purpose of this run is to find out what your click does differently. Report facts, not conclusions.
+
+1. Launch C:\Test\winremap.exe with the arguments: --config C:\Test\minimal.toml --lang en
+2. Wait 5 seconds, then right-click the notification-area icon whose name contains "WinRemap". It sits directly on the taskbar. If the menu's items are not in the UI tree, press the S key once then Enter to invoke "Settings".
+3. Wait 3 seconds. The window to work with is the one whose name contains "settings".
+4. Report, for the element role:Button|name:Edit: its bounding rectangle, its automation id if any, and every UI Automation pattern it supports.
+5. Report the handle and name of the window that is in the foreground right now.
+6. Bring the settings window to the foreground. Report which tool call you used and what it returned.
+7. Click role:Button|name:Edit ONCE. Report: the exact tool name and arguments you used, what the tool returned verbatim, and the coordinates it says it clicked (if it says).
+8. Immediately report the foreground window again, then wait 3 seconds and list the buttons in the settings window.
+9. If the buttons are still "Edit" and the unnamed one, try ONE other way of pressing it that your tools offer — for example an invoke/default-action call rather than a coordinate click, or moving the mouse to the middle of the rectangle from step 4 and clicking there. Report which alternative you used, what it returned, and the buttons afterwards.
+
+Finish with a section titled FINDINGS listing, one per line: the bounding rectangle, the tool used in step 7 and its result, the tool used in step 9 and its result, and whether either produced "Save" and "Revert".
+
+On the final line print exactly PASS if any of your attempts turned the header buttons into "Save" and "Revert", otherwise print exactly FAIL.

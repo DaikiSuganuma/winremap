@@ -25,7 +25,7 @@ test-inject = []
 [dependencies]
 anyhow = "1"
 arc-swap = "1.9.2"
-eframe = { version = "0.35.0", default-features = false, features = ["glow", "default_fonts"] }
+eframe = { version = "0.35.0", default-features = false, features = ["accesskit", "glow", "default_fonts"] }
 notify = "8.2.0"
 serde = { version = "1", features = ["derive"] }
 sys-locale = "0.3.2"
@@ -35,6 +35,17 @@ toml_edit = "0.25.13"
 tray-icon = "0.24.1"
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Input_Ime", "Win32_UI_Accessibility", "Win32_System_Threading", "Win32_System_LibraryLoader", "Win32_System_Console", "Win32_System_SystemInformation", "Win32_System_Time", "Win32_Storage_FileSystem", "Win32_Security", "Win32_Graphics_Gdi", "Win32_UI_Shell"] }
 winit = "0.30.13"
+
+# Until eframe creates an AccessKit adapter for child viewports and not only
+# the root, the settings and log windows expose nothing to UI Automation —
+# they are deferred child viewports (ADR 0037). The branch is 0.35.0 plus that
+# one change (ADR 0055).
+#
+# REMOVE THIS once the change is upstream and in a published eframe: the pin
+# is a stopgap, and leaving it would silently hold the whole egui stack at
+# 0.35.0.
+[patch.crates-io]
+eframe = { git = "https://github.com/DaikiSuganuma/egui", branch = "accesskit-child-viewports" }
 
 [build-dependencies]
 # Build-time only: rasterizes the menu icons (ADR 0040). No runtime cost and
