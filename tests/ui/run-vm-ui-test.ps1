@@ -4,8 +4,9 @@
 
 .DESCRIPTION
     Standard flow, once per scenario (docs/05_ui-test-automation.md):
-      1. revert the guest to the golden snapshot and boot it, so no resident
-         WinRemap or global hook is carried over from the previous scenario
+      1. revert the guest to the golden snapshot, boot it and wait until it can
+         take an interactive program, so no resident WinRemap or global hook is
+         carried over from the previous scenario
       2. build the binary the scenario asks for and copy it, with
          examples/minimal.toml, to C:\Test on the guest
       3. run `claude -p <scenario prompt>` in the guest's session 1 through
@@ -18,8 +19,23 @@
     shape of binary that ships. Launches pass --lang en so the prompts can
     name UI strings regardless of the guest's locale.
 
-    VM connection details are read from windows-utility's .secrets\test-vm.json
-    and are never echoed.
+    One project, one VM: this suite owns winremap-test, and its connection
+    details live in this repository's own .secrets\test-vm.json (git-ignored,
+    never echoed). Every call into windows-utility names that file with
+    -ConfigPath. Nothing here reads or writes windows-utility's .secrets —
+    that repository's test-vm.json is a shared default slot, and a run that
+    repoints it sends another project's commands to this guest.
+
+    Create the VM once with (from windows-utility\test-vm\scripts):
+      $cfg = "D:\Projects\GitHub\winremap\.secrets\test-vm.json"
+      .\clone-vm-vmware.ps1 -NewVMName winremap-test -Snapshot ready `
+          -SourceConfigPath ..\..\.secrets\test-vm.template-win11.json `
+          -NewConfigPath $cfg
+      .\snapshot-golden-vmware.ps1 -ConfigPath $cfg -AppProcessNames winremap
+
+    -AppProcessNames matters every time the golden snapshot is retaken: a
+    WinRemap left resident in it comes back on every revert, keeps its log file
+    open, and the next run times out silently with nothing to show.
 
     -DumpUia runs no scenario at all: it opens the settings and log windows and
     prints their UI Automation trees, which is where the selectors the
@@ -29,13 +45,14 @@
     .\run-vm-ui-test.ps1
     .\run-vm-ui-test.ps1 -Scenario 05-remap-notepad -NoRevert
     .\run-vm-ui-test.ps1 -DumpUia
-    .\run-vm-ui-test.ps1 -VmConfig test-vm.win11-test.json
+    .\run-vm-ui-test.ps1 -VmConfig test-vm.spare.json
 #>
 
 param(
     # Scenario file stem under .\scenarios, or "all".
     [string]$Scenario = "all",
-    # windows-utility's guest-command entry point; its repo root holds .secrets.
+    # windows-utility's guest-command entry point. It provides the environment;
+    # what runs in it — the binary, the fixtures, the scenarios — is ours.
     [string]$EntryScript = "D:\Projects\GitLab\windows-utility\test-vm\scripts\run-in-vm-vmware.ps1",
     [string]$Snapshot = "ready",
     # Generous on purpose: a green run measured 11:54 / 14:05 / 3:34 / 12:23 /
@@ -52,10 +69,8 @@ param(
     # expose to UI Automation, so the selectors in the scenarios can be read
     # off a machine instead of guessed. Run this after changing the GUI.
     [switch]$DumpUia,
-    # File name under windows-utility's .secrets (or a full path) naming the VM
-    # to run against. The default is whichever VM that repo currently points
-    # at; name one explicitly when more than one guest exists, e.g.
-    # -VmConfig test-vm.win11-test.json.
+    # File name under this repository's .secrets (or a full path) naming the VM
+    # to run against. The default is this suite's own guest, winremap-test.
     [string]$VmConfig = "test-vm.json"
 )
 
@@ -78,47 +93,18 @@ function Resolve-Vmrun {
     throw "vmrun.exe not found. Install VMware Workstation (Hyper-V cannot run the OpenGL GUI)."
 }
 
-function Get-SecretsDir {
+function Get-VmConfig {
     if (-not (Test-Path $EntryScript)) {
         throw "Entry script not found: $EntryScript (pass -EntryScript <path to run-in-vm-vmware.ps1>)"
     }
-    $utilityRoot = Split-Path (Split-Path (Split-Path $EntryScript -Parent) -Parent) -Parent
-    return (Join-Path $utilityRoot ".secrets")
-}
-
-function Get-VmConfig {
     $configPath = if ([System.IO.Path]::IsPathRooted($VmConfig)) { $VmConfig }
-    else { Join-Path (Get-SecretsDir) $VmConfig }
+    else { Join-Path $repoRoot ".secrets\$VmConfig" }
     if (-not (Test-Path $configPath)) {
-        throw "VM connection details not found: $configPath (run windows-utility's setup-01-vmware.ps1 first)"
+        throw "VM connection details not found: $configPath (create the guest with " +
+        "windows-utility's clone-vm-vmware.ps1 -NewConfigPath <this path>; see the header)"
     }
     $script:vmConfigPath = $configPath
     Get-Content $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
-}
-
-# The guest-command entry script reads .secrets\test-vm.json and takes no
-# parameter for it, so naming a different VM here is only half the job: a run
-# whose scenarios go to one guest while the payload was prepared on another
-# fails in a way that looks nothing like its cause. It happened — the default
-# was repointed mid-run and the last scenario launched against a VM this
-# script had never touched. So put the chosen config in place for the duration
-# and always put the original back.
-function Set-DefaultVmConfig {
-    $default = Join-Path (Get-SecretsDir) "test-vm.json"
-    if ((Resolve-Path $script:vmConfigPath).Path -eq (Resolve-Path $default).Path) { return }
-    $script:vmConfigBackup = Join-Path $env:TEMP "winremap-test-vm.json.bak"
-    Copy-Item $default $script:vmConfigBackup -Force
-    Copy-Item $script:vmConfigPath $default -Force
-    Write-Host "  entry script repointed at $($script:vm.VMName) for this run" -ForegroundColor Yellow
-    Write-Host "  (windows-utility's default is restored when it ends)" -ForegroundColor Yellow
-}
-
-function Restore-DefaultVmConfig {
-    if (-not $script:vmConfigBackup) { return }
-    Copy-Item $script:vmConfigBackup (Join-Path (Get-SecretsDir) "test-vm.json") -Force
-    Remove-Item $script:vmConfigBackup -Force -ErrorAction SilentlyContinue
-    $script:vmConfigBackup = $null
-    Write-Host "  windows-utility's default VM config restored" -ForegroundColor Gray
 }
 
 # `vmrun start` launches the VMware Workstation GUI when it is not already
@@ -157,43 +143,20 @@ function Invoke-Vmrun {
     & $script:vmrun -T ws -gu $script:vm.UserName -gp $script:vm.Password @VmrunArgs 2>&1
 }
 
-# The golden snapshot was taken while an earlier test run was still live, so
-# reverting resumes that run's claude and MCP processes. They keep
-# C:\Setup\run-output.log open, our own run's output never lands in it, and
-# the scenario times out with nothing to show. Clear them before starting.
-# Harmless when the snapshot is clean; drop this once it is rebuilt.
-function Clear-StaleRun {
-    $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-    # powershell.exe is deliberately absent from the list: this command is one.
-    $script = "Get-Process node,CalculatorApp,cmd,winremap,notepad -ErrorAction SilentlyContinue | " +
-    "Stop-Process -Force -ErrorAction SilentlyContinue; " +
-    "Remove-Item 'C:\Setup\run-output.log','C:\Setup\run-done.txt' -Force -ErrorAction SilentlyContinue"
-    Invoke-Vmrun runProgramInGuest $script:vm.VmxPath $ps "-NoProfile" "-Command" $script | Out-Null
-    Write-Host "  cleared any run left over in the snapshot" -ForegroundColor Gray
-}
-
+# Reverting, booting and waiting are all -Restore in the entry script, so ask
+# it rather than re-implementing them. What we used to do — wait for Tools to
+# answer, then sleep a flat 15 seconds — is not the same condition: Tools
+# answers minutes before the desktop will accept an interactive program, and a
+# scenario launched into that gap fails looking like the app.
+#
+# The entry script needs a command, and there is nothing useful to run yet:
+# the payload is copied after the revert, because the revert would wipe it.
 function Reset-Guest {
-    Write-Host "  reverting to snapshot '$Snapshot'..." -ForegroundColor Gray
-    if ((Invoke-VmrunHost revertToSnapshot $script:vm.VmxPath $Snapshot) -ne 0) {
-        throw "revertToSnapshot failed (snapshot '$Snapshot' missing?)"
-    }
-    if ((Invoke-VmrunHost start $script:vm.VmxPath) -ne 0) { throw "starting the VM failed" }
-
-    # Tools answering with valid credentials is the first moment the guest can
-    # take files; auto-logon completes around the same time.
-    $deadline = (Get-Date).AddMinutes(5)
-    while ((Get-Date) -lt $deadline) {
-        Invoke-Vmrun listProcessesInGuest $script:vm.VmxPath | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "  guest is up" -ForegroundColor Gray
-            # The desktop needs a moment more before UI automation can attach.
-            Start-Sleep -Seconds 15
-            Clear-StaleRun
-            return
-        }
-        Start-Sleep -Seconds 5
-    }
-    throw "the guest did not become ready within 5 minutes"
+    Write-Host "  reverting to '$Snapshot' and waiting for the guest..." -ForegroundColor Gray
+    & $EntryScript -ConfigPath $script:vmConfigPath -Restore -Snapshot $Snapshot `
+        -Command "Write-Output 'guest is ready'" -TimeoutMin 5 6>&1 2>&1 |
+        ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    if ($LASTEXITCODE -ne 0) { throw "reverting to '$Snapshot' failed" }
 }
 
 function Build-Binary {
@@ -346,7 +309,8 @@ $prompt
 
     # The entry script reports through Write-Host, so the guest's output only
     # reaches the pipeline with the information stream redirected (6>&1).
-    $output = & $EntryScript -Command $command -TimeoutMin $Minutes 6>&1 2>&1 | ForEach-Object {
+    $output = & $EntryScript -ConfigPath $script:vmConfigPath -Command $command `
+        -TimeoutMin $Minutes 6>&1 2>&1 | ForEach-Object {
         Write-Host $_
         $_
     }
@@ -377,24 +341,19 @@ $prompt
 # ---------------------------------------------------------------------------
 
 $script:vmrun = Resolve-Vmrun
-$script:vmConfigBackup = $null
 $script:vm = Get-VmConfig
-Write-Host "  VM: $($script:vm.VMName)" -ForegroundColor Gray
-Set-DefaultVmConfig
+Write-Host "  VM: $($script:vm.VMName)  ($script:vmConfigPath)" -ForegroundColor Gray
 
-try {
-
-    if ($DumpUia) {
-        Write-Host "`n=== UIA dump ===" -ForegroundColor Cyan
-        $exe = Build-Binary -TestInject $false
-        if (-not $NoRevert) { Reset-Guest }
-        Copy-Payload -Exe $exe
-        if (-not (Set-TrayIconPromoted)) { throw "the tray icon was not promoted" }
-        $verdict = Invoke-UiaChecks -Verbose $true
-        Write-Host "`n  $verdict" -ForegroundColor $(if ($verdict -eq "PASS") { "Green" } else { "Red" })
-        Restore-DefaultVmConfig
-        exit $(if ($verdict -eq "PASS") { 0 } else { 1 })
-    }
+if ($DumpUia) {
+    Write-Host "`n=== UIA dump ===" -ForegroundColor Cyan
+    $exe = Build-Binary -TestInject $false
+    if (-not $NoRevert) { Reset-Guest }
+    Copy-Payload -Exe $exe
+    if (-not (Set-TrayIconPromoted)) { throw "the tray icon was not promoted" }
+    $verdict = Invoke-UiaChecks -Verbose $true
+    Write-Host "`n  $verdict" -ForegroundColor $(if ($verdict -eq "PASS") { "Green" } else { "Red" })
+    exit $(if ($verdict -eq "PASS") { 0 } else { 1 })
+}
 
 # The @() must wrap the whole statement: assigning from an if unwraps a
 # single match back to a scalar, and .Count then fails under StrictMode.
@@ -482,14 +441,7 @@ foreach ($name in $results.Keys) {
     $color = if ($verdict -eq "PASS") { "Green" } else { "Red" }
     Write-Host ("  {0,-24} {1}" -f $name, $verdict) -ForegroundColor $color
 }
-    if ($results.Values -contains "PASS" -and -not ($results.Values | Where-Object { $_ -ne "PASS" })) {
-        $script:exitCode = 0
-    }
-    else { $script:exitCode = 1 }
+if ($results.Values -contains "PASS" -and -not ($results.Values | Where-Object { $_ -ne "PASS" })) {
+    exit 0
 }
-finally {
-    # Runs on Ctrl-C and on any throw above, so the other guest's config is
-    # never left pointing at ours.
-    Restore-DefaultVmConfig
-}
-exit $script:exitCode
+exit 1
