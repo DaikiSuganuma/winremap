@@ -202,8 +202,11 @@ application = ["code.exe"]
 
   <h3 class="h5 mt-4">exe 名の調べ方</h3>
   <p>トレイアイコンを右クリックして<strong>ログを表示</strong>を選び、対象のアプリへ
-  切り替えてください。そのアプリのフルパスと、<code>application</code> に書くべき文字列が
-  そのまま表示されます。書くのは常にファイル名だけで、パスは一致しません。</p>
+  切り替えてください。<code>[前面]</code> の行に、<code>application</code> に書くべき文字列
+  そのものと、適用されるキーマップが出ます (フルパスはその下の詳細行です)。書くのは常に
+  ファイル名だけで、パスは一致しません。</p>
+
+  <pre class="bg-body-tertiary p-3 rounded"><code>18:01:51.471 [前面]   application 指定値: "notepad.exe" — 適用されるキーマップ: emacs-keys</code></pre>
 </section>
 
 <section id="rules" class="container py-4 border-bottom">
@@ -526,6 +529,32 @@ record_play  = "F10"     # F10 で再生
   <p>それでも解決しない場合は、トレイの<strong>ログを表示</strong>でキーごとの処理内容が
   見られます。<strong>設定</strong>ウィンドウには今実際に効いている設定が出るので、
   リロードできていないことに気づく最短の方法でもあります。</p>
+
+  <h3 class="h5 mt-4">ログの読み方</h3>
+  <p>各行にはミリ秒までの時刻と、どの流れの行かを示すタグが付きます。<code>[判定]</code> は
+  キー 1 つにつき 1 行です。［全イベント］にチェックを入れると流れた入力をすべて出します —
+  届いた押下・解放が <code>[入力]</code>、WinRemap が送出したイベントが
+  <code>[注入]</code> です。記録はチェックの有無にかかわらず取っているので、
+  <strong>入れる前に押したキーの詳細も見えます</strong>。</p>
+
+  <pre class="bg-body-tertiary p-3 rounded"><code>18:01:51.517 [入力]     n ↓
+             [判定]     C-n → Down に置換
+             [注入]       LCtrl ↑（修飾補正）
+             [注入]       Down ↓（置換）</code></pre>
+
+  <p>ASCII 制御コードを持つキー・コマンドは、それも表示します
+  (<code>C-h (BS 0x08)</code>、<code>Enter (CR 0x0D)</code>)。英数字にはコードを付けません —
+  WinRemap が記録するのはキーであって、打った内容ではないからです。</p>
+
+  <div class="alert alert-secondary">
+    <strong>Ctrl+H と Backspace、そして端末について。</strong> 端末は <em>Backspace キー</em>
+    に対して DEL <code>0x7f</code> を、Ctrl+H に対して BS <code>0x08</code> を送り、アプリが
+    その 2 つに別の動作を割り当てていることがあります — WinRemap が作られた理由そのものです。
+    <code>C-h</code> を <code>Back</code> にリマップすると、端末はどちらでも
+    <code>0x7f</code> を送るようになります。ログで両側とも <code>BS 0x08</code> と出るのは、
+    それが <strong>Windows が Backspace キーに与えているコード</strong>だからで、
+    <code>0x7f</code> はその先で端末が行う読み替えです。
+  </div>
 </section>
 
 </main>

@@ -7,7 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Development of 0.5.0. Planned scope: [docs/v0.5/01_development-plan.md](docs/v0.5/01_development-plan.md).
+### Added
+
+- **The log window says what a key sends.** Where a key or a chord carries an
+  ASCII control code, the line names it: `C-h (BS 0x08) → remapped to Back
+  (BS 0x08)`. That pair is the problem WinRemap was written for — Ctrl+H and
+  Backspace look alike and behave differently in a terminal — and until now
+  the log named both keys and said what neither one sends (ADR 0056).
+  Letters and digits never show a code: WinRemap logs keys, not what you
+  typed, and still writes nothing to disk.
+- **Two views of the log.** The default is one line per key, saying what
+  WinRemap decided. Tick **Every event** for the whole stream: every physical
+  press and release, and everything WinRemap sent in reply — including the
+  modifier lifted before a remap target and put back when you let go, which
+  happens at a different moment and now says so. Every line is recorded
+  either way, so ticking the box explains the keys you already pressed rather
+  than only the next ones (ADR 0057).
+- **Keys the config cannot name yet are named anyway.** `Num1 (0x61)` instead
+  of `0x61`, and for punctuation the character your own keyboard layout
+  prints on the key — asked of Windows rather than assumed, since `0xC0` is
+  `@` on a Japanese layout and a backquote on a US one (ADR 0058).
+- **The log window says which config file is loaded**, on the line under the
+  session banner. A reload said which file it had read while startup never
+  did, and the window is usually opened long after that line scrolled past.
+- **The settings and log windows are now readable by assistive technology.**
+  Both are exposed through UI Automation via AccessKit, which also lets the
+  project's UI tests read and press what a person sees instead of matching
+  screenshots (ADR 0055).
+
+### Changed
+
+- **`--debug` now decides whether anything is printed to a terminal.** It
+  used to print whenever one was attached, so starting WinRemap from a shell
+  produced a running commentary nobody asked for; without the flag it is now
+  as quiet as a launch from Explorer. With the flag, the terminal gets
+  exactly what the log window shows — same stamps, same tags — because both
+  are now formatted in one place (ADR 0058). Errors and `--help` are not log
+  output and print as before.
+- **The log is readable at a glance.** Every line carries the time to the
+  millisecond and a tag saying which stream it belongs to (`[input]`,
+  `[decided]`, `[injected]`, `[action]`, `[window]`, `[IME]`) in place of the
+  `[debug]` that led every line and distinguished nothing. A stamp equal to
+  the one above it is left blank, so everything WinRemap did in reply to one
+  press reads as a group. The report for the application in front is one
+  line naming the `application` value to write and the keymaps it reaches,
+  with the path underneath, instead of three untimed lines that read as part
+  of the previous keystroke. The window opens larger (900×720).
+- **The log window's own controls leave a line.** Follow newest, Every event,
+  Clear and Copy all each record what they did, so "why did the log stop
+  moving" and "why did those lines disappear" are answered by the log.
 
 ## [0.4.0] - 2026-07-26
 

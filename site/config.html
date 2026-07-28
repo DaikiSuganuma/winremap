@@ -206,8 +206,11 @@ application = ["code.exe"]
 
   <h3 class="h5 mt-4">Finding the exe name</h3>
   <p>Right-click the tray icon, pick <strong>Show log</strong>, then switch to the app you
-  want to target. The log prints its full path and the exact string to put in
-  <code>application</code>. It is always the file name only — a path does not match.</p>
+  want to target. The <code>[window]</code> line prints the exact string to put in
+  <code>application</code>, and which of your keymaps reach it — the full path is on the
+  detail line under it. It is always the file name only — a path does not match.</p>
+
+  <pre class="bg-body-tertiary p-3 rounded"><code>18:01:51.471 [window]   application = "notepad.exe" — matching keymaps: emacs-keys</code></pre>
 </section>
 
 <section id="rules" class="container py-4 border-bottom">
@@ -530,6 +533,32 @@ record_play  = "F10"     # F10 replays
   <p>Still stuck? The tray's <strong>Show log</strong> window prints what WinRemap does
   with each keystroke, and the <strong>Settings</strong> window shows the config actually
   in effect — which is the fastest way to see that a reload did not happen.</p>
+
+  <h3 class="h5 mt-4">Reading the log</h3>
+  <p>Every line carries the time to the millisecond and a tag saying which stream it
+  belongs to. <code>[decided]</code> is one line per key; tick <strong>Every event</strong>
+  for the whole stream — <code>[input]</code> for the presses and releases that arrived,
+  <code>[injected]</code> for everything WinRemap sent in reply. Everything is recorded
+  either way, so ticking the box explains the keys you already pressed.</p>
+
+  <pre class="bg-body-tertiary p-3 rounded"><code>18:01:51.517 [input]     n ↓
+             [decided]   C-n → remapped to Down
+             [injected]    LCtrl ↑ (modifier adjust)
+             [injected]    Down ↓ (remap)</code></pre>
+
+  <p>Where a key or a chord carries an ASCII control code, the log says so:
+  <code>C-h (BS 0x08)</code>, <code>Enter (CR 0x0D)</code>. Letters and digits never show a
+  code — WinRemap logs keys, not what you typed.</p>
+
+  <div class="alert alert-secondary">
+    <strong>Ctrl+H, Backspace and terminals.</strong> A terminal sends DEL <code>0x7f</code>
+    for the Backspace <em>key</em> and BS <code>0x08</code> for Ctrl+H, and an application
+    may bind the two to different things — which is the problem WinRemap was written for.
+    Remapping <code>C-h</code> to <code>Back</code> makes your terminal send
+    <code>0x7f</code> for both. The log shows <code>BS 0x08</code> on both sides because
+    that is the code Windows itself gives the Backspace key; the <code>0x7f</code> is the
+    terminal's own doing, further down the line.
+  </div>
 </section>
 
 </main>

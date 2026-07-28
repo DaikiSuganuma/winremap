@@ -231,8 +231,14 @@ if ($log) {
         Write-WindowTree "*log*" "LOG WINDOW after Clear" | Out-Null
     }
     else { Say "Button 'Clear' not found" }
-    Check "clear-button-presses" ($log.FindAll($desc, $textCond).Count -eq 0) `
-        "pressing Clear empties the log"
+    # Not "empty" any more: since ADR 0058 the window's own controls leave a
+    # line, so Clear removes the transcript and then says it did. Asserting
+    # zero elements would fail on a feature working exactly as designed - and
+    # what the check is really about is that the transcript is gone.
+    $afterClear = @($log.FindAll($desc, $textCond) | ForEach-Object { $_.Current.Name })
+    Say ("after Clear: " + ($afterClear -join " | "))
+    Check "clear-button-presses" (($afterClear -contains "log cleared") -and $afterClear.Count -le 4) `
+        "pressing Clear empties the log, leaving only the line that says so"
 }
 
 $failed = @($checks.Keys | Where-Object { -not $checks[$_] })

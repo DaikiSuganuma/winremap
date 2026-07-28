@@ -34,7 +34,7 @@ flowchart TD
     P --> A["Application interprets the keys natively<br/>(Ctrl+A → Select All)"]
 ```
 
-## Features (v0.3)
+## Features (v0.5)
 
 - **Per-application remapping**: rules apply only to the processes you list
   (`notepad.exe`, `chrome.exe`, ...), or globally (`*`) with an optional
@@ -55,7 +55,9 @@ flowchart TD
   you type, saving validates before it writes, and everything you did not
   touch (comments, blank lines, ordering, spellings) comes back unchanged
 - **Log window**: watch WinRemap decide, key by key, without starting it from
-  a terminal. Nothing is ever written to disk
+  a terminal — one line per key, or the whole stream when you ask for it,
+  with the control code a key carries (`C-h (BS 0x08)`) where there is one.
+  Nothing is ever written to disk
 - **IME status indicator** (opt-in): the moment the IME turns on, a
   translucent "あ" panel flashes at the center of the active window so you
   always know the input mode — display only; WinRemap never switches the IME
@@ -260,20 +262,57 @@ name lands on the list.
 Remapping never pauses while the window is open, or while a save is going
 through — the running rules are swapped in one step.
 
-Not sure what to put in `application`? Right-click the tray icon and pick
-**Show log**, then switch windows: the log shows each foreground app's full
-path, the exact `application` value to use, and which of your keymaps would
-apply — plus a line per keystroke explaining what WinRemap did with it. The
-same output goes to your terminal if you start `winremap.exe --debug` from
-one. Nothing is written to disk either way.
+### Watching what it does
+
+Right-click the tray icon and pick **Show log**. The window says which config
+file is loaded and then follows what WinRemap does. Every line carries the
+time to the millisecond and a tag saying which stream it belongs to:
+
+```
+18:01:51.471 [window]   application = "notepad.exe" — matching keymaps: emacs-keys
+18:01:51.517 [decided]  C-h (BS 0x08) → remapped to Back (BS 0x08)
+```
+
+`[window]` is what to read when a rule "stopped working", and when you are
+not sure what to put in `application`: switch to the app you mean and the log
+names the exact value to use and which of your keymaps reach it. `[decided]`
+is one line per key — what WinRemap did with it.
+
+Tick **Every event** for the whole stream instead: every physical press and
+release (`[input]`) and everything WinRemap sent in reply (`[injected]`). The
+two halves of a remap happen at different moments — the target is pressed
+when you press the key and released when you let go — which is what the time
+column is for. Everything is recorded whether the box is ticked or not, so
+ticking it explains the keys you already pressed, not just the next ones.
+
+Keys are named the way your keyboard is: `Num1 (0x61)`, and for punctuation
+the character your layout prints on the key. Where a key or a chord carries
+an ASCII control code the log says so — `C-h (BS 0x08)`, `Enter (CR 0x0D)`.
+Letters and digits never show a code: WinRemap logs keys, not what you typed,
+and nothing goes to disk.
+
+> **Ctrl+H, Backspace, and terminals** — the pair this project started from.
+> A terminal sends DEL `0x7f` when you press the Backspace *key* and BS
+> `0x08` for Ctrl+H, and an application may bind the two to different things
+> (Claude Code deletes a word on `0x08`, a character on `0x7f`). Remapping
+> `C-h` to `Back` is what makes your terminal send `0x7f` for both. In the log
+> both sides read `BS 0x08`, because that is the code Windows itself gives the
+> Backspace key — which is how you can see that WinRemap really is delivering
+> the Backspace key. The `0x7f` is the terminal's own doing, further down the
+> line, and WinRemap cannot see it.
+
+Start WinRemap with `winremap.exe --debug` from a terminal and the same lines
+go there instead, stamps and tags included. **Without that flag it prints
+nothing** — starting it from a shell is as quiet as starting it from Explorer.
 
 ## Limitations
 
 - **Windows with elevated privileges** (admin) do not receive events from a
   non-elevated hook (UIPI, User Interface Privilege Isolation). Run WinRemap
   elevated only if you need remapping there.
-- **Punctuation/OEM keys** (`;`, `,`, ...) are not supported yet — their
-  virtual-key codes are keyboard-layout dependent.
+- **Punctuation/OEM keys** (`;`, `,`, ...) cannot be used in rules yet — their
+  virtual-key codes are keyboard-layout dependent. The log does name them
+  (`/ (0xBF)`), so you can at least see which one you pressed.
 - **No tap/hold or mark mode** yet; sequences are limited to two strokes.
 - Chords involving **Alt or Win** inject a masking key so the modifier lift
   does not pop the menu bar / Start menu; if a specific app still shows menu
@@ -283,8 +322,9 @@ one. Nothing is written to disk either way.
 - Do not run WinRemap together with other keyboard-hook software (Keyhac,
   AutoHotkey, ...) remapping the same keys — stacked low-level hooks have
   undefined ordering.
-- Started from a terminal, WinRemap prints to that terminal but does not hold
-  it: the prompt returns immediately and output arrives interleaved with it.
+- Started from a terminal with `--debug`, WinRemap prints to that terminal but
+  does not hold it: the prompt returns immediately and output arrives
+  interleaved with it. Without `--debug` it prints nothing at all.
 - IME **control** is out of scope by design (the optional indicator only
   *displays* the state); use the Windows 11 IME settings.
 - The IME indicator reads the state via the legacy IMM32 interface. It is
