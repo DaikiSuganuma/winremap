@@ -163,7 +163,12 @@ function Build-Binary {
     param([bool]$TestInject)
     # Separate target dirs: both binaries can be needed in one run, and they
     # would otherwise overwrite each other at target\release\winremap.exe.
-    $targetDir = if ($TestInject) { "target\ui-test-inject" } else { "target" }
+    #
+    # Neither is the ordinary target\release, on purpose. A developer running
+    # WinRemap from their own build holds that file open, and Windows will not
+    # let cargo replace a running executable - the build then fails with
+    # "access denied" and the suite looks broken while nothing is (2026-07-29).
+    $targetDir = if ($TestInject) { "target\ui-test-inject" } else { "target\ui-release" }
     $exe = Join-Path $repoRoot "$targetDir\release\winremap.exe"
     if ($SkipBuild) {
         if (-not (Test-Path $exe)) { throw "-SkipBuild was given but $exe does not exist" }

@@ -208,7 +208,11 @@ fn run(overlay: &overlay::Overlay) {
                     // its IME is still on (ADR 0026).
                     last_target = 0;
                     if crate::hook::debug_enabled() {
-                        crate::gui::log::emit(i18n::t().debug_ime_shell_skip);
+                        crate::gui::log::tagged(
+                            crate::gui::log::Kind::Detail,
+                            i18n::t().log_tag_ime,
+                            i18n::t().debug_ime_shell_skip,
+                        );
                     }
                     continue;
                 }
@@ -230,11 +234,14 @@ fn run(overlay: &overlay::Overlay) {
                 }
                 if crate::hook::debug_enabled() {
                     // This thread is not the hook: logging here is fine.
-                    crate::gui::log::emit(&i18n::debug_ime_query(
-                        sample.open,
-                        shown,
-                        sample.via_child,
-                    ));
+                    // Detail, because the indicator polls on every focus
+                    // change and on every trigger key — a stream of its own,
+                    // which the simple view is not about.
+                    crate::gui::log::tagged(
+                        crate::gui::log::Kind::Detail,
+                        i18n::t().log_tag_ime,
+                        &i18n::debug_ime_query(sample.open, shown, sample.via_child),
+                    );
                 }
                 last_on = is_on;
                 last_target = sample.target;

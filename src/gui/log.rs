@@ -35,8 +35,13 @@ static OPEN: AtomicBool = AtomicBool::new(false);
 /// Set by `request_open`, consumed by the frame that declares the viewport.
 static FOCUS_REQUESTED: AtomicBool = AtomicBool::new(false);
 
-/// Whether `--debug` was on the command line. Closing the window restores this
-/// rather than assuming debug should go off.
+/// Whether `--debug` was on the command line.
+///
+/// Two jobs: closing the window restores this rather than assuming debug
+/// should go off, and it is what opens the console transcript. Printing is
+/// tied to the flag rather than to having a terminal, so that starting
+/// WinRemap from a shell is as quiet as starting it from Explorer, and
+/// `--debug` is the one way to ask for the running commentary (ADR 0058).
 static CLI_DEBUG: AtomicBool = AtomicBool::new(false);
 
 /// Stick to the newest line unless the user scrolls up to read history. Lives
@@ -63,7 +68,9 @@ pub enum Kind {
     /// Session banner, hints, warnings — the window's own furniture. Carries
     /// its own wording, so it gets neither a stamp nor a tag.
     Note,
-    /// Something the user did: a tray pick, a button.
+    /// Something the user did: a tray pick, a button, a checkbox in this
+    /// window, or bringing another application to the front. These are the
+    /// landmarks people scroll to when asking "why did that happen".
     Action,
     /// What WinRemap decided about one key. The simple view is these.
     Decision,
@@ -114,59 +121,88 @@ pub fn is_open() -> bool {
     OPEN.load(Ordering::Relaxed)
 }
 
-/// One line of user-visible log output. Goes to the terminal when there is one
-/// and to the window when it is open; with neither, it evaporates, which is the
+// ---- Writing a line ------------------------------------------------------
+//
+// Everything that writes to the log goes through `record` below. It used to
+// be one console call per caller, each formatting its own prefix, which is
+// how the terminal and the window came to say different things about the same
+// event (owner request 2026-07-29). Now there is one line, formatted once, and
+// the two outputs differ only in that the window has columns to put it in.
+
+/// A line of the log, wherever it can be read: the console under `--debug`,
+/// and the window while it is open. With neither, it evaporates — that is the
 /// intended silent-launch behavior.
 ///
-/// Called from the message loop and the indicator thread, never from the hook
-/// callback.
-pub fn emit(line: &str) {
-    crate::notify::console_line(line);
-    push(line);
+/// This one is furniture — session banners, notices — so it carries no stamp
+/// and no tag; it is expected to read as written.
+///
+/// Called from the message loop, the GUI thread and the indicator thread,
+/// never from the hook callback.
+pub fn emit(text: &str) {
+    record(Kind::Note, "", text);
 }
 
 /// Adds a line to the window only. For messages that already reached the user
-/// some other way (a dialog, `eprintln!`) but belong in the transcript too.
-///
-/// Split on newlines, because the window draws one buffer entry as one row of
-/// fixed height — the foreground report is three lines of text and would
-/// otherwise overflow its row and push every row below it out of place.
-pub fn push(line: &str) {
-    for part in line.split('\n') {
-        push_line(Kind::Note, "", String::new(), part.to_owned());
+/// some other way (a dialog, `eprintln!`) but belong in the transcript too —
+/// printing them again would double them in a terminal.
+pub fn push(text: &str) {
+    for part in text.split('\n') {
+        store(Line {
+            kind: Kind::Note,
+            tag: "",
+            at: String::new(),
+            text: part.to_owned(),
+        });
     }
 }
 
-/// A line for something the user did: a tray menu pick, a button press. The
-/// tag is what makes these stand out among the key traffic, which is what
-/// makes a log readable when diagnosing "why did that happen".
+/// A line for something the user did: a tray menu pick, a button press, a
+/// window brought to the front. The tag is what makes these stand out among
+/// the key traffic.
 pub fn action(message: &str) {
-    let tag = i18n::t().log_action_prefix;
-    crate::notify::console_line(&format!("{tag} {message}"));
-    push_line(
-        Kind::Action,
-        tag,
-        crate::clock::local_time_of_day(),
-        message.to_owned(),
-    );
+    record(Kind::Action, i18n::t().log_action_prefix, message);
 }
 
-/// One line of the debug transcript. Called from the message loop when the
-/// hook's event ring is drained (ADR 0016), never from the hook itself.
+/// A line of the running commentary: which stream it belongs to (`tag`) and
+/// whether the simple view keeps it (`kind`). Called from the message loop
+/// when the hook's event ring is drained (ADR 0016) and when the foreground
+/// window changes — never from the hook itself.
+pub fn tagged(kind: Kind, tag: &'static str, text: &str) {
+    record(kind, tag, text);
+}
+
+/// The one place a log line is made. Stamps it, prints it, files it.
 ///
-/// The console gets the tag spliced back on, so a terminal session reads the
-/// same as the window minus the columns.
-pub fn debug_line(kind: Kind, tag: &'static str, text: &str) {
-    crate::notify::console_line(&format!("{tag} {text}"));
-    push_line(
-        kind,
-        tag,
-        crate::clock::local_time_of_day(),
-        text.to_owned(),
-    );
+/// Split on newlines, because the window draws one buffer entry as one row of
+/// fixed height — a multi-line message would otherwise overflow its row and
+/// push every row below it out of place.
+fn record(kind: Kind, tag: &'static str, text: &str) {
+    // Notes carry their own stamp or none, and asking the clock costs a
+    // Win32 call, so it is only made for the lines that show one.
+    let at = match kind {
+        Kind::Note => String::new(),
+        _ => crate::clock::local_time_of_day(),
+    };
+    for part in text.split('\n') {
+        let line = Line {
+            kind,
+            tag,
+            at: at.clone(),
+            text: part.to_owned(),
+        };
+        // Formatted by the same function the clipboard uses, so a terminal
+        // transcript and a pasted one are the same text.
+        if CLI_DEBUG.load(Ordering::Relaxed) {
+            crate::notify::console_line(&as_text(&line));
+        }
+        store(line);
+    }
 }
 
-fn push_line(kind: Kind, tag: &'static str, at: String, text: String) {
+/// Files a line in the buffer the window draws from. Dropped when the window
+/// is closed: the buffer is emptied on close anyway, so keeping it filled
+/// would only grow the heap for a window nobody is looking at.
+fn store(line: Line) {
     if !OPEN.load(Ordering::Relaxed) {
         return;
     }
@@ -174,12 +210,7 @@ fn push_line(kind: Kind, tag: &'static str, at: String, text: String) {
         if lines.len() >= MAX_LINES {
             lines.pop_front();
         }
-        lines.push_back(Line {
-            kind,
-            tag,
-            at,
-            text,
-        });
+        lines.push_back(line);
     }
 }
 
@@ -270,7 +301,14 @@ fn window_ui(ui: &mut egui::Ui) {
                     .changed()
                 {
                     FOLLOW_TAIL.store(follow_tail, Ordering::Relaxed);
+                    // Logged like any other control: the answer to "why did
+                    // the log stop moving" is a line in the log itself
+                    // (owner request 2026-07-29).
+                    action(&i18n::action_toggled(texts.log_window_follow, follow_tail));
                 }
+                // Two checkboxes in a row read as one control with two
+                // checkmarks; the gap says they are separate questions.
+                ui.add_space(theme::LOG_CONTROL_GAP);
                 // What the log says, beside how it scrolls: both control how
                 // the window reads, which is what the header is for.
                 if ui
@@ -279,6 +317,7 @@ fn window_ui(ui: &mut egui::Ui) {
                     .changed()
                 {
                     DETAILED.store(detailed, Ordering::Relaxed);
+                    action(&i18n::action_toggled(texts.log_window_detailed, detailed));
                 }
             });
         });
@@ -287,24 +326,34 @@ fn window_ui(ui: &mut egui::Ui) {
         .frame(theme::chrome_frame(ui.visuals()))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
-                if icons::button(ui, Icon::Clear, texts.log_window_clear).clicked()
-                    && let Ok(mut lines) = buffer().lock()
-                {
-                    lines.clear();
+                if icons::button(ui, Icon::Clear, texts.log_window_clear).clicked() {
+                    if let Ok(mut lines) = buffer().lock() {
+                        lines.clear();
+                    }
+                    // Outside the lock, and after the clear: `action` takes
+                    // the same mutex — locking it twice on this thread would
+                    // hang the window — and a line written before the clear
+                    // would be the one thing the clear removed.
+                    action(&i18n::action_log_cleared());
                 }
                 // Copies what is on screen, not what is in the buffer: a
                 // reader pasting a log into an issue means the one they were
                 // just looking at.
-                if icons::button(ui, Icon::Copy, texts.log_window_copy).clicked()
-                    && let Ok(lines) = buffer().lock()
-                {
-                    let joined = lines
-                        .iter()
-                        .filter(|line| visible(line.kind, detailed))
-                        .map(as_text)
-                        .collect::<Vec<_>>()
-                        .join("\r\n");
-                    ui.ctx().copy_text(joined);
+                if icons::button(ui, Icon::Copy, texts.log_window_copy).clicked() {
+                    let copied = buffer().lock().ok().map(|lines| {
+                        lines
+                            .iter()
+                            .filter(|line| visible(line.kind, detailed))
+                            .map(as_text)
+                            .collect::<Vec<_>>()
+                    });
+                    if let Some(copied) = copied {
+                        let count = copied.len();
+                        ui.ctx().copy_text(copied.join("\r\n"));
+                        // Says how much was taken, so a paste that looks
+                        // short can be checked against a number.
+                        action(&i18n::action_log_copied(count));
+                    }
                 }
             });
         });
@@ -383,13 +432,21 @@ fn draw_row(ui: &mut egui::Ui, line: &Line, row_height: f32, repeated_stamp: boo
 }
 
 /// A fixed-width column, for the two that have to line up down the page.
+///
+/// `set_min_width` is what makes it fixed: `allocate_ui_with_layout` shrinks
+/// to its content, so a blanked stamp took no width at all and the tag beside
+/// it slid to the left margin — which is exactly the alignment the columns
+/// exist to keep (seen in the 00-log-view screenshot, 2026-07-29).
 fn cell(ui: &mut egui::Ui, width: f32, text: &str, color: egui::Color32) {
     let height = ui.available_height();
     let size = egui::vec2(width, height);
     ui.allocate_ui_with_layout(
         size,
         egui::Layout::left_to_right(egui::Align::Center),
-        |ui| label(ui, text, color),
+        |ui| {
+            ui.set_min_width(width);
+            label(ui, text, color);
+        },
     );
 }
 

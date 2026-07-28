@@ -132,9 +132,13 @@ fn message_box(message: &str, icon: MESSAGEBOX_STYLE) {
     }
 }
 
-/// Prints only when a terminal is attached. Startup banners and reload
-/// confirmations are nice-to-have context, not something worth interrupting
-/// a silent launch with a dialog.
+/// Prints only when a terminal is attached.
+///
+/// The log module is the only caller: it decides *whether* a line is wanted
+/// on the console (`--debug`) and what it looks like, and this decides
+/// whether there is anywhere to put it (ADR 0058). Anything else that wants
+/// the user's attention goes through [`error`] or [`info`], which have a
+/// dialog to fall back on.
 pub fn console_line(message: &str) {
     if has_console() {
         println!("{message}");

@@ -16,6 +16,7 @@ mod gui;
 mod hook;
 mod i18n;
 mod ime_indicator;
+mod keyname;
 mod macro_record;
 mod notify;
 mod sender;
@@ -69,14 +70,16 @@ fn run() -> anyhow::Result<()> {
     // The log window is usually opened long after launch, so it is seeded with
     // this rather than starting mid-session with no idea when "now" began.
     let started = i18n::session_started(&clock::local_now());
-    notify::console_line(&started);
     gui::log::set_session_start(&started);
+    // Everything from here goes through the log, which is what decides where
+    // it can be read: the console under `--debug`, the window while it is
+    // open (ADR 0058). Nothing calls `notify::console_line` directly any
+    // more — that is how the terminal and the window drifted apart.
+    gui::log::emit(&started);
     if hook::accept_injected() {
         // Loud on purpose: this build converts other software's injected
         // input, so it must never be mistaken for a normal one (ADR 0053).
-        let notice = i18n::test_build_notice();
-        notify::console_line(notice);
-        gui::log::emit(notice);
+        gui::log::emit(i18n::test_build_notice());
     }
 
     // A startup config error aborts: better to not run at all than to sit in
@@ -84,10 +87,7 @@ fn run() -> anyhow::Result<()> {
     let table = config::load(&config_path)
         .with_context(|| format!("failed to load {}", config_path.display()))?;
     let keymap_count = table.keymaps.len();
-    notify::console_line(&i18n::startup_loaded(keymap_count, &config_path));
-    if hook::debug_enabled() {
-        notify::console_line(&i18n::debug_config_loaded(&config_path, keymap_count));
-    }
+    gui::log::emit(&i18n::startup_loaded(keymap_count, &config_path));
     // Precedence: --macro-delay > config's macro_delay_ms > 0 (ADR 0019).
     sender::set_macro_delay(cli.macro_delay_ms.unwrap_or(table.macro_delay_ms));
     hook::REMAP_TABLE.store(Some(Arc::new(table)));
@@ -106,7 +106,7 @@ fn run() -> anyhow::Result<()> {
     // Macro recording touch point: same shape — no thread unless [macro]
     // names the recording keys (ADR 0043/0044).
     macro_record::sync_with_config();
-    notify::console_line(i18n::t().remapping_active);
+    gui::log::emit(i18n::t().remapping_active);
 
     hook::run_message_loop(|| {
         tray.pump_events();

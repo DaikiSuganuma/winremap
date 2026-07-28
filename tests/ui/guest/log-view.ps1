@@ -105,13 +105,30 @@ Start-Process notepad.exe
 Start-Sleep -Seconds 5
 $pad = $null
 foreach ($w in $root.FindAll($kids, $any)) { if ($w.Current.ClassName -eq "Notepad") { $pad = $w; break } }
+# Focus is taken twice on purpose. Launching an app is a race: the foreground
+# event can land while the launcher is still in front (measured 2026-07-29 -
+# the report for Notepad's own launch said "winremap.exe"), and then focusing
+# a window that is already foreground changes nothing and fires nothing. So
+# the log window is brought forward first and Notepad after it, which makes
+# the switch this script's doing rather than the shell's.
+Focus-Window (Get-WindowLike "*log*") | Out-Null
+Start-Sleep -Seconds 1
 # Asserted, not assumed: without this the keys would go to whatever is in
 # front, the log would stay empty, and every check below would blame the app.
 Check "notepad-takes-the-keys" ([bool]$pad -and (Focus-Window $pad)) `
     "the keys go to another application, which is the only way they reach the hook"
+Start-Sleep -Seconds 1
 [Nat]::Key(0x41)
 Start-Sleep -Milliseconds 500
 [Nat]::Chord(0x11, 0x4E)
+Start-Sleep -Milliseconds 500
+# Two keys the config notation cannot name yet, which used to print as bare
+# hex - the numpad's 1 and VK_OEM_2 (ADR 0058). The numpad is the same on
+# every keyboard, so its name is asserted; the OEM key's face depends on the
+# layout, so only the shape is.
+[Nat]::Key(0x61)
+Start-Sleep -Milliseconds 500
+[Nat]::Key(0xBF)
 Start-Sleep -Seconds 2
 Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
@@ -129,6 +146,23 @@ Check "the-simple-view-hides-the-mechanics" (-not (@($simple | Where-Object { $_
     "the injections and the physical events stay out of the default view"
 Check "every-line-carries-a-time" ($simple -match "^\d\d:\d\d:\d\d\.\d\d\d$") `
     "the stamp is its own column, to the millisecond, which is what tells two moments apart"
+Check "the-numpad-key-is-named" (@($simple | Where-Object { $_ -like "Num1 (0x61)*" }).Count -ge 1) `
+    "a key the config cannot name yet still says what it is, not just 0x61 (ADR 0058)"
+# Something has to precede the code: the name is what the check is about, and
+# what it is depends on the keyboard layout (@ on JP, ` on US).
+Check "the-oem-key-is-named" `
+(@($simple | Where-Object { $_ -like "*(0xBF)*" -and $_ -notlike "0xBF*" }).Count -ge 1) `
+    "an OEM key is named by what this keyboard prints on it, with the raw code kept"
+# What the report has to carry: the value to write in a keymap's application
+# list, and which of the configured keymaps that value reaches. Which app it
+# names is the operating system's business, not this feature's - see the
+# diagnostic at the end of this script and the pitfall note in
+# docs/05_ui-test-automation.md.
+$reports = @($simple | Where-Object { $_ -match '^application = ".+\.exe" .+ keymaps: .+$' })
+Say ("foreground reports in the simple view: " + $reports.Count)
+foreach ($r in $reports) { Say ("  F| " + $r) }
+Check "the-foreground-app-is-named" ($reports.Count -ge 1) `
+    "a window switch logs the value to write in the application list, and which keymaps it reaches"
 
 # --- tick the box, without pressing another key ---------------------------
 # The point of buffering the mechanics whether or not they are shown: someone
@@ -139,6 +173,14 @@ Say-Lines "detailed view" $detailed
 Save-Shot "C:\Test\log-view-detailed.png" (Get-WindowLike "*log*")
 
 Check "the-box-turns-on" ((Get-Toggle $box) -eq "On") "the checkbox took the click"
+# Every control in this window leaves a line, so "why did the log change" is
+# answered by the log (owner request 2026-07-29).
+Check "clicking-a-control-is-logged" `
+(@($detailed | Where-Object { $_ -like "Every event: on" }).Count -ge 1) `
+    "ticking the box is logged like a tray pick, with the state it moved to"
+Check "the-foreground-path-is-a-detail" `
+(@($detailed | Where-Object { $_ -like "?:\*.exe" }).Count -ge 1) `
+    "the full path is under the summary, where only the detailed view shows it"
 Check "it-explains-what-already-happened" ($detailed -match "\[injected\]") `
     "ticking the box shows the mechanics behind keys pressed before it was ticked"
 Check "the-physical-events-are-shown" ($detailed -match "\[input\]") `
@@ -159,6 +201,10 @@ Start-Sleep -Seconds 1
 Say ("clipboard: " + $clip.Length + " chars")
 Check "the-clipboard-keeps-the-columns" ($clip -match "(?m)^\d\d:\d\d:\d\d\.\d\d\d \[decided\] ") `
     "a pasted log still says when each line happened and what kind it is"
+$afterCopy = Get-Texts (Get-WindowLike "*log*")
+Check "copying-is-logged-with-its-size" `
+(@($afterCopy | Where-Object { $_ -match "^\d+ line\(s\) copied" }).Count -ge 1) `
+    "the log says how many lines were taken, so a short paste can be checked"
 
 # --- and back ------------------------------------------------------------
 Set-Toggle $box | Out-Null
@@ -177,10 +223,23 @@ Remove-Item $dbg -Force -ErrorAction SilentlyContinue
 Start-Process $exe -ArgumentList '--config', 'C:\Test\logview.toml', '--lang', 'en', '--accept-injected', '--debug' `
     -NoNewWindow -RedirectStandardOutput $dbg
 Start-Sleep -Seconds 6
+# Diagnostic, not a check: with the log window open, no foreground report ever
+# named the app this script switched to (measured twice, 2026-07-29). Here
+# WinRemap has no window at all, so the transcript below says whether that
+# gap belongs to the window's presence or to the reporting itself. Read the
+# "W|" lines; docs/05_ui-test-automation.md carries the standing note.
+Start-Process notepad.exe
+Start-Sleep -Seconds 5
+$pad2 = $null
+foreach ($w in $root.FindAll($kids, $any)) { if ($w.Current.ClassName -eq "Notepad") { $pad2 = $w; break } }
+Say ("windowless run: notepad focused = " + [bool]($pad2 -and (Focus-Window $pad2)))
+Start-Sleep -Seconds 1
 [Nat]::Key(0x41)
 Start-Sleep -Milliseconds 500
 [Nat]::Chord(0x11, 0x4E)
 Start-Sleep -Seconds 3
+Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
 Get-Process winremap -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 # Read as UTF-8: the arrows are outside CP932, which is what Get-Content
@@ -189,10 +248,39 @@ Start-Sleep -Seconds 2
 [string[]]$console = if (Test-Path $dbg) { Get-Content $dbg -Encoding UTF8 } else { @() }
 Say "console transcript:"
 foreach ($l in $console) { Say ("  C| " + $l) }
+# The diagnostic, pulled out where it can be read at a glance.
+foreach ($l in @($console | Where-Object { $_ -like "*``[window``]*" })) { Say ("  W| " + $l) }
+# The stamp leads every line now: the console prints exactly what the window
+# would show, formatted by the same function the clipboard uses (ADR 0058).
 Check "the-console-says-the-same" `
-(@($console | Where-Object { $_ -like "``[decided``]*C-n*" }).Count -ge 1 -and
-    @($console | Where-Object { $_ -like "``[injected``]*" }).Count -ge 4) `
+(@($console | Where-Object { $_ -like "*``[decided``]*C-n*" }).Count -ge 1 -and
+    @($console | Where-Object { $_ -like "*``[injected``]*" }).Count -ge 4) `
     "a terminal session gets the same tags, without the window (ADR 0016)"
+Check "the-console-carries-the-columns" `
+(@($console | Where-Object { $_ -match "^\d\d:\d\d:\d\d\.\d\d\d \[" }).Count -ge 1) `
+    "each console line leads with the stamp and the tag, as the window draws them"
+
+# And the other half of the rule: no --debug, no console output. A resident
+# tray app started from a shell should be as quiet as one started from
+# Explorer (owner request 2026-07-29).
+Get-Process winremap -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+$quiet = "C:\Test\quiet-out.txt"
+Remove-Item $quiet -Force -ErrorAction SilentlyContinue
+Start-Process $exe -ArgumentList '--config', 'C:\Test\logview.toml', '--lang', 'en', '--accept-injected' `
+    -NoNewWindow -RedirectStandardOutput $quiet
+Start-Sleep -Seconds 6
+[Nat]::Key(0x41)
+Start-Sleep -Milliseconds 500
+[Nat]::Chord(0x11, 0x4E)
+Start-Sleep -Seconds 3
+Get-Process winremap -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+[string[]]$silent = if (Test-Path $quiet) { @(Get-Content $quiet -Encoding UTF8) } else { @() }
+Say ("without --debug the console got " + $silent.Count + " line(s)")
+foreach ($l in $silent) { Say ("  Q| " + $l) }
+Check "no-debug-means-no-console-output" ($silent.Count -eq 0) `
+    "without --debug the same keys print nothing at all"
 
 $failed = @($checks.Keys | Where-Object { -not $checks[$_] })
 Say ""
