@@ -201,10 +201,16 @@ function Copy-Payload {
             @{ Local = (Join-Path $repoRoot "examples\personal-ja.toml"); Guest = "$guestDir\personal-ja.toml" },
             @{ Local = (Join-Path $PSScriptRoot "fixtures\uitest.toml"); Guest = "$guestDir\uitest.toml" },
             @{ Local = (Join-Path $PSScriptRoot "fixtures\broken.toml"); Guest = "$guestDir\broken.toml" },
+            # A global keymap, which the log-view checks need: they type into
+            # WinRemap's own window, where a per-app rule would never fire.
+            @{ Local = (Join-Path $PSScriptRoot "fixtures\logview.toml"); Guest = "$guestDir\logview.toml" },
             @{ Local = (Join-Path $PSScriptRoot "guest\promote-tray-icon.ps1"); Guest = "$guestDir\promote-tray-icon.ps1" },
             @{ Local = (Join-Path $PSScriptRoot "guest\dump-uia.ps1"); Guest = "$guestDir\dump-uia.ps1" },
             @{ Local = (Join-Path $PSScriptRoot "guest\cli-smoke.ps1"); Guest = "$guestDir\cli-smoke.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\regression-checks.ps1"); Guest = "$guestDir\regression-checks.ps1" }
+            # Dot-sourced by the two checks below, so it has to land first.
+            @{ Local = (Join-Path $PSScriptRoot "guest\ui-helpers.ps1"); Guest = "$guestDir\ui-helpers.ps1" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\regression-checks.ps1"); Guest = "$guestDir\regression-checks.ps1" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\log-view.ps1"); Guest = "$guestDir\log-view.ps1" }
         )) {
         Invoke-Vmrun copyFileFromHostToGuest $script:vm.VmxPath $pair.Local $pair.Guest | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "copying $($pair.Local) to the guest failed" }
@@ -275,13 +281,28 @@ $harnessChecks = [ordered]@{
     # The v0.1〜v0.3 regression items that are machine-checkable
     # (docs/v0.5/03_acceptance-checklist.md §5).
     "00-regression"     = @{ Script = "regression-checks.ps1"; Result = "regression-checks.txt"; NeedsTray = $true }
+    # The log window's two views (ADR 0057). Needs the test-inject build: the
+    # keys are sent with keybd_event, and a shipped build passes injections
+    # through, so there would be no decision to log. The screenshots are
+    # evidence for the half no assertion covers — whether it reads well.
+    "00-log-view"       = @{ Script = "log-view.ps1"; Result = "log-view.txt"; NeedsTray = $true; NeedsInject = $true
+        Files = @("log-view-simple.png", "log-view-detailed.png")
+    }
 }
 
 function Invoke-GuestCheck {
-    param([string]$ScriptName, [string]$ResultName, [bool]$Verbose)
+    param([string]$ScriptName, [string]$ResultName, [bool]$Verbose, [string[]]$Files = @())
     $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
     Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
         "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\$ScriptName" | Out-Null
+    # Screenshots and the like: evidence the verdict does not carry. Copied
+    # before the result file is read, so they survive a failing check.
+    foreach ($name in $Files) {
+        $local = Join-Path $env:TEMP "winremap-$name"
+        Remove-Item $local -Force -ErrorAction SilentlyContinue
+        Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\$name" $local | Out-Null
+        if (Test-Path $local) { Write-Host "  saved: $local" -ForegroundColor Gray }
+    }
     $dump = Join-Path $env:TEMP "winremap-$ResultName"
     Remove-Item $dump -Force -ErrorAction SilentlyContinue
     Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\$ResultName" $dump | Out-Null
@@ -383,11 +404,15 @@ function Invoke-HarnessCheck {
     param([string]$Name)
     $check = $harnessChecks[$Name]
     Write-Host "`n=== $Name ===" -ForegroundColor Cyan
-    $exe = Build-Binary -TestInject $false
+    # .Contains, not .Key: StrictMode makes reading an absent key an error, so
+    # every optional field has to be asked for before it is read.
+    $inject = $check.Contains("NeedsInject") -and $check.NeedsInject
+    $exe = Build-Binary -TestInject $inject
     if (-not $NoRevert) { Reset-Guest }
     Copy-Payload -Exe $exe
     if ($check.NeedsTray -and -not (Set-TrayIconPromoted)) { return "SETUP FAILED" }
-    return Invoke-GuestCheck -ScriptName $check.Script -ResultName $check.Result -Verbose $false
+    $files = if ($check.Contains("Files")) { $check.Files } else { @() }
+    return Invoke-GuestCheck -ScriptName $check.Script -ResultName $check.Result -Verbose $false -Files $files
 }
 
 $requestedHarness = @($Scenario -split '[,\s]+' | Where-Object { $harnessChecks.Contains($_.Trim()) })

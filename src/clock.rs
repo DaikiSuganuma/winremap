@@ -23,6 +23,26 @@ pub fn local_now() -> String {
     format_time(&now)
 }
 
+/// The current local time as `HH:MM:SS.mmm`.
+///
+/// The log window stamps every line with this. The date is left off because
+/// it is the same on every line of a session — the banner at the top carries
+/// it — and the column has to stay narrow enough to sit ahead of the text
+/// without pushing it off the window.
+///
+/// The milliseconds are the point rather than a flourish: a remap emits half
+/// its keys when you press and the other half when you let go, and at
+/// one-second resolution those two moments usually print the same number,
+/// which is the reading the stamp exists to prevent (ADR 0057).
+pub fn local_time_of_day() -> String {
+    // SAFETY: as `local_now` — no arguments, no allocation, cannot fail.
+    let now = unsafe { GetLocalTime() };
+    format!(
+        "{:02}:{:02}:{:02}.{:03}",
+        now.wHour, now.wMinute, now.wSecond, now.wMilliseconds
+    )
+}
+
 fn format_time(time: &SYSTEMTIME) -> String {
     format!(
         "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",

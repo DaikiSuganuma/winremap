@@ -145,8 +145,14 @@ pub struct Texts {
     pub config_ime_opacity: &'static str,
     pub config_ime_show_app_name: &'static str,
     pub config_ime_triggers: &'static str,
-    /// Marks a line the user caused, so actions stand out from [debug] noise.
+    /// Marks a line the user caused, so actions stand out from the key
+    /// traffic. Also the tag drawn in the log window's gutter.
     pub log_action_prefix: &'static str,
+    /// Gutter tags for the debug transcript. A physical key event, what
+    /// WinRemap decided about it, and what it then put on the wire.
+    pub log_tag_input: &'static str,
+    pub log_tag_decision: &'static str,
+    pub log_tag_injected: &'static str,
     /// Why an in-progress macro recording was dropped (design doc §5.6).
     pub macro_record_reason_reload: &'static str,
     pub macro_record_reason_disabled: &'static str,
@@ -156,6 +162,8 @@ pub struct Texts {
     pub log_window_title: &'static str,
     pub log_window_hint: &'static str,
     pub log_window_follow: &'static str,
+    pub log_window_detailed: &'static str,
+    pub log_window_detailed_hint: &'static str,
     pub log_window_clear: &'static str,
     pub log_window_copy: &'static str,
     pub tooltip_disabled: &'static str,
@@ -259,12 +267,17 @@ static EN: Texts = Texts {
     config_ime_show_app_name: "Show app name",
     config_ime_triggers: "Trigger keys",
     log_action_prefix: "[action]",
+    log_tag_input: "[input]",
+    log_tag_decision: "[decided]",
+    log_tag_injected: "[injected]",
     macro_record_reason_reload: "config reloaded",
     macro_record_reason_disabled: "remapping disabled",
     macro_record_unknown_app: "an unknown app",
     log_window_title: "WinRemap — log",
     log_window_hint: "Debug logging is on while this window is open. Press keys to see how they are handled.",
     log_window_follow: "Follow newest",
+    log_window_detailed: "Every event",
+    log_window_detailed_hint: "Off: one line per key, saying what WinRemap decided.\nOn: the whole stream — every physical press and release, and every event WinRemap sent in reply.\n\nThe two halves of a remap happen at different moments: the target is pressed when you press the key and released when you let go. The time column is what shows that.",
     log_window_clear: "Clear",
     log_window_copy: "Copy all",
     tooltip_disabled: "WinRemap (disabled)",
@@ -368,12 +381,17 @@ static JA: Texts = Texts {
     config_ime_show_app_name: "アプリ名を表示",
     config_ime_triggers: "トリガーキー",
     log_action_prefix: "[操作]",
+    log_tag_input: "[入力]",
+    log_tag_decision: "[判定]",
+    log_tag_injected: "[注入]",
     macro_record_reason_reload: "設定をリロードしたため",
     macro_record_reason_disabled: "リマップを無効にしたため",
     macro_record_unknown_app: "不明なアプリ",
     log_window_title: "WinRemap — ログ",
     log_window_hint: "このウィンドウを開いている間、デバッグログを記録します。キーを押すと処理内容が表示されます。",
     log_window_follow: "最新に追従",
+    log_window_detailed: "全イベント",
+    log_window_detailed_hint: "オフ: キー 1 つにつき 1 行。WinRemap が何をすると判定したかだけを出します。\nオン: 流れた入力をすべて出します。物理キーの押下・解放と、それに対して WinRemap が送出したイベントの全部です。\n\nリマップは 2 つの時刻に分かれて起きます。置換先はキーを押した時に押され、離した時に離されます。時刻の列はそれを見分けるためのものです。",
     log_window_clear: "消去",
     log_window_copy: "全体をコピー",
     tooltip_disabled: "WinRemap（無効）",
@@ -767,26 +785,31 @@ fn fmt_input(prev: Option<KeyCombo>, input: KeyCombo) -> String {
     }
 }
 
+// The lines below carry no `[debug]` prefix: the log window draws the tag in
+// its own column and the console adds it back when printing, so that a
+// decision and the events under it can be told apart at a glance rather than
+// by counting leading spaces (ADR 0057).
+
 pub fn debug_key_pass(input: KeyCombo) -> String {
     match lang() {
-        Lang::En => format!("[debug] {input} → passed through"),
-        Lang::Ja => format!("[debug] {input} → 素通し"),
+        Lang::En => format!("{input} → passed through"),
+        Lang::Ja => format!("{input} → 素通し"),
     }
 }
 
 pub fn debug_key_chord(prev: Option<KeyCombo>, input: KeyCombo, target: KeyCombo) -> String {
     let input = fmt_input(prev, input);
     match lang() {
-        Lang::En => format!("[debug] {input} → remapped to {target}"),
-        Lang::Ja => format!("[debug] {input} → {target} に置換"),
+        Lang::En => format!("{input} → remapped to {target}"),
+        Lang::Ja => format!("{input} → {target} に置換"),
     }
 }
 
 pub fn debug_key_substituted(input: KeyCombo, target_vk: u16) -> String {
     let target = vk_display_name(target_vk);
     match lang() {
-        Lang::En => format!("[debug] {input} → substituted with {target} (bare-key rule)"),
-        Lang::Ja => format!("[debug] {input} → {target} に差し替え（単キールール）"),
+        Lang::En => format!("{input} → substituted with {target} (bare-key rule)"),
+        Lang::Ja => format!("{input} → {target} に差し替え（単キールール）"),
     }
 }
 
@@ -798,41 +821,55 @@ pub fn debug_key_macro(
 ) -> String {
     let input = fmt_input(prev, input);
     match lang() {
-        Lang::En => format!("[debug] {input} → macro executed ({strokes} strokes: {steps})"),
-        Lang::Ja => format!("[debug] {input} → マクロ実行（{strokes} ストローク: {steps}）"),
+        Lang::En => format!("{input} → macro executed ({strokes} strokes: {steps})"),
+        Lang::Ja => format!("{input} → マクロ実行（{strokes} ストローク: {steps}）"),
     }
 }
 
 pub fn debug_key_repeat(input: KeyCombo) -> String {
     match lang() {
-        Lang::En => format!("[debug] {input} → auto-repeat (suppressed)"),
-        Lang::Ja => format!("[debug] {input} → キーリピート（抑止）"),
+        Lang::En => format!("{input} → auto-repeat (suppressed)"),
+        Lang::Ja => format!("{input} → キーリピート（抑止）"),
     }
+}
+
+/// A physical press or release, as it reached the hook. The key name comes
+/// first so a column of these lines reads down the page; the modifiers held
+/// at the time are deliberately left out, because the decision line above
+/// already spells the combination out and repeating it here would bury the
+/// one thing this line adds — that the event happened at all.
+pub fn debug_physical(vk: u16, up: bool) -> String {
+    format!("{} {}", vk_display_name(vk), arrow(up))
 }
 
 /// Echo of an injected event passing through the hook. `source` is one of
 /// the pre-localized `debug_source_*` labels.
 pub fn debug_injected(vk: u16, up: bool, source: &str) -> String {
     let key = vk_display_name(vk);
-    let arrow = if up { "↑" } else { "↓" };
+    let arrow = arrow(up);
     match lang() {
-        Lang::En => format!("[debug]   injected ({source}): {key} {arrow}"),
-        Lang::Ja => format!("[debug]   注入（{source}）: {key} {arrow}"),
+        Lang::En => format!("{key} {arrow} ({source})"),
+        Lang::Ja => format!("{key} {arrow}（{source}）"),
     }
+}
+
+/// Up and down, in the one notation both languages share.
+fn arrow(up: bool) -> &'static str {
+    if up { "↑" } else { "↓" }
 }
 
 pub fn debug_key_prefix(input: KeyCombo) -> String {
     match lang() {
-        Lang::En => format!("[debug] {input} → prefix armed (waiting for the next key)"),
-        Lang::Ja => format!("[debug] {input} → プレフィックス待機（次のキーで確定）"),
+        Lang::En => format!("{input} → prefix armed (waiting for the next key)"),
+        Lang::Ja => format!("{input} → プレフィックス待機（次のキーで確定）"),
     }
 }
 
 pub fn debug_key_swallowed(prev: Option<KeyCombo>, input: KeyCombo) -> String {
     let input = fmt_input(prev, input);
     match lang() {
-        Lang::En => format!("[debug] {input} → undefined sequence (swallowed)"),
-        Lang::Ja => format!("[debug] {input} → 未定義のシーケンス（握りつぶし）"),
+        Lang::En => format!("{input} → undefined sequence (swallowed)"),
+        Lang::Ja => format!("{input} → 未定義のシーケンス（握りつぶし）"),
     }
 }
 
