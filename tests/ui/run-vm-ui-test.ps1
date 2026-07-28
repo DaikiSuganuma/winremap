@@ -195,9 +195,16 @@ function Copy-Payload {
             # minimal.toml is what the display scenarios read back; uitest.toml
             # is the fixture the remap scenario needs (see its header).
             @{ Local = (Join-Path $repoRoot "examples\minimal.toml"); Guest = "$guestDir\minimal.toml" },
+            # The regression checks need a config with more than one keymap,
+            # macros and a [macro] section; that is this one (v0.2 B1-3 named
+            # it suganuma.toml, since renamed).
+            @{ Local = (Join-Path $repoRoot "examples\personal-ja.toml"); Guest = "$guestDir\personal-ja.toml" },
             @{ Local = (Join-Path $PSScriptRoot "fixtures\uitest.toml"); Guest = "$guestDir\uitest.toml" },
+            @{ Local = (Join-Path $PSScriptRoot "fixtures\broken.toml"); Guest = "$guestDir\broken.toml" },
             @{ Local = (Join-Path $PSScriptRoot "guest\promote-tray-icon.ps1"); Guest = "$guestDir\promote-tray-icon.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\dump-uia.ps1"); Guest = "$guestDir\dump-uia.ps1" }
+            @{ Local = (Join-Path $PSScriptRoot "guest\dump-uia.ps1"); Guest = "$guestDir\dump-uia.ps1" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\cli-smoke.ps1"); Guest = "$guestDir\cli-smoke.ps1" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\regression-checks.ps1"); Guest = "$guestDir\regression-checks.ps1" }
         )) {
         Invoke-Vmrun copyFileFromHostToGuest $script:vm.VmxPath $pair.Local $pair.Guest | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "copying $($pair.Local) to the guest failed" }
@@ -251,22 +258,37 @@ function Set-TrayIconPromoted {
 }
 
 # The deterministic half of the suite. Everything an agent has to interpret
-# lives in the scenarios; this presses buttons through a plain UI Automation
-# client and checks the windows actually changed. Through terminator the same
-# two buttons landed about half the time, and a check that flaky reports bad
-# days as regressions — this one has yet to miss.
-function Invoke-UiaChecks {
-    param([bool]$Verbose)
+# lives in the scenarios; these scripts drive the app through a plain UI
+# Automation client and assert what changed. Through terminator the same two
+# buttons landed about half the time, and a check that flaky reports bad days
+# as regressions — these have yet to miss.
+#
+# Each one writes CHECK/RESULT/FAILED lines to a file in the guest, because
+# vmrun does not carry guest stdout back: a script that dies silently would
+# otherwise look exactly like one that never ran.
+$harnessChecks = [ordered]@{
+    # Runs before the rest: if the windows expose nothing, every scenario after
+    # it fails for the same reason and the summary says so five times.
+    "00-uia-actuation"  = @{ Script = "dump-uia.ps1"; Result = "uia-dump.txt"; NeedsTray = $true }
+    # No tray, no windows: the command line and what a silent launch does.
+    "00-cli-smoke"      = @{ Script = "cli-smoke.ps1"; Result = "cli-smoke.txt"; NeedsTray = $false }
+    # The v0.1〜v0.3 regression items that are machine-checkable
+    # (docs/v0.5/03_acceptance-checklist.md §5).
+    "00-regression"     = @{ Script = "regression-checks.ps1"; Result = "regression-checks.txt"; NeedsTray = $true }
+}
+
+function Invoke-GuestCheck {
+    param([string]$ScriptName, [string]$ResultName, [bool]$Verbose)
     $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
     Invoke-Vmrun runProgramInGuest $script:vm.VmxPath -interactive $ps `
-        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\dump-uia.ps1" | Out-Null
-    $dump = Join-Path $env:TEMP "winremap-uia-dump.txt"
+        "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "$guestDir\$ScriptName" | Out-Null
+    $dump = Join-Path $env:TEMP "winremap-$ResultName"
     Remove-Item $dump -Force -ErrorAction SilentlyContinue
-    Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\uia-dump.txt" $dump | Out-Null
+    Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "$guestDir\$ResultName" $dump | Out-Null
     if (-not (Test-Path $dump)) { return "ERROR" }
     $lines = Get-Content $dump -Encoding UTF8
     if ($Verbose) { $lines | Write-Host }
-    else { $lines | Where-Object { $_ -match '^(CHECK|RESULT|FAILED)' } | Write-Host }
+    else { $lines | Where-Object { $_ -match '^(CHECK|RESULT|FAILED|EXCEPTION)' } | Write-Host }
     Write-Host "  saved: $dump" -ForegroundColor Gray
     # The dump is the record; its own tally is the verdict.
     if ($lines | Where-Object { $_ -match '^FAILED:' }) { return "FAIL" }
@@ -350,9 +372,34 @@ if ($DumpUia) {
     if (-not $NoRevert) { Reset-Guest }
     Copy-Payload -Exe $exe
     if (-not (Set-TrayIconPromoted)) { throw "the tray icon was not promoted" }
-    $verdict = Invoke-UiaChecks -Verbose $true
+    $verdict = Invoke-GuestCheck -ScriptName "dump-uia.ps1" -ResultName "uia-dump.txt" -Verbose $true
     Write-Host "`n  $verdict" -ForegroundColor $(if ($verdict -eq "PASS") { "Green" } else { "Red" })
     exit $(if ($verdict -eq "PASS") { 0 } else { 1 })
+}
+
+# A harness check named on its own runs alone; `all` runs them before the
+# scenarios (below).
+function Invoke-HarnessCheck {
+    param([string]$Name)
+    $check = $harnessChecks[$Name]
+    Write-Host "`n=== $Name ===" -ForegroundColor Cyan
+    $exe = Build-Binary -TestInject $false
+    if (-not $NoRevert) { Reset-Guest }
+    Copy-Payload -Exe $exe
+    if ($check.NeedsTray -and -not (Set-TrayIconPromoted)) { return "SETUP FAILED" }
+    return Invoke-GuestCheck -ScriptName $check.Script -ResultName $check.Result -Verbose $false
+}
+
+$requestedHarness = @($Scenario -split '[,\s]+' | Where-Object { $harnessChecks.Contains($_.Trim()) })
+if ($requestedHarness.Count -gt 0 -and $Scenario -ne "all") {
+    $results = [ordered]@{}
+    foreach ($name in $requestedHarness) { $results[$name] = Invoke-HarnessCheck -Name $name.Trim() }
+    Write-Host "`n=== summary ===" -ForegroundColor Cyan
+    foreach ($name in $results.Keys) {
+        $color = if ($results[$name] -eq "PASS") { "Green" } else { "Red" }
+        Write-Host ("  {0,-24} {1}" -f $name, $results[$name]) -ForegroundColor $color
+    }
+    exit $(if ($results.Values | Where-Object { $_ -ne "PASS" }) { 1 } else { 0 })
 }
 
 # The @() must wrap the whole statement: assigning from an if unwraps a
@@ -382,15 +429,11 @@ foreach ($file in $files) {
 
 $results = [ordered]@{}
 
-# Part of a full run, not a separate command to remember: the scenarios check
-# what the windows expose, this checks that pressing what they expose works.
+# Part of a full run, not separate commands to remember: the scenarios check
+# what the windows expose, these check that pressing what they expose works and
+# that the v0.1〜v0.3 regression items still hold.
 if ($Scenario -eq "all") {
-    Write-Host "`n=== 00-uia-actuation ===" -ForegroundColor Cyan
-    $exe = Build-Binary -TestInject $false
-    if (-not $NoRevert) { Reset-Guest }
-    Copy-Payload -Exe $exe
-    $results["00-uia-actuation"] = if (Set-TrayIconPromoted) { Invoke-UiaChecks -Verbose $false }
-    else { "SETUP FAILED" }
+    foreach ($name in $harnessChecks.Keys) { $results[$name] = Invoke-HarnessCheck -Name $name }
 }
 
 foreach ($file in $files) {
