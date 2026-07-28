@@ -1,0 +1,16 @@
+# A config with exactly one deliberate mistake, for tests/ui/guest/cli-smoke.ps1.
+#
+# `NoSuchKey` is not a key name, so loading fails with a validation issue that
+# carries the line and column of the offending rule. The check asserts that a
+# launch with no terminal shows that message — line number included — in a
+# dialog rather than dying silently (v0.2 A-8, ADR 0029).
+#
+# Keep the mistake semantic, not a TOML syntax error: a syntax error is
+# reported by the toml crate and takes a different path through the loader.
+
+[[keymap]]
+name = "broken"
+application = ["notepad.exe"]
+
+[keymap.remap]
+"C-h" = "NoSuchKey"
