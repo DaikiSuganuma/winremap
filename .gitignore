@@ -1,5 +1,7 @@
 /target/
 /installer/output/
+# Test VM connection details, including the guest password. Never commit.
+/.secrets/
 .mcp.json
 *.log
 *.stackdump

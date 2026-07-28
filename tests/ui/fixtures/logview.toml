@@ -1,0 +1,24 @@
+# Config for the log-view checks (tests/ui/guest/log-view.ps1). Not an example
+# for users.
+#
+# A global keymap, unlike uitest.toml's per-app one: the keys are sent while
+# WinRemap's own log window has focus, so an application-scoped rule would
+# never fire and the log would show a pass-through where the check expects a
+# remap.
+#
+# C-n to Down is the case the two views were built to explain (ADR 0057): the
+# target needs no modifiers, so the held Ctrl has to be lifted before it and
+# put back after, and the putting-back happens when the key is released rather
+# than when it is pressed.
+#
+# C-h to Back is the problem this project was started for (ADR 0056): both
+# sides carry BS 0x08, and the log has to say so on the line that reports the
+# remap.
+
+[[keymap]]
+name = "global"
+application = ["*"]
+
+[keymap.remap]
+"C-n" = "Down"
+"C-h" = "Back"

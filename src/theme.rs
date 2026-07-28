@@ -30,8 +30,11 @@ use windows::Win32::Foundation::COLORREF;
 /// people see every time.
 pub const CONFIG_WINDOW: [f32; 2] = [1120.0, 860.0];
 
-/// The log window, in points. Wide enough for a debug line without wrapping.
-pub const LOG_WINDOW: [f32; 2] = [760.0, 480.0];
+/// The log window, in points. Wide enough for a debug line without wrapping,
+/// now that each one carries a time and a tag ahead of it, and tall enough
+/// to hold a few seconds of the detailed view, which prints three lines for
+/// every one the simple view shows (owner request 2026-07-28).
+pub const LOG_WINDOW: [f32; 2] = [900.0, 720.0];
 
 /// The invisible host viewport that owns the event loop (ADR 0037). One
 /// pixel, parked off-screen: eframe shows its root window after the first
@@ -96,6 +99,32 @@ pub const HIGHLIGHT_PAD: i8 = 10;
 
 /// Corner rounding for highlighted boxes.
 pub const HIGHLIGHT_ROUNDING: u8 = 6;
+
+// ---- The log window's rows ----------------------------------------------
+
+/// Width of the log's time column. Wide enough for `HH:MM:SS.mmm` in the
+/// monospace face; the stamp is what tells a reader that two lines came from
+/// two different moments, which is the one thing the old flat list could not
+/// say (owner request 2026-07-28).
+pub const LOG_TIME_WIDTH: f32 = 96.0;
+
+/// Width of the log's tag column, sized to the longest tag in either
+/// language (`[injected]`).
+pub const LOG_TAG_WIDTH: f32 = 92.0;
+
+/// Gap between the log's columns. Bigger than the default item spacing: the
+/// columns are the only thing dividing the row, since drawing rules for a
+/// list this long would be noise.
+pub const LOG_COLUMN_GAP: f32 = 10.0;
+
+/// Space between the log header's two checkboxes. Without it they read as
+/// one control with two checkmarks, since a checkbox's own label sits right
+/// against the next widget (owner request 2026-07-29).
+pub const LOG_CONTROL_GAP: f32 = 12.0;
+
+/// How far a mechanics line is pushed right of the decision it belongs to.
+/// Small on purpose — it groups without turning the log into a tree.
+pub const LOG_DETAIL_INDENT: f32 = 14.0;
 
 // ---- Icons ---------------------------------------------------------------
 
@@ -216,6 +245,24 @@ pub fn sidebar_hover_fill(visuals: &egui::Visuals) -> egui::Color32 {
     visuals
         .panel_fill
         .lerp_to_gamma(visuals.text_color(), NAV_HOVER_LERP)
+}
+
+/// The log's time column, and the mechanics under a decision: on the page
+/// but not what the eye lands on first. What makes the detailed view
+/// readable is that the decisions stay legible through it.
+pub fn log_weak_text(visuals: &egui::Visuals) -> egui::Color32 {
+    visuals.weak_text_color()
+}
+
+/// A decision line — the answer to "what did WinRemap do with that key".
+pub fn log_decision_text(visuals: &egui::Visuals) -> egui::Color32 {
+    visuals.text_color()
+}
+
+/// A line the user caused, and the session banner. The loudest tone in the
+/// window, because these are the landmarks people scroll to.
+pub fn log_action_text(visuals: &egui::Visuals) -> egui::Color32 {
+    visuals.strong_text_color()
 }
 
 /// Fill for a box that has to stand out from the tables around it.

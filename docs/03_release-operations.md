@@ -61,11 +61,25 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
    git branch -d release/0.3.0
    ```
 
-5. release.yml が起動し、テスト → ビルド → インストーラー生成（Inno Setup、ADR 0027） → `SHA256SUMS` 生成 → **ビルド来歴の attestation** → **ドラフトリリース**作成まで自動で行う
-6. GitHub → Releases のドラフトを開き、以下を確認して **Publish release**:
+5. release.yml が起動し、テスト → ビルド → インストーラー生成（Inno Setup、ADR 0027） → `SHA256SUMS` 生成 → **ビルド来歴の attestation** → **ドラフトリリース**作成まで自動で行う。**本文（リリースノート）は空で作られる**
+6. **ドラフトの本文を入れる**（オーナー指示 2026-07-26。公開ボタンだけを押せば済む状態にして引き渡す）:
+
+   ```powershell
+   gh release edit v0.4.0 --notes-file <リリースノート.md>
+   ```
+
+   体裁は既存のリリースに合わせる（[v0.3.0](https://github.com/DaikiSuganuma/winremap/releases/tag/v0.3.0) が見本）:
+
+   - **日本語 → `---` → 英語**の順で同じ内容を 2 本
+   - 見出しは `## WinRemap vX.Y.Z — <その版を一言で>`、続けて 1 行の要約
+   - `### 新機能` / `### New`（利用者から見た変化のみ。開発基盤の変更は書かない）、必要なら `### 修正` / `### Fixed`
+   - `### インストール` / `### Install`、`### ダウンロードの検証` / `### Verify your download`（ハッシュ照合と `gh attestation verify` の 2 行。SmartScreen の断りも含めて既存の文面を流用）
+   - 末尾に `**Full changelog:** https://github.com/DaikiSuganuma/winremap/blob/vX.Y.Z/CHANGELOG.md`
+
+7. GitHub → Releases のドラフトを開き、以下を確認して **Publish release**（オーナーが行う）:
    - 添付物が `winremap.exe`・`winremap-setup.exe`・`SHA256SUMS`・`THIRD-PARTY-NOTICES.md` の 4 点であること（notices は exe 単体で落とす利用者向け。Bootstrap Icons の MIT 表示）
-   - リリースノート（CHANGELOG から転記・調整）
-7. 公開後の検証（利用者と同じ手順で最終確認）:
+   - 本文の内容
+8. 公開後の検証（利用者と同じ手順で最終確認）:
 
    ```powershell
    gh attestation verify .\winremap.exe --repo DaikiSuganuma/winremap
@@ -91,7 +105,11 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 
 > 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
 
-> **winget 初回登録の状況（2026-07-23 時点）**: v0.3.0 の提出（[PR #405731](https://github.com/microsoft/winget-pkgs/pull/405731)）は上記 0. の依存が原因で検証に失敗した。リリース済みバイナリは差し替えられないため、**この PR は取り下げ、初回登録は v0.4.0 でやり直す**（オーナー決定 2026-07-23。経緯と手順は[作業ノート](./v0.4/notes/20260723_winget-0.3.0-validation.md)）。
+> **winget 初回登録の状況（2026-07-26 更新）**: v0.3.0 の提出（[PR #405731](https://github.com/microsoft/winget-pkgs/pull/405731)）は上記 0. の依存が原因で検証に失敗した。リリース済みバイナリは差し替えられないため、この PR は取り下げ、初回登録は v0.4.0 でやり直すことにした（オーナー決定 2026-07-23。経緯は[作業ノート](./v0.4/notes/20260723_winget-0.3.0-validation.md)）。
+>
+> **2026-07-29 現在の状況（v0.5.0 リリース準備時にオーナー確認）**: [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) は**まだマージされていない**。したがって v0.5.0 は **winget へ新規 PR を出さない**。初回登録の PR が審査中に 2 本目の「新規パッケージ」PR を出すと重複扱いになり、どちらの審査も進まなくなるためである。取りうる道は 2 つで、**#407875 がマージされてから 0.5.0 を「更新」として提出する**（推奨。手順は上記 1〜4 のとおり）か、**#407875 のブランチを 0.5.0 の内容に差し替える**（審査が長引く場合。登録される最初のバージョンが新しくなる）。どちらもオーナーの GitHub アカウントでの操作なので、**リリース公開後にオーナーが選ぶ**。`packaging/winget/*.yaml` の更新もその時点で行う（URL と SHA256 は公開後の資産から取る）。
+>
+> **2026-07-26 実施**: v0.4.0 で再提出した（[PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875)）。提出前に 0. のチェック（出力が空）、`winget validate`、公開済み `winremap-setup.exe` を実際に落として SHA256 が manifest と一致することを確認済み。あわせて #405731 を理由を書いて close した。**初回登録は審査に時間がかかる**ため、マージされるまで `winget install DaikiSuganuma.WinRemap` は解決しない。
 
 ## 4. 配布ポリシー（ブリーフ §10-3）
 

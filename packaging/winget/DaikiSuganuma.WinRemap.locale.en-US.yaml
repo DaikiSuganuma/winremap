@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
 PackageIdentifier: DaikiSuganuma.WinRemap
-PackageVersion: 0.3.0
+PackageVersion: 0.4.0
 PackageLocale: en-US
 Publisher: Daiki Suganuma
 PublisherUrl: https://github.com/DaikiSuganuma
@@ -19,8 +19,10 @@ Description: |-
   heap allocation or I/O in the callback, so remapping stays responsive and
   avoids the hook timeouts that affect script-based remappers. Chord and
   bare-key rules, two-stroke prefixes, macros and optional runtime macro
-  recording are supported. WinRemap never logs keystrokes and makes no network
-  requests.
+  recording are supported. The settings window shows the config in effect and
+  edits it in place, validating as you type and leaving everything you did not
+  touch — comments, ordering, spelling — exactly as it was. WinRemap never logs
+  keystrokes and makes no network requests.
 Moniker: winremap
 Tags:
   - keyboard
@@ -31,6 +33,6 @@ Tags:
   - emacs
   - utility
   - rust
-ReleaseNotesUrl: https://github.com/DaikiSuganuma/winremap/releases/tag/v0.3.0
+ReleaseNotesUrl: https://github.com/DaikiSuganuma/winremap/releases/tag/v0.4.0
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0

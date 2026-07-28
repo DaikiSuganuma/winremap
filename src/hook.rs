@@ -23,6 +23,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 use windows::core::w;
 
+use crate::gui::log::Kind;
 use crate::i18n;
 use crate::sender;
 use crate::sender::{ModAdjustment, SideMods};
@@ -108,6 +109,11 @@ enum DebugAction {
     Prefix,
     Swallow,
     Repeat,
+    /// A press or release as it arrived from the keyboard, logged before any
+    /// decision is taken. Only the detailed view shows these (ADR 0057).
+    Physical {
+        up: bool,
+    },
     Injected {
         vk: u16,
         up: bool,
@@ -178,40 +184,84 @@ pub fn drain_debug_log() {
     if !debug_enabled() {
         return;
     }
+    let texts = i18n::t();
     DEBUG_RING.with(|ring| {
         let mut ring = ring.borrow_mut();
         for event in ring.events.iter().take(ring.len).flatten() {
-            let line = match event.action {
-                DebugAction::Pass => i18n::debug_key_pass(event.input),
-                DebugAction::Chord(target) => {
-                    i18n::debug_key_chord(event.prev, event.input, target)
-                }
-                DebugAction::KeyOnly(vk) => i18n::debug_key_substituted(event.input, vk),
+            // Kind decides whether the simple view keeps the line; the tag is
+            // what the window puts in its gutter and the console prints in
+            // front of the text (ADR 0057).
+            let (kind, tag, line) = match event.action {
+                DebugAction::Pass => (
+                    Kind::Decision,
+                    texts.log_tag_decision,
+                    i18n::debug_key_pass(event.input),
+                ),
+                DebugAction::Chord(target) => (
+                    Kind::Decision,
+                    texts.log_tag_decision,
+                    i18n::debug_key_chord(event.prev, event.input, target),
+                ),
+                DebugAction::KeyOnly(vk) => (
+                    Kind::Decision,
+                    texts.log_tag_decision,
+                    i18n::debug_key_substituted(event.input, vk),
+                ),
                 DebugAction::Macro { elements, len } => {
                     // Joined here, outside the hook, where allocation is fine.
                     let steps = elements[..usize::from(len)]
                         .iter()
-                        .map(|combo| combo.to_string())
+                        .map(crate::keyname::combo)
                         .collect::<Vec<_>>()
                         .join(" → ");
-                    i18n::debug_key_macro(event.prev, event.input, len, &steps)
+                    (
+                        Kind::Decision,
+                        texts.log_tag_decision,
+                        i18n::debug_key_macro(event.prev, event.input, len, &steps),
+                    )
                 }
-                DebugAction::Prefix => i18n::debug_key_prefix(event.input),
-                DebugAction::Swallow => i18n::debug_key_swallowed(event.prev, event.input),
-                DebugAction::Repeat => i18n::debug_key_repeat(event.input),
+                DebugAction::Prefix => (
+                    Kind::Decision,
+                    texts.log_tag_decision,
+                    i18n::debug_key_prefix(event.input),
+                ),
+                DebugAction::Swallow => (
+                    Kind::Decision,
+                    texts.log_tag_decision,
+                    i18n::debug_key_swallowed(event.prev, event.input),
+                ),
+                // A decision, but one a held key makes dozens of times a
+                // second. It belongs with the mechanics, or holding a key
+                // buries everything else in the simple view.
+                DebugAction::Repeat => (
+                    Kind::Detail,
+                    texts.log_tag_decision,
+                    i18n::debug_key_repeat(event.input),
+                ),
+                DebugAction::Physical { up } => (
+                    Kind::Detail,
+                    texts.log_tag_input,
+                    i18n::debug_physical(event.input.vk, up),
+                ),
                 DebugAction::Injected { vk, up, source } => {
                     let source = match source {
-                        InjectedSource::Remap => i18n::t().debug_source_remap,
-                        InjectedSource::Compensation => i18n::t().debug_source_compensation,
-                        InjectedSource::External => i18n::t().debug_source_external,
+                        InjectedSource::Remap => texts.debug_source_remap,
+                        InjectedSource::Compensation => texts.debug_source_compensation,
+                        InjectedSource::External => texts.debug_source_external,
                     };
-                    i18n::debug_injected(vk, up, source)
+                    (
+                        Kind::Detail,
+                        texts.log_tag_injected,
+                        i18n::debug_injected(vk, up, source),
+                    )
                 }
             };
-            crate::gui::log::emit(&line);
+            crate::gui::log::tagged(kind, tag, &line);
         }
         if ring.dropped > 0 {
-            crate::gui::log::emit(&i18n::debug_events_dropped(ring.dropped));
+            // An action rather than a note: it is stamped, so a reader can
+            // see which burst of typing outran the buffer.
+            crate::gui::log::action(&i18n::debug_events_dropped(ring.dropped));
         }
         ring.len = 0;
         ring.dropped = 0;
@@ -597,6 +647,23 @@ fn handle_event(message: u32, event: &KBDLLHOOKSTRUCT) -> bool {
     // auto-repeat, which the pass-through debug log skips below.
     let physical_repeat = down && PHYS_DOWN.with(|held| held.borrow()[usize::from(vk)]);
     PHYS_DOWN.with(|held| held.borrow_mut()[usize::from(vk)] = down);
+
+    // Logged before anything is decided, so the detailed view is a
+    // transcript rather than a summary: modifiers, which no decision line
+    // ever mentions, and releases, which is where the second half of a
+    // remap's output comes from. Auto-repeat is left out — a held key fires
+    // dozens of times a second and would bury the rest (ADR 0016's noise
+    // rule); the `Repeat` line above already says a key is repeating.
+    if !physical_repeat {
+        log_debug(
+            None,
+            KeyCombo {
+                mods: Mods::NONE,
+                vk,
+            },
+            DebugAction::Physical { up: !down },
+        );
+    }
 
     if down {
         // IME indicator poke on toggle-candidate keys; bounded and

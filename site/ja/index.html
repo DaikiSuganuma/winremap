@@ -178,11 +178,14 @@
         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">ルールがマッチしない — どうやって調べる?</button>
       </h3>
       <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">トレイアイコンを右クリックして<em>ログを表示</em>を選んでください。前面ウィンドウごとの
-        正確な <code>application</code> 値と、キーごとの判定 (素通し / リマップ / マクロ /
-        プレフィックス)がキー名レベルで、打つそばから表示されます。ターミナル派の方は
-        <code>winremap.exe --debug</code> で起動すれば同じ内容がそちらに出ます。入力した文章
-        そのものがログに出ることはなく、ログがディスクに保存されることもありません。</div>
+        <div class="accordion-body">トレイアイコンを右クリックして<em>ログを表示</em>を選んでください。読み込み中の設定
+        ファイル、前面ウィンドウごとの正確な <code>application</code> 値、そしてキーごとの
+        判定 (素通し / リマップ / マクロ / プレフィックス)が、時刻付きで 1 行ずつ出ます —
+        <code>C-h (BS 0x08) → Back (BS 0x08) に置換</code> のように。［全イベント］に
+        チェックを入れると、押下・解放と WinRemap が送出したイベントまで全部見られます。
+        ターミナル派の方は <code>winremap.exe --debug</code> で起動すれば同じ内容がそちらに
+        出ます (このオプションを付けない場合は何も出力しません)。入力した文章そのものが
+        ログに出ることはなく、ログがディスクに保存されることもありません。</div>
       </div>
     </div>
     <div class="accordion-item">
@@ -201,8 +204,9 @@
       <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
         <div class="accordion-body">表示しなくなりました。エクスプローラー・スタートメニュー・サインイン時の自動起動は
         すべて無音で起動し、利用者が知るべきこと(起動時エラー、リロード失敗)はダイアログで
-        表示されます。ターミナルから起動した場合は従来どおりそのターミナルに出力しますが、
-        プロンプトがすぐ戻るため出力が混ざって見えます。読みやすいログが必要なときは
+        表示されます。ターミナルから起動した場合も同じように静かで、<code>--debug</code> を
+        付けたときだけそのターミナルにログを出力します (プロンプトがすぐ戻るため出力が
+        混ざって見えます)。読みやすいログが必要なときは
         トレイの<em>ログを表示</em>をお使いください。</div>
       </div>
     </div>
