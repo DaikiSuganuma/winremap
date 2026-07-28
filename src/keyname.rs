@@ -26,22 +26,16 @@
 
 use windows::Win32::UI::Input::KeyboardAndMouse::{MAPVK_VK_TO_CHAR, MapVirtualKeyW};
 
-use winremap::keymap::{KeyCombo, Mods, vk_config_name};
+use winremap::keymap::{KeyCombo, Mods, control_code, vk_config_name};
 
-/// One key, as a reader of the log would name it.
+/// One key, as a reader of the log would name it — with the control code it
+/// carries, when it carries one (ADR 0056).
 pub fn key(vk: u16) -> String {
-    if let Some(name) = vk_config_name(vk) {
-        return name;
-    }
-    if let Some(name) = fixed_name(vk) {
-        return format!("{name} (0x{vk:02X})");
-    }
-    match layout_char(vk) {
-        Some(character) => format!("{character} (0x{vk:02X})"),
-        // Nothing to say beyond the code itself — the key produces no
-        // character and is not one of the named ones.
-        None => format!("0x{vk:02X}"),
-    }
+    let combo = KeyCombo {
+        mods: Mods::NONE,
+        vk,
+    };
+    format!("{}{}", name(vk), code_suffix(combo))
 }
 
 /// A chord in the config's own notation (`C-S-h`), with [`key`] naming the
@@ -59,8 +53,40 @@ pub fn combo(combo: &KeyCombo) -> String {
             text.push_str(prefix);
         }
     }
-    text.push_str(&key(combo.vk));
+    text.push_str(&name(combo.vk));
+    // Read from the whole chord rather than the key: Ctrl is what turns `h`
+    // into BS, and it is the modifier that carries the answer.
+    text.push_str(&code_suffix(*combo));
     text
+}
+
+/// The key's name alone — the three steps above, without the control code.
+fn name(vk: u16) -> String {
+    if let Some(name) = vk_config_name(vk) {
+        return name;
+    }
+    if let Some(name) = fixed_name(vk) {
+        return format!("{name} (0x{vk:02X})");
+    }
+    match layout_char(vk) {
+        Some(character) => format!("{character} (0x{vk:02X})"),
+        // Nothing to say beyond the code itself — the key produces no
+        // character and is not one of the named ones.
+        None => format!("0x{vk:02X}"),
+    }
+}
+
+/// ` (BS 0x08)`, or nothing at all.
+///
+/// The mnemonic leads because it is the part people read; the number is what
+/// they paste into a report. A key with no control code gets no suffix, which
+/// is what keeps the log from becoming a transcript of the text typed
+/// (invariant 6, ADR 0056) — and what keeps ordinary typing quiet.
+fn code_suffix(combo: KeyCombo) -> String {
+    match control_code(combo) {
+        Some(code) => format!(" ({} 0x{:02X})", code.name, code.byte),
+        None => String::new(),
+    }
 }
 
 /// Keys with no config name whose identity is the same on every keyboard, so
@@ -174,7 +200,25 @@ mod tests {
 
     #[test]
     fn a_chord_reads_as_the_config_spells_it() {
-        let combo = winremap::keymap::parse_key_combo("C-S-h").expect("parses");
-        assert_eq!(super::combo(&combo), "C-S-h");
+        let combo = winremap::keymap::parse_key_combo("A-x").expect("parses");
+        assert_eq!(super::combo(&combo), "A-x");
+    }
+
+    /// The founding problem, as it now reads in the log: the chord and the
+    /// key it is remapped to both say BS (ADR 0056).
+    #[test]
+    fn a_control_chord_says_what_it_sends() {
+        let chord = winremap::keymap::parse_key_combo("C-h").expect("parses");
+        assert_eq!(super::combo(&chord), "C-h (BS 0x08)");
+        assert_eq!(key(0x08), "Back (BS 0x08)");
+    }
+
+    /// Nothing is appended for a key that carries no control code, so
+    /// ordinary typing does not turn into a stream of numbers.
+    #[test]
+    fn ordinary_keys_stay_as_they_were() {
+        assert_eq!(key(0x41), "a");
+        let shifted = winremap::keymap::parse_key_combo("S-a").expect("parses");
+        assert_eq!(super::combo(&shifted), "S-a");
     }
 }

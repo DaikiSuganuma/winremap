@@ -218,16 +218,35 @@ fn store(line: Line) {
 /// clicking again while it is up only raises it, keeping the transcript.
 pub fn request_open() {
     if !OPEN.swap(true, Ordering::SeqCst) {
+        // Read before the lock: both of these take locks of their own, and
+        // the config file is worth reading fresh — the address bar can switch
+        // it while WinRemap runs (ADR 0050), so the window has to say which
+        // file is loaded *now* rather than which one it started with.
+        let config = i18n::log_active_config(&super::active_config_path(), keymap_count());
         if let Ok(mut lines) = buffer().lock() {
             lines.clear();
             if let Some(start) = SESSION_START.get() {
                 lines.push_back(note(start.clone()));
             }
+            // The window is usually opened long after launch, and the line
+            // that named the config file scrolled past before anyone could
+            // read it — a reload said which file it read while startup never
+            // did (owner decision, v0.5 plan §4 item 5).
+            lines.push_back(note(config));
             lines.push_back(note(i18n::t().log_window_hint.to_owned()));
         }
         hook::set_debug(true);
     }
     FOCUS_REQUESTED.store(true, Ordering::SeqCst);
+}
+
+/// How many keymaps the running table holds, for the line above. Zero before
+/// the first load, which is a state the window can be opened in.
+fn keymap_count() -> usize {
+    hook::REMAP_TABLE
+        .load()
+        .as_ref()
+        .map_or(0, |table| table.keymaps.len())
 }
 
 /// Debug logging goes back to whatever the command line asked for and the
