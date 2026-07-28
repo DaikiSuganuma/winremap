@@ -145,11 +145,20 @@ pub fn key_name_to_vk(name: &str) -> Option<u16> {
     Some(vk)
 }
 
-/// Canonical display name for a VK, used by debug output. The inverse of
-/// [`key_name_to_vk`] for named keys; letters/digits/F-keys are computed and
-/// unknown codes fall back to hex.
+/// Canonical display name for a VK. The inverse of [`key_name_to_vk`] for
+/// named keys; unknown codes fall back to hex.
 pub fn vk_display_name(vk: u16) -> String {
-    match vk {
+    vk_config_name(vk).unwrap_or_else(|| format!("0x{vk:02X}"))
+}
+
+/// The name the config file uses for a VK, or `None` when the key has none.
+///
+/// Split out from [`vk_display_name`] so a caller can tell "this key is
+/// called Down" from "this key has no name yet" — the hex fallback answers
+/// the second case with something nobody can read, and the log needs to say
+/// more than that about a key the user just pressed (ADR 0058).
+pub fn vk_config_name(vk: u16) -> Option<String> {
+    let name = match vk {
         0x41..=0x5A => char::from(b'a' + (vk - 0x41) as u8).to_string(),
         0x30..=0x39 => char::from(b'0' + (vk - 0x30) as u8).to_string(),
         0x70..=0x87 => format!("F{}", vk - 0x70 + 1),
@@ -178,8 +187,9 @@ pub fn vk_display_name(vk: u16) -> String {
         0xA3 => "RCtrl".to_string(),
         0xA4 => "LAlt".to_string(),
         0xA5 => "RAlt".to_string(),
-        other => format!("0x{other:02X}"),
-    }
+        _ => return None,
+    };
+    Some(name)
 }
 
 /// Every canonical special-key name, in the order `vk_display_name` spells

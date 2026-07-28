@@ -117,6 +117,11 @@ pub const LOG_TAG_WIDTH: f32 = 92.0;
 /// list this long would be noise.
 pub const LOG_COLUMN_GAP: f32 = 10.0;
 
+/// Space between the log header's two checkboxes. Without it they read as
+/// one control with two checkmarks, since a checkbox's own label sits right
+/// against the next widget (owner request 2026-07-29).
+pub const LOG_CONTROL_GAP: f32 = 12.0;
+
 /// How far a mechanics line is pushed right of the decision it belongs to.
 /// Small on purpose — it groups without turning the log into a tree.
 pub const LOG_DETAIL_INDENT: f32 = 14.0;

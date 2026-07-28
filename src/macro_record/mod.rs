@@ -320,8 +320,10 @@ fn replay(banner: &banner::Banner, held: SideMods) {
         None,
     );
     if crate::hook::debug_enabled() {
-        // This thread is not the hook: logging here is fine.
-        crate::gui::log::emit(&i18n::macro_record_replaying(&commands));
+        // This thread is not the hook: logging here is fine. An action, like
+        // the rest of the recording lines — the user pressed the play key,
+        // and the keys that follow are its doing rather than their typing.
+        crate::gui::log::action(&i18n::macro_record_replaying(&commands));
     }
     crate::sender::send_recorded(&commands, held);
     banner.hide();

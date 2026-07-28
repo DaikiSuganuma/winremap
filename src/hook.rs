@@ -211,7 +211,7 @@ pub fn drain_debug_log() {
                     // Joined here, outside the hook, where allocation is fine.
                     let steps = elements[..usize::from(len)]
                         .iter()
-                        .map(|combo| combo.to_string())
+                        .map(crate::keyname::combo)
                         .collect::<Vec<_>>()
                         .join(" → ");
                     (
@@ -256,10 +256,12 @@ pub fn drain_debug_log() {
                     )
                 }
             };
-            crate::gui::log::debug_line(kind, tag, &line);
+            crate::gui::log::tagged(kind, tag, &line);
         }
         if ring.dropped > 0 {
-            crate::gui::log::emit(&i18n::debug_events_dropped(ring.dropped));
+            // An action rather than a note: it is stamped, so a reader can
+            // see which burst of typing outran the buffer.
+            crate::gui::log::action(&i18n::debug_events_dropped(ring.dropped));
         }
         ring.len = 0;
         ring.dropped = 0;

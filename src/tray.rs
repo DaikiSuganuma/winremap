@@ -161,9 +161,9 @@ impl Tray {
                 self.keymap_count.set(count);
                 crate::gui::mark_config_loaded();
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
-                crate::gui::log::emit(&i18n::reload_ok(count));
+                crate::gui::log::action(&i18n::reload_ok(count));
                 if hook::debug_enabled() {
-                    crate::gui::log::emit(&i18n::debug_config_loaded(&config_path, count));
+                    crate::gui::log::action(&i18n::debug_config_loaded(&config_path, count));
                 }
             }
             Err(e) => {
