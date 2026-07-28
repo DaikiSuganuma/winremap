@@ -10,6 +10,10 @@
 # target needs no modifiers, so the held Ctrl has to be lifted before it and
 # put back after, and the putting-back happens when the key is released rather
 # than when it is pressed.
+#
+# C-h to Back is the problem this project was started for (ADR 0056): both
+# sides carry BS 0x08, and the log has to say so on the line that reports the
+# remap.
 
 [[keymap]]
 name = "global"
@@ -17,3 +21,4 @@ application = ["*"]
 
 [keymap.remap]
 "C-n" = "Down"
+"C-h" = "Back"

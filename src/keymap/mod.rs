@@ -6,13 +6,16 @@
 //! `windows` crate dependency in the testable core.
 //!
 //! Submodules: `parse` (notation → combos), `table` (compiled keymaps and
-//! resolution). Shared primitive types live here.
+//! resolution), `control` (the control code a combination carries). Shared
+//! primitive types live here.
 
+mod control;
 mod parse;
 mod table;
 #[cfg(test)]
 mod tests;
 
+pub use control::{ControlCode, control_code};
 pub use parse::{
     InputPattern, KeyParseError, SPECIAL_KEY_NAMES, is_modifier_vk, key_name_to_vk,
     parse_input_pattern, parse_key_combo, suggest_key_name, vk_config_name, vk_display_name,

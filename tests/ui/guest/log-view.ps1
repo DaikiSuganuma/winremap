@@ -129,6 +129,10 @@ Start-Sleep -Milliseconds 500
 [Nat]::Key(0x61)
 Start-Sleep -Milliseconds 500
 [Nat]::Key(0xBF)
+Start-Sleep -Milliseconds 500
+# The problem this project was started for: C-h and Back both send BS 0x08,
+# and until now the log said neither (ADR 0056).
+[Nat]::Chord(0x11, 0x48)
 Start-Sleep -Seconds 2
 Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
@@ -163,6 +167,23 @@ Say ("foreground reports in the simple view: " + $reports.Count)
 foreach ($r in $reports) { Say ("  F| " + $r) }
 Check "the-foreground-app-is-named" ($reports.Count -ge 1) `
     "a window switch logs the value to write in the application list, and which keymaps it reaches"
+
+# --- the control codes (ADR 0056) ----------------------------------------
+# Both sides of the founding remap have to say BS 0x08 on the one line that
+# reports it, or the log still cannot answer the question this project began
+# with (project brief 1.1).
+$founding = @($simple | Where-Object { $_ -like "C-h (BS 0x08)*Back (BS 0x08)*" })
+foreach ($f in $founding) { Say ("  B| " + $f) }
+Check "the-founding-pair-shows-its-code" ($founding.Count -ge 1) `
+    "C-h and the Back it becomes both say BS 0x08, on the decision line"
+# The other half of the boundary: a printable key carries no code, so the log
+# never becomes a record of the text that was typed (invariant 6).
+Check "printable-keys-carry-no-code" `
+(@($simple | Where-Object { $_ -like "a *" -and $_ -like "*0x61*" }).Count -eq 0) `
+    "an ordinary letter is logged by name only - no code, no transcript of typing"
+Check "the-config-file-is-named" `
+(@($simple | Where-Object { $_ -like "*logview.toml*" }).Count -ge 1) `
+    "the window says which config file is loaded, without waiting for a reload"
 
 # --- tick the box, without pressing another key ---------------------------
 # The point of buffering the mechanics whether or not they are shown: someone

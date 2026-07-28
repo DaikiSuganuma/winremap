@@ -559,6 +559,20 @@ pub fn session_started(now: &str) -> String {
     }
 }
 
+/// The second line the log window opens with: which config file is loaded
+/// right now, and how many keymaps came out of it.
+///
+/// The startup line saying this reaches a terminal, and the window is usually
+/// opened long after launch — so without this the one place that never said
+/// which file was in force was the window built for answering that kind of
+/// question (v0.5 plan §4 item 5).
+pub fn log_active_config(path: &Path, count: usize) -> String {
+    match lang() {
+        Lang::En => format!("config: {} ({count} keymap(s))", path.display()),
+        Lang::Ja => format!("設定ファイル: {}（キーマップ {count} 件）", path.display()),
+    }
+}
+
 /// Closes it, on the way out of `run`.
 pub fn session_ended(now: &str) -> String {
     let version = env!("CARGO_PKG_VERSION");
