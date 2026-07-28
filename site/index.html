@@ -177,11 +177,15 @@
         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">My rule doesn't match — how do I debug it?</button>
       </h3>
       <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">Right-click the tray icon and pick <em>Show log</em>. It shows the exact
-        <code>application</code> value for each foreground window and logs every key decision
-        (pass-through / remap / macro / prefix) at key-name level, as you type. Prefer a
-        terminal? Start WinRemap with <code>winremap.exe --debug</code> and the same lines go
-        there. Debug output never includes typed text and is never written to disk.</div>
+        <div class="accordion-body">Right-click the tray icon and pick <em>Show log</em>. It names the config file
+        it loaded, shows the exact <code>application</code> value for each foreground window,
+        and gives one stamped line per key saying what WinRemap did with it
+        (pass-through / remap / macro / prefix) — <code>C-h (BS 0x08) → remapped to Back
+        (BS 0x08)</code>. Tick <em>Every event</em> to see the whole stream instead: every
+        press and release, and everything WinRemap sent in reply. Prefer a terminal? Start
+        WinRemap with <code>winremap.exe --debug</code> and the same lines go there instead;
+        without that flag it prints nothing. Debug output never includes typed text and is
+        never written to disk.</div>
       </div>
     </div>
     <div class="accordion-item">
@@ -200,9 +204,10 @@
       <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
         <div class="accordion-body">WinRemap no longer opens one: launching it from Explorer, the Start menu or at
         sign-in is silent, and anything you must see (a startup error, a failed reload)
-        appears as a dialog. Start it from a terminal and it still prints there, though the
-        prompt returns immediately so output arrives interleaved with it. For a readable
-        running log, use <em>Show log</em> in the tray.</div>
+        appears as a dialog. Started from a terminal it is just as quiet — add
+        <code>--debug</code> to have the log printed there, though the prompt returns
+        immediately so output arrives interleaved with it. For a readable running log, use
+        <em>Show log</em> in the tray.</div>
       </div>
     </div>
     <div class="accordion-item">
