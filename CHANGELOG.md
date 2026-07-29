@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **WinRemap starts on a machine that has no config file yet** (ADR 0059). It
+  used to refuse, which was invisible only because the installer seeded
+  `%APPDATA%\winremap\config.toml` for you — so the portable exe failed on
+  first run, and so would a Microsoft Store package, which has no
+  install-time step at all. The default config is now written on first run
+  (the same Notepad example the installer places) and the session says where
+  it landed. A path given with `--config` still has to exist: a typo there
+  should say so, not quietly produce a WinRemap that remaps nothing. An
+  existing config is never overwritten.
+
 ## [0.5.0] - 2026-07-29
 
 ### Added

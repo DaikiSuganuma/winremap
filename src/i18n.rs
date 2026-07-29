@@ -436,6 +436,16 @@ pub fn startup_loaded(count: usize, path: &Path) -> String {
     }
 }
 
+/// Announces the config file written on first run. Said out loud rather than
+/// done silently: the file is the thing the user edits next, so the session
+/// has to name where it landed.
+pub fn created_default_config(path: &Path) -> String {
+    match lang() {
+        Lang::En => format!("created a default config at {}", path.display()),
+        Lang::Ja => format!("既定の設定ファイルを作成しました: {}", path.display()),
+    }
+}
+
 /// The status bar's "running since" segment (v0.4 screen design §5).
 pub fn status_started(time: &str) -> String {
     match lang() {
@@ -785,14 +795,17 @@ pub fn ime_indicator_failed(error: &str) -> String {
     }
 }
 
+/// Only for a file named by `--config`. A missing *default* config is not an
+/// error any more — it is written (see [`created_default_config`]) — but a
+/// path the user typed is more likely a typo than a request to create it.
 pub fn no_config_file(path: &Path) -> String {
     match lang() {
         Lang::En => format!(
-            "no config file at {}.\nCreate it (see examples/minimal.toml) or pass --config <path>.",
+            "no config file at {}.\nCheck the path given to --config, or omit the flag to use the default config.",
             path.display()
         ),
         Lang::Ja => format!(
-            "設定ファイルがありません: {}\nexamples/minimal.toml を参考に作成するか、--config <path> を指定してください。",
+            "設定ファイルがありません: {}\n--config に渡したパスを確認するか、--config を省略して既定の設定ファイルを使ってください。",
             path.display()
         ),
     }

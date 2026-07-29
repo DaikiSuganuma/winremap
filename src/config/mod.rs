@@ -15,6 +15,7 @@ mod raw;
 mod tests;
 
 use std::fmt;
+use std::io::Write;
 use std::path::Path;
 
 use crate::ime_indicator_settings::{
@@ -70,6 +71,27 @@ fn format_issues(issues: &[Issue]) -> String {
 pub fn load(path: &Path) -> Result<RemapTable, ConfigError> {
     let source = std::fs::read_to_string(path)?;
     parse_str(&source)
+}
+
+/// The config written on first run when the user has none.
+///
+/// This is the same file the installer seeds, embedded rather than copied so
+/// the two can never drift: an installed and a portable WinRemap must start
+/// from the same config, and a test here proves it still parses.
+pub const DEFAULT_CONFIG: &str = include_str!("../../examples/minimal.toml");
+
+/// Writes [`DEFAULT_CONFIG`] to `path`, creating parent directories.
+///
+/// Refuses to overwrite an existing file. A config the user wrote is never
+/// something to replace, and two WinRemap processes reaching first-run at
+/// once must not have the loser clobber the file the winner just wrote —
+/// hence `create_new` rather than a check followed by a write.
+pub fn create_default(path: &Path) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut file = std::fs::File::create_new(path)?;
+    file.write_all(DEFAULT_CONFIG.as_bytes())
 }
 
 /// Parses and validates TOML source into a [`RemapTable`].

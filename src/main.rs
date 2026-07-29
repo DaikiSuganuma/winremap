@@ -24,7 +24,7 @@ mod theme;
 mod tray;
 mod window;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, bail};
@@ -81,6 +81,10 @@ fn run() -> anyhow::Result<()> {
         // input, so it must never be mistaken for a normal one (ADR 0053).
         gui::log::emit(i18n::test_build_notice());
     }
+
+    // After the session banner so first-run output is part of the transcript,
+    // and before the load, which is what needs the file to be there.
+    ensure_config(&config_path, cli.config_is_default)?;
 
     // A startup config error aborts: better to not run at all than to sit in
     // the tray silently doing nothing the user asked for (config-spec §4).
@@ -154,6 +158,9 @@ fn extract_lang(args: &[String]) -> anyhow::Result<Option<i18n::Lang>> {
 
 struct CliArgs {
     config_path: PathBuf,
+    /// `false` when `--config` named the path. Decides whether a missing file
+    /// is created or reported (see `ensure_config`).
+    config_is_default: bool,
     debug: bool,
     /// `None` when the flag was absent, so the config file's value applies.
     macro_delay_ms: Option<u32>,
@@ -204,12 +211,14 @@ fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
             other => bail!("{}", i18n::unknown_argument(other)),
         }
     }
+    let config_is_default = config.is_none();
     let config_path = match config {
         Some(path) => path,
         None => default_config_path()?,
     };
     Ok(CliArgs {
         config_path,
+        config_is_default,
         debug,
         macro_delay_ms,
         #[cfg(feature = "test-inject")]
@@ -217,14 +226,35 @@ fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
     })
 }
 
+/// Where a config lives when `--config` was not given. Existence is not
+/// checked here: `parse_args` stays free of filesystem side effects, and
+/// creating the file is the startup sequence's job (see `ensure_config`).
 fn default_config_path() -> anyhow::Result<PathBuf> {
     let appdata = std::env::var_os("APPDATA")
         .context("APPDATA is not set; pass --config <path> explicitly")?;
-    let path = PathBuf::from(appdata).join("winremap").join("config.toml");
-    if !path.exists() {
-        bail!("{}", i18n::no_config_file(&path));
+    Ok(PathBuf::from(appdata).join("winremap").join("config.toml"))
+}
+
+/// Makes sure `path` exists before the config is loaded.
+///
+/// A first run has no config, and WinRemap used to refuse to start — which
+/// left the app depending on the installer having seeded the file. That holds
+/// for the Inno installer but not for the portable exe, nor for an MSIX
+/// package, which has no install-time script at all (ADR 0059). So the
+/// default path is created on demand instead.
+///
+/// A path the user named with `--config` is still an error when missing: a
+/// typo should say so rather than quietly produce an empty remapping.
+fn ensure_config(path: &Path, is_default: bool) -> anyhow::Result<()> {
+    if path.exists() {
+        return Ok(());
     }
-    Ok(path)
+    if !is_default {
+        bail!("{}", i18n::no_config_file(path));
+    }
+    config::create_default(path).with_context(|| format!("failed to create {}", path.display()))?;
+    gui::log::emit(&i18n::created_default_config(path));
+    Ok(())
 }
 
 #[cfg(test)]
