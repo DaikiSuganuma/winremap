@@ -19,6 +19,7 @@ mod ime_indicator;
 mod keyname;
 mod macro_record;
 mod notify;
+mod package;
 mod sender;
 mod theme;
 mod tray;
@@ -51,6 +52,11 @@ fn run() -> anyhow::Result<()> {
     // parent folder and lists its .toml files for switching (ADR 0050), and
     // a relative `--config x.toml` has no parent to show or read.
     let config_path = std::path::absolute(&cli.config_path).unwrap_or(cli.config_path);
+    // Once, before anything reads or shows it: inside an MSIX package the
+    // %APPDATA% path this resolves to is private to the package, and the
+    // settings window hands paths to Explorer and to a text editor — neither
+    // of which can see it (ADR 0061). No-op for an unpackaged run.
+    let config_path = package::resolve_config_path(config_path);
     hook::set_debug(cli.debug);
     #[cfg(feature = "test-inject")]
     hook::set_accept_injected(cli.accept_injected);
