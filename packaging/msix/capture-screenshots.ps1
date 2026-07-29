@@ -67,6 +67,8 @@ public class Cap {
   [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint f, IntPtr e);
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c, string n);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int a, out RECT r, int size);
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
@@ -83,6 +85,15 @@ public class Cap {
     System.Threading.Thread.Sleep(60);
     keybd_event(vk, 0, 2, IntPtr.Zero);
     System.Threading.Thread.Sleep(300);
+  }
+  // Which application is actually in front. SetForegroundWindow reports
+  // success while doing nothing when the caller has no foreground rights, so
+  // the only trustworthy answer is to ask afterwards.
+  public static string ForegroundExe() {
+    uint pid;
+    GetWindowThreadProcessId(GetForegroundWindow(), out pid);
+    try { return System.Diagnostics.Process.GetProcessById((int)pid).ProcessName; }
+    catch { return "?"; }
   }
   // The frame Windows actually draws. GetWindowRect includes the invisible
   // resize border, which would put a band of desktop into the image.
@@ -374,8 +385,34 @@ if (Invoke-MenuFromBottom $MENU_UP.log) {
         }
         if (-not $np) { Say '  notepad never opened; the log shot will be thin' }
         else {
+            # Ask, then check. A process that does not hold the foreground
+            # cannot take it: SetForegroundWindow returns and flashes the
+            # taskbar button instead. Which window is in front decides which
+            # keymap applies, so guessing here produces a log full of keys
+            # that were correctly passed through — a picture of the product
+            # doing nothing, for a reason nothing on screen explains.
             [void][Cap]::SetForegroundWindow($np.MainWindowHandle)
-            Start-Sleep -Seconds 2
+            Start-Sleep -Seconds 1
+            if ([Cap]::ForegroundExe() -notlike 'Notepad*') {
+                $r = [Cap]::FrameOf($np.MainWindowHandle)
+                [void][Cap]::SetCursorPos([int](($r.Left + $r.Right) / 2), $r.Top + 80)
+                Start-Sleep -Milliseconds 200
+                [Cap]::mouse_event(0x0002, 0, 0, 0, [IntPtr]::Zero)
+                Start-Sleep -Milliseconds 80
+                [Cap]::mouse_event(0x0004, 0, 0, 0, [IntPtr]::Zero)
+                Start-Sleep -Seconds 1
+            }
+            $waited = 0
+            while ([Cap]::ForegroundExe() -notlike 'Notepad*' -and $waited -lt 30) {
+                if ($waited -eq 0) {
+                    Write-Host ''
+                    Write-Host '  Notepad is not in front and this script cannot put it there.' -ForegroundColor Red
+                    Write-Host '  Click the Notepad window; the countdown starts when you do.' -ForegroundColor Red
+                }
+                Start-Sleep -Seconds 1
+                $waited++
+            }
+            Say "  foreground is $([Cap]::ForegroundExe())"
         }
         Write-Host ''
         Write-Host '  ------------------------------------------------------------' -ForegroundColor Yellow
@@ -397,7 +434,24 @@ if (Invoke-MenuFromBottom $MENU_UP.log) {
         Start-Sleep -Seconds 1
     }
 
-    Save-WindowShot (Get-WindowLike $titles.log) "$Lang-03-log" 'log window'
+    $logWindow = Get-WindowLike $titles.log
+    Save-WindowShot $logWindow "$Lang-03-log" 'log window'
+
+    # Say whether the image is worth keeping, instead of leaving it to be
+    # discovered later: a log of keys that were all passed through shows the
+    # product doing nothing.
+    if ($LogInteractive -and $logWindow) {
+        $lines = @()
+        foreach ($t in $logWindow.FindAll($desc, $textType)) { if ($t.Current.Name) { $lines += $t.Current.Name } }
+        $marker = if ($Lang -eq 'ja') { '*置換*' } else { '*remapped*' }
+        $hits = @($lines | Where-Object { $_ -like $marker }).Count
+        if ($hits -gt 0) { Say "  the log shows $hits remapped key(s)" }
+        else {
+            Write-Host '  WARNING: no remapped keys in the log.' -ForegroundColor Red
+            Write-Host '  The keys went to a window other than Notepad, where a' -ForegroundColor Red
+            Write-Host '  different keymap applies. Re-run and type in Notepad only.' -ForegroundColor Red
+        }
+    }
 }
 else { Say '  skipped log shot' }
 
