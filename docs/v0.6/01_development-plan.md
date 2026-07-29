@@ -366,7 +366,7 @@ P-1〜P-2（新規導入）と P-3（移行）は**事前状態が逆**である
 6. winget マニフェストを 0.6.0 に更新して提出する（**チャネルが 2 つになった**）
 7. 認定通過後、**「認定通過後に公開されます」の但し書きを 6 か所から消す**（§4.3 に一覧。URL 自体は既に実 URL である）
 
-### 7.2.1 実施記録（2026-07-29）— 手順 1〜5 の途中まで
+### 7.2.1 実施記録（2026-07-29 / 07-30）— 手順 1〜6
 
 | 手順 | 状態 |
 |---|---|
@@ -378,11 +378,14 @@ P-1〜P-2（新規導入）と P-3（移行）は**事前状態が逆**である
 | — 公開後の検証（§2 手順 8） | ✅ `SHA256SUMS` と実ファイルのハッシュ一致、`gh attestation verify` が両バイナリとも成功 |
 | — winget 提出前チェック（§3 手順 0） | ✅ 公開した `winremap.exe` に `vcruntime` / `msvcp` / `api-ms-win-crt` の参照なし |
 | 5a. `.msix` の作成 | ✅ `packaging\msix\out\winremap-0.6.0.msix`（4.3 MB・**未署名**）。バージョン `0.6.0.0`、Publisher は Partner Center 発行値 |
-| 5b. **Partner Center へ提出** | ⏳ **オーナー** |
-| 6. **winget を 0.6.0 に更新** | ⏳ **オーナー**（PR #407875 の差し替え。[03_release-operations.md §3](../03_release-operations.md)） |
+| 5b. **Partner Center へ提出** | ✅ 2026-07-30 オーナーが提出。認定待ち |
+| 6. **winget を 0.6.0 に更新** | ✅ 2026-07-30 [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) を 0.6.0 に差し替え（[03_release-operations.md §3](../03_release-operations.md)） |
 | 7. 但し書きの削除（6 か所） | ⏳ 認定通過後 |
+| — **P-8**（Store からの導入確認） | ⏳ 認定通過後。**これが済むまで v0.6 の受け入れは閉じない** |
 
 `.msix` を作る前に、**作業ツリーが `v0.6.0` タグと一致していること**を確認した（`git diff v0.6.0 HEAD` が空）。パッケージは開発機の `cargo build --release` で作るため、GitHub Actions が作った Releases のバイナリとはバイト一致しない。**同じソース・同じタグから作った同じビルド**という約束（SECURITY.md・リリースノート）は保つ必要があるので、ここでの確認はソースツリーに対して行う。
+
+手順 6 は [03_release-operations.md §3](../03_release-operations.md) の「やり方」どおりに実施した。差分は**ディレクトリのリネームと 6 行だけ**に収まっている（`git diff -M` がリネームとして認識する）。`ReleaseDate` は 0.5.0 の提出日と v0.6.0 の公開日が同じ 2026-07-29 なので変更なし。`ProductCode` も Inno の `AppId` は変えていないので据え置き（`installer/winremap.iss`）。scoop の `winremap.json` は提出保留のまま（[ADR 0048](../v0.3/decisions/0048-scoop-defer-extras.md)）で、0.4.0・0.5.0 と同じく手を付けていない。
 
 ### 7.3 完了条件
 
