@@ -4,6 +4,9 @@
 # should not need a Rust toolchain.
 /packaging/msix/layout/
 /packaging/msix/out/
+# Listing images. Uploaded to Partner Center; a PNG of a window is not source,
+# and the script plus the demo config beside it reproduce them.
+/packaging/msix/screenshots/
 # Test VM connection details, including the guest password. Never commit.
 /.secrets/
 .mcp.json
