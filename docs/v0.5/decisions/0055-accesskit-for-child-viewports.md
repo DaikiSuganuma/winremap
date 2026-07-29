@@ -3,7 +3,7 @@
 - ステータス: **承認**（オーナー承認 2026-07-26）。決定 4 の実測も同日完了し、**パッチが効くことを確認済み**（[調査記録](../notes/20260726_accesskit-child-viewport.md)）
 - 日付: 2026-07-26
 - 作成: Claude Code（AI モデル: claude-opus-5）
-- 参照: [AccessKit](https://accesskit.dev/)、[eframe 0.35.0 `glow_integration.rs`](https://docs.rs/eframe/0.35.0/src/eframe/native/glow_integration.rs.html)、[ADR 0037（不可視ホスト＋子ビューポート）](../../v0.2/decisions/0037-gui-invisible-host-viewport.md)、[ADR 0035（単一 EventLoop）](../../v0.2/decisions/0035-single-event-loop.md)、[調査記録](../notes/20260726_accesskit-child-viewport.md)、[v0.5 開発計画 §2](../01_development-plan.md)
+- 参照: [AccessKit](https://accesskit.dev/)、[eframe 0.35.0 `glow_integration.rs`](https://docs.rs/eframe/0.35.0/src/eframe/native/glow_integration.rs.html)、[ADR 0037（不可視ホスト＋子ビューポート）](../../v0.2/decisions/0037-gui-invisible-host-viewport.md)、[ADR 0035（単一 EventLoop）](../../v0.2/decisions/0035-gui-single-event-loop-multi-viewport.md)、[調査記録](../notes/20260726_accesskit-child-viewport.md)、[v0.5 開発計画 §2](../01_development-plan.md)
 
 ## 文脈
 
