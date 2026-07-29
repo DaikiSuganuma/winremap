@@ -57,7 +57,7 @@ if (-not $Config) {
 $CANVAS_W = 1920
 $CANVAS_H = 1080
 
-Add-Type -TypeDefinition @'
+$capSource = @'
 using System;
 using System.Runtime.InteropServices;
 public class Cap {
@@ -106,6 +106,23 @@ public class Cap {
   }
 }
 '@
+
+# .NET cannot replace a type once it is loaded, so a second run in the same
+# PowerShell session keeps whatever this script defined the first time. Left
+# alone that fails later and further from the cause — an older Cap without
+# ForegroundExe would take the foreground check out of the run, which is
+# exactly the check that exists because guessing there wasted two attempts.
+$capType = 'Cap' -as [type]
+if (-not $capType) {
+    Add-Type -TypeDefinition $capSource
+}
+elseif (-not $capType.GetMethod('ForegroundExe')) {
+    throw @'
+An older copy of this script's helper type is loaded in this PowerShell
+session, and .NET cannot replace it. Open a new PowerShell window and run
+the script again.
+'@
+}
 
 [void][Cap]::SetProcessDPIAware()
 
