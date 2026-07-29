@@ -1,0 +1,38 @@
+# Configuration used only for the Store listing screenshots (v0.6 plan §3).
+#
+# Not an example to copy — examples/ holds those. This one exists to make the
+# settings window show what WinRemap is for in a single frame: several
+# keymaps, an app-specific one beating a global one, and each of the three
+# kinds of rule (chord, sequence, macro) with a comment beside it.
+#
+# The comments matter: the settings window shows them in their own column, and
+# a screenshot of an uncommented config says nothing about that.
+
+[[keymap]]
+name = "terminal"
+application = ["WindowsTerminal.exe", "wt.exe"]
+
+[keymap.remap]
+"C-h" = "Back"        # the reason this program exists: Ctrl+H deletes here
+"C-d" = "Delete"      # and the character to the right
+"A-b" = "C-Left"      # move back one word
+"A-f" = "C-Right"     # move forward one word
+
+[[keymap]]
+name = "notepad"
+application = ["notepad.exe"]
+
+[keymap.remap]
+"C-h" = "Back"                          # same fix, different application
+"A-x u" = "C-z"                         # two-stroke: press Alt+X, then U
+"C-t" = ["C-Right", "C-Left", "C-S-Right"] # one key, three keystrokes
+
+[[keymap]]
+name = "everywhere"
+application = ["*"]      # every application ...
+exclude = ["game.exe"]   # ... except this one
+
+[keymap.remap]
+"CapsLock" = "LCtrl"  # the classic swap
+"W-Left" = "Home"     # Win+Left goes to the start of the line
+"W-Right" = "End"     # and Win+Right to the end

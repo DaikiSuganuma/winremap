@@ -1,0 +1,38 @@
+# ストア掲載用スクリーンショットのためだけの設定（v0.6 計画 §3）。
+#
+# 手本ではない（それは examples/ にある）。設定ウィンドウ 1 枚で WinRemap が
+# 何をするものかが伝わるように作ってある — 複数のキーマップ、アプリ別が
+# グローバルに優先される様子、そして 3 種類のルール（単一コマンド・
+# 2 ストローク・マクロ）をコメント付きで並べている。
+#
+# コメントは重要である。設定ウィンドウはコメントを独立した列に表示するため、
+# コメントのない設定を撮ってもその機能が伝わらない。
+
+[[keymap]]
+name = "ターミナル"
+application = ["WindowsTerminal.exe", "wt.exe"]
+
+[keymap.remap]
+"C-h" = "Back"        # このソフトを作った理由。ここでは Ctrl+H が 1 文字消す
+"C-d" = "Delete"      # 右の 1 文字を消す
+"A-b" = "C-Left"      # 単語ひとつ分戻る
+"A-f" = "C-Right"     # 単語ひとつ分進む
+
+[[keymap]]
+name = "メモ帳"
+application = ["notepad.exe"]
+
+[keymap.remap]
+"C-h" = "Back"                          # 同じ修正を別のアプリにも
+"A-x u" = "C-z"                         # 2 ストローク: Alt+X の次に U
+"C-t" = ["C-Right", "C-Left", "C-S-Right"] # 1 キーで 3 つのキー操作
+
+[[keymap]]
+name = "全アプリ共通"
+application = ["*"]      # すべてのアプリで……
+exclude = ["game.exe"]   # ……ただしこれは除く
+
+[keymap.remap]
+"CapsLock" = "LCtrl"  # 定番の入れ替え
+"W-Left" = "Home"     # Win+← で行頭へ
+"W-Right" = "End"     # Win+→ で行末へ
