@@ -70,6 +70,14 @@ public class Cap {
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint f);
+  // Z-order, not focus. Windows grants this to anyone, unlike the
+  // foreground, so it is the one way to guarantee nothing is drawn over the
+  // window about to be photographed.
+  public static void Raise(IntPtr h, bool on) {
+    IntPtr TOPMOST = new IntPtr(-1), NOTOPMOST = new IntPtr(-2);
+    SetWindowPos(h, on ? TOPMOST : NOTOPMOST, 0, 0, 0, 0, 0x0013); // NOSIZE|NOMOVE|NOACTIVATE
+  }
   [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int a, out RECT r, int size);
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
   public const uint RIGHTDOWN = 0x0008, RIGHTUP = 0x0010;
@@ -116,7 +124,7 @@ $capType = 'Cap' -as [type]
 if (-not $capType) {
     Add-Type -TypeDefinition $capSource
 }
-elseif (-not $capType.GetMethod('ForegroundExe')) {
+elseif (-not $capType.GetMethod('Raise')) {
     throw @'
 An older copy of this script's helper type is loaded in this PowerShell
 session, and .NET cannot replace it. Open a new PowerShell window and run
@@ -273,10 +281,16 @@ function Invoke-MenuFromBottom([int]$Up) {
 function Save-WindowShot($window, [string]$Name, [string]$Caption) {
     if (-not $window) { Say "  no window for $Name"; return }
     $h = [IntPtr]$window.Current.NativeWindowHandle
+    # The image is read off the screen, so anything drawn over the window
+    # lands in it — a Notepad window did exactly that once. Asking for the
+    # foreground is not enough, since Windows may refuse; pinning the z-order
+    # always works and needs no foreground rights.
+    [Cap]::Raise($h, $true)
     [void][Cap]::SetForegroundWindow($h)
     Start-Sleep -Milliseconds 900
     $r = [Cap]::FrameOf($h)
     Save-RectShot $r $Name $Caption
+    [Cap]::Raise($h, $false)
 }
 
 function Save-RectShot($r, [string]$Name, [string]$Caption) {
@@ -339,6 +353,27 @@ else {
 }
 
 Say "language $Lang, config $Config"
+
+# Notepad has to be open before WinRemap starts, not after. Opening it later
+# means going through the Start menu, and those foreground changes —
+# searchhost, startmenuexperiencehost, explorer — are written into the very
+# log this run is about to photograph.
+if ($LogInteractive) {
+    $told = $false
+    while (-not (Get-Process -Name Notepad -ErrorAction SilentlyContinue |
+                Where-Object { $_.MainWindowHandle -ne 0 })) {
+        if (-not $told) {
+            Write-Host ''
+            Write-Host '  Open Notepad before this goes any further, and type a' -ForegroundColor Yellow
+            Write-Host '  sentence in it so there is something to delete later.' -ForegroundColor Yellow
+            Write-Host '  Waiting...' -ForegroundColor Yellow
+            $told = $true
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    Say '  notepad is open'
+}
+
 Get-Process winremap -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 2
 
@@ -381,43 +416,27 @@ if (Invoke-MenuFromBottom $MENU_UP.log) {
     $log = Wait-Window $titles.log
 
     # An empty log is not a picture of a log, and there is no way around a
-    # person for this one. Injected keys are passed through untouched, and
-    # foreground changes — the other real activity — are not reported while
-    # the log window is open (the observation carried from ADR 0058). So the
-    # only content that reaches this window is somebody actually typing.
+    # person for this one: injected keys are passed through untouched by
+    # design, so the only thing that reaches this window is somebody typing.
     if ($LogInteractive) {
-        # Wait for a real window and put it in front, rather than launching and
-        # hoping. The first version slept three seconds and assumed Notepad had
-        # focus; it did not — Windows will not hand the foreground to a process
-        # started by a script that does not hold it — so the keys went to
-        # whichever window was in front, matched the global keymap, and were
-        # correctly passed through. The log then showed a remapper doing
-        # nothing, which took a measurement to tell apart from a broken one.
-        Start-Process notepad.exe | Out-Null
-        Start-Sleep -Seconds 2
-
+        # Notepad is opened by that person before the script starts (checked
+        # up front). Launching it here never worked — a script cannot hand its
+        # own window the foreground — and opening it from the Start menu
+        # mid-run wrote searchhost and explorer lines into the very log about
+        # to be photographed.
+        #
         # Which window is in front decides which keymap applies, so the
         # countdown must not start until Notepad really is in front. Earlier
         # versions gave up after a while and carried on; both times that
         # produced a log of keys correctly passed through by the global
         # keymap — a picture of the product doing nothing, for a reason
-        # nothing on screen explained. There is no timeout here on purpose:
-        # a person is already watching, and an unusable image costs them
-        # another full run.
-        $np = Get-Process -Name Notepad -ErrorAction SilentlyContinue |
-            Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-        if ($np) {
-            [void][Cap]::SetForegroundWindow($np.MainWindowHandle)
-            Start-Sleep -Seconds 1
-        }
+        # nothing on screen explained. There is no timeout here on purpose.
         $asked = $false
         while ([Cap]::ForegroundExe() -notlike 'Notepad*') {
             if (-not $asked) {
                 Write-Host ''
-                Write-Host '  Notepad is not in front, and a script cannot put it there —' -ForegroundColor Red
-                Write-Host '  Windows only grants that to whoever already holds the' -ForegroundColor Red
-                Write-Host '  foreground. Click the Notepad window (open one if it did' -ForegroundColor Red
-                Write-Host '  not appear). The countdown starts as soon as you do.' -ForegroundColor Red
+                Write-Host '  Click your Notepad window now.' -ForegroundColor Red
+                Write-Host '  The countdown starts as soon as it is in front.' -ForegroundColor Red
                 $asked = $true
             }
             Start-Sleep -Milliseconds 500
