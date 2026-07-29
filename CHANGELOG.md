@@ -5,7 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-07-29
+
+### Added
+
+- **Microsoft Store packaging** (ADR 0060). WinRemap can be built as an MSIX
+  package, which the Store re-signs — so installing it from there shows no
+  "Windows protected your PC" warning at all. Downloads from GitHub Releases
+  are unaffected and still warn; the binaries there remain unsigned.
+- Screenshots of the settings and log windows in both READMEs, and the Store
+  as a second install route throughout the docs: SECURITY.md now describes
+  two official channels rather than one, the install guide compares them, and
+  the FAQ answers what actually differs — including where each one keeps your
+  config file. Every page of the help site now links the privacy policy.
+
+### Fixed
+
+- **Closing the terminal you started WinRemap from no longer closes WinRemap**
+  (ADR 0062). It attaches to that terminal's console so `--debug` output has
+  somewhere to go, and Windows kills every process attached to a console when
+  its window closes — so a normal launch now hands the console back as soon as
+  remapping is live. `--debug` still streams to the terminal and still ends
+  with it, which is what that flag is for.
+- **WinRemap starts on a machine that has no config file yet** (ADR 0059). It
+  used to refuse, which was invisible only because the installer seeded
+  `%APPDATA%\winremap\config.toml` for you — so the portable exe failed on
+  first run, and so would a Microsoft Store package, which has no
+  install-time step at all. The default config is now written on first run
+  (the same Notepad example the installer places) and the session says where
+  it landed. A path given with `--config` still has to exist: a typo there
+  should say so, not quietly produce a WinRemap that remaps nothing. An
+  existing config is never overwritten.
+- **The Store build reports a config path that exists** (ADR 0061). A packaged
+  app has its `%APPDATA%` writes redirected somewhere private, which is
+  invisible to WinRemap itself but not to the programs it hands the path to:
+  "open in text editor" and "open folder" pointed at a location that is not
+  there for Explorer or your editor. The path is now resolved once at
+  startup, so everything — the address bar, the file watch, both links —
+  agrees on one location. A config carried over from an installed WinRemap
+  keeps being used rather than being replaced by a fresh default.
+- The help site linked `examples/suganuma.toml`, which was renamed to
+  `personal-ja.toml` in 0.5.0 — the link 404'd on both language versions.
 
 ## [0.5.0] - 2026-07-29
 

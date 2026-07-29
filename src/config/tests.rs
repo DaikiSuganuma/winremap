@@ -403,3 +403,52 @@ fn a_toggle_key_collision_is_reported_once() {
     );
     assert_eq!(found.len(), 1, "{found:?}");
 }
+
+/// A scratch path under the OS temp dir. The counter keeps parallel test
+/// threads off each other's files without pulling in a temp-file crate.
+fn scratch_dir(tag: &str) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static NEXT: AtomicU32 = AtomicU32::new(0);
+    let id = NEXT.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("winremap-test-{tag}-{}-{id}", std::process::id()));
+    // A previous failed run may have left it behind.
+    let _ = std::fs::remove_dir_all(&dir);
+    dir
+}
+
+#[test]
+fn the_default_config_is_valid() {
+    // What first run writes must load, or WinRemap creates a file and then
+    // refuses to start on it.
+    let table = parse_str(DEFAULT_CONFIG).unwrap();
+    assert_eq!(table.keymaps.len(), 1);
+    assert_eq!(table.keymaps[0].name, "notepad");
+}
+
+#[test]
+fn create_default_writes_a_loadable_config() {
+    // %APPDATA%\winremap does not exist on a first run either.
+    let dir = scratch_dir("create");
+    let path = dir.join("winremap").join("config.toml");
+
+    create_default(&path).unwrap();
+
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), DEFAULT_CONFIG);
+    load(&path).unwrap();
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn create_default_refuses_to_overwrite() {
+    let dir = scratch_dir("overwrite");
+    let path = dir.join("config.toml");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(&path, "# mine\n").unwrap();
+
+    let err = create_default(&path).unwrap_err();
+
+    assert_eq!(err.kind(), std::io::ErrorKind::AlreadyExists);
+    // The user's file is untouched.
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "# mine\n");
+    std::fs::remove_dir_all(&dir).unwrap();
+}

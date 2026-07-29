@@ -14,6 +14,10 @@ A per-application key remapper for Windows, written in Rust — inspired by
 📖 **User guide / help:** [daikisuganuma.github.io/winremap](https://daikisuganuma.github.io/winremap/)
 ([日本語](https://daikisuganuma.github.io/winremap/ja/))
 
+![The WinRemap settings window, showing three keymaps in a tree, the exe names
+the selected one applies to, and its remap rules with the comments written
+beside them in the config file](site/assets/screenshots/en-01-settings.png)
+
 ## How it works
 
 All WinRemap does is replace keystrokes — it never invokes application
@@ -71,12 +75,22 @@ flowchart TD
 
 ## Quick start
 
-1. Download `winremap-setup.exe` from
-   [Releases](https://github.com/DaikiSuganuma/winremap/releases) and run it
-   (see [SECURITY.md](SECURITY.md) for verification). The installer needs no
-   admin rights: it installs per-user, adds a Start Menu shortcut, can start
-   WinRemap at sign-in, and — if you have no config yet — creates
-   `%APPDATA%\winremap\config.toml` from the minimal example.
+1. Install it. Both channels are official and carry the same build; pick
+   whichever suits you (see [SECURITY.md](SECURITY.md)).
+
+   **Microsoft Store** — signed by Microsoft, so Windows installs it without
+   a SmartScreen warning, and it updates itself:
+
+   > [apps.microsoft.com/detail/9N6TQDXRX5WV](https://apps.microsoft.com/detail/9N6TQDXRX5WV)
+   > (live once v0.6.0 passes certification)
+
+   **GitHub Releases** — download `winremap-setup.exe` from
+   [Releases](https://github.com/DaikiSuganuma/winremap/releases) and run it.
+   The installer needs no admin rights: it installs per-user, adds a Start
+   Menu shortcut, and can start WinRemap at sign-in. These binaries are not
+   code-signed, so Windows may show *"Windows protected your PC"* for a new
+   download — [SECURITY.md](SECURITY.md) has the two commands that verify a
+   download instead of trusting it.
 
    winget works too, once the manifest is accepted (it is submitted after
    every release; the
@@ -97,6 +111,9 @@ flowchart TD
    cargo build --release   # -> target\release\winremap.exe
    ```
 
+   Whichever route you take, WinRemap creates a starter config on first run
+   if you have none. Your existing config is never overwritten.
+
 2. Edit `%APPDATA%\winremap\config.toml` (or start with an example):
 
    ```toml
@@ -115,6 +132,14 @@ flowchart TD
    winremap.exe                     # uses %APPDATA%\winremap\config.toml
    winremap.exe --config my.toml    # explicit path
    ```
+
+> **Store version: where is my config?** Windows gives packaged apps their own
+> private copy of `%APPDATA%`, so a fresh Store install keeps the file under
+> `%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\`.
+> You never have to remember that: the settings window names the folder it is
+> actually using and opens it in Explorer for you. If you already had
+> `%APPDATA%\winremap\config.toml` from the installer, the Store version keeps
+> using that file, so switching channels does not lose your rules.
 
 See [`examples/minimal.toml`](examples/minimal.toml),
 [`examples/emacs.toml`](examples/emacs.toml) (fakeymacs-style Emacs
@@ -273,6 +298,10 @@ time to the millisecond and a tag saying which stream it belongs to:
 18:01:51.517 [decided]  C-h (BS 0x08) → remapped to Back (BS 0x08)
 ```
 
+![The WinRemap log window: stamped lines showing the foreground application
+and, for each key, whether it was passed through, remapped, expanded into a
+macro, or held as a prefix](site/assets/screenshots/en-03-log.png)
+
 `[window]` is what to read when a rule "stopped working", and when you are
 not sure what to put in `application`: switch to the app you mean and the log
 names the exact value to use and which of your keymaps reach it. `[decided]`
@@ -324,7 +353,13 @@ nothing** — starting it from a shell is as quiet as starting it from Explorer.
   undefined ordering.
 - Started from a terminal with `--debug`, WinRemap prints to that terminal but
   does not hold it: the prompt returns immediately and output arrives
-  interleaved with it. Without `--debug` it prints nothing at all.
+  interleaved with it. Closing that terminal also closes WinRemap — a `--debug`
+  session streams its log there, so it stays attached to the console and
+  Windows kills everything attached when the window goes. Without `--debug`
+  nothing is printed and WinRemap lets the console go once it is up, so it
+  keeps running after the terminal closes.
+- A launcher that puts its children in a job object with kill-on-close (some
+  IDE terminals do) still takes WinRemap down with it, whatever the flags.
 - IME **control** is out of scope by design (the optional indicator only
   *displays* the state); use the Windows 11 IME settings.
 - The IME indicator reads the state via the legacy IMM32 interface. It is
@@ -349,10 +384,12 @@ repository, point your AI agent at it, and describe the feature you want.
 - WinRemap **never logs or stores keystrokes** and contains **no network
   code** (no telemetry, no auto-update). The code base enforces this by
   policy; see [AGENTS.md](AGENTS.md).
-- Official binaries are distributed **only** via
-  [GitHub Releases](https://github.com/DaikiSuganuma/winremap/releases).
-  Binaries obtained anywhere else are unofficial — verify checksums and
-  build provenance as described in [SECURITY.md](SECURITY.md).
+- Official builds come from **two** channels: the
+  [Microsoft Store](https://apps.microsoft.com/detail/9N6TQDXRX5WV) (signed by
+  Microsoft) and
+  [GitHub Releases](https://github.com/DaikiSuganuma/winremap/releases)
+  (unsigned; verify checksums and build provenance). Binaries obtained
+  anywhere else are unofficial — see [SECURITY.md](SECURITY.md).
 
 ## Acknowledgments
 

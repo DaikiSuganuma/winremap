@@ -74,10 +74,14 @@
     <p class="lead text-body-secondary">A per-application key remapper for Windows, written in Rust.
     Remap keys only in the apps you choose — declared in one simple TOML file.</p>
     <div class="d-flex flex-wrap gap-2 justify-content-center my-4">
-      <a class="btn btn-primary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>Download installer</a>
+      <a class="btn btn-primary btn-lg" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Microsoft Store</a>
+      <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>Download installer</a>
       <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>Portable exe</a>
       <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap"><i class="bi bi-github me-1"></i>GitHub</a>
     </div>
+    <p class="small text-body-secondary mb-1">Both routes are official and install the same build
+    (<a href="install.html">how they differ</a>). The Store listing goes live when v0.6.0 passes
+    certification.</p>
     <p class="small text-body-secondary mb-0">Free &amp; open source (MIT) · No network access · Never logs keystrokes ·
     <a href="https://github.com/DaikiSuganuma/winremap/releases">all releases</a></p>
   </div>
@@ -206,8 +210,10 @@
         sign-in is silent, and anything you must see (a startup error, a failed reload)
         appears as a dialog. Started from a terminal it is just as quiet — add
         <code>--debug</code> to have the log printed there, though the prompt returns
-        immediately so output arrives interleaved with it. For a readable running log, use
-        <em>Show log</em> in the tray.</div>
+        immediately so output arrives interleaved with it. A <code>--debug</code> session
+        also ends when you close that terminal, because it keeps printing to it; without
+        the flag WinRemap lets the terminal go once it is up and keeps running. For a
+        readable running log, use <em>Show log</em> in the tray.</div>
       </div>
     </div>
     <div class="accordion-item">
@@ -234,9 +240,17 @@
         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq8">Where does WinRemap store things?</button>
       </h3>
       <div id="faq8" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">Program: <code>%LOCALAPPDATA%\Programs\WinRemap</code> (installer) or wherever you
-        put the portable exe. Config: <code>%APPDATA%\winremap\config.toml</code>. That's all —
-        no services, no drivers, no registry settings.</div>
+        <div class="accordion-body">
+          <p>Program: <code>%LOCALAPPDATA%\Programs\WinRemap</code> (installer) or wherever you
+          put the portable exe. Config: <code>%APPDATA%\winremap\config.toml</code>. That's all —
+          no services, no drivers, no registry settings.</p>
+          <p class="mb-0">The <strong>Store version</strong> lives where Windows puts packaged
+          apps, and gets a private copy of <code>%APPDATA%</code> with it — so a fresh Store
+          install keeps the config under
+          <code>%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\</code>.
+          You don't have to remember that: the settings window names the folder it is actually
+          using and opens it in Explorer for you.</p>
+        </div>
       </div>
     </div>
     <div class="accordion-item">
@@ -251,7 +265,34 @@
 gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
 </code></pre>
           <p class="mb-0">Details in <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>.
-          Binaries from anywhere other than GitHub Releases are unofficial.</p>
+          The Store version needs none of this — Microsoft signs it, and the Store page names
+          the publisher. Binaries from anywhere other than these two channels are unofficial.</p>
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq10">Microsoft Store or GitHub — what's the difference?</button>
+      </h3>
+      <div id="faq10" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          <p>Same build, same source, same version. Three practical differences:</p>
+          <ul>
+            <li><strong>No SmartScreen warning</strong> from the Store — Microsoft signs the
+            package. The GitHub binaries are unsigned, so Windows may warn about a new
+            download.</li>
+            <li><strong>Updates arrive on their own</strong> from the Store. With GitHub you
+            download the new version yourself.</li>
+            <li><strong>The config file sits somewhere else.</strong> Windows gives packaged
+            apps a private copy of <code>%APPDATA%</code>, so a fresh Store install keeps
+            <code>config.toml</code> under its own package folder rather than
+            <code>%APPDATA%\winremap\</code>. The settings window shows you the folder it is
+            using either way.</li>
+          </ul>
+          <p class="mb-0">Switching is safe: if you already have
+          <code>%APPDATA%\winremap\config.toml</code> from the installer, the Store version keeps
+          using that file, so your rules come with you. Only the GitHub route offers a portable
+          single exe. See the <a href="install.html">install guide</a>.</p>
         </div>
       </div>
     </div>
@@ -270,7 +311,8 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
       <a href="https://sites.google.com/site/craftware/keyhac-ja">Keyhac</a> /
       <a href="https://github.com/smzht/fakeymacs">fakeymacs</a> — an independent project,
       not a fork of or affiliated with any of them.</span>
-    <span><a href="https://github.com/DaikiSuganuma/winremap">Source</a> ·
+    <span><a href="privacy.html">Privacy</a> ·
+      <a href="https://github.com/DaikiSuganuma/winremap">Source</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/issues">Report an issue</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.md">README</a> ·
       <a href="ja/" lang="ja">日本語版ヘルプ</a></span>

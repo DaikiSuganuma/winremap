@@ -74,10 +74,13 @@
     <p class="lead text-body-secondary">Rust 製の Windows 用アプリ別キーリマッパー。
     選んだアプリでだけキーを置き換え。設定はシンプルな TOML ファイル 1 つ。</p>
     <div class="d-flex flex-wrap gap-2 justify-content-center my-4">
-      <a class="btn btn-primary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>インストーラーをダウンロード</a>
+      <a class="btn btn-primary btn-lg" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Microsoft Store</a>
+      <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>インストーラーをダウンロード</a>
       <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>ポータブル版 exe</a>
       <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap"><i class="bi bi-github me-1"></i>GitHub</a>
     </div>
+    <p class="small text-body-secondary mb-1">どちらも公式で、入るのは同じビルドです
+    (<a href="install.html">違い</a>)。ストアのページは v0.6.0 の認定通過後に公開されます。</p>
     <p class="small text-body-secondary mb-0">無料・オープンソース (MIT) · ネットワーク通信なし · キー入力を記録しない ·
     <a href="https://github.com/DaikiSuganuma/winremap/releases">全リリース</a></p>
   </div>
@@ -206,7 +209,9 @@
         すべて無音で起動し、利用者が知るべきこと(起動時エラー、リロード失敗)はダイアログで
         表示されます。ターミナルから起動した場合も同じように静かで、<code>--debug</code> を
         付けたときだけそのターミナルにログを出力します (プロンプトがすぐ戻るため出力が
-        混ざって見えます)。読みやすいログが必要なときは
+        混ざって見えます)。<code>--debug</code> はそのターミナルに出力し続けるため、
+        ターミナルを閉じると WinRemap も終了します。付けない場合は起動完了時に
+        ターミナルを切り離すので、閉じても動き続けます。読みやすいログが必要なときは
         トレイの<em>ログを表示</em>をお使いください。</div>
       </div>
     </div>
@@ -234,9 +239,17 @@
         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq8">WinRemap はどこに何を保存する?</button>
       </h3>
       <div id="faq8" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">プログラム本体: <code>%LOCALAPPDATA%\Programs\WinRemap</code>(インストーラー利用時)
-        またはポータブル exe を置いた場所。設定: <code>%APPDATA%\winremap\config.toml</code>。
-        それだけです — サービスもドライバーもレジストリ設定もありません。</div>
+        <div class="accordion-body">
+          <p>プログラム本体: <code>%LOCALAPPDATA%\Programs\WinRemap</code>(インストーラー利用時)
+          またはポータブル exe を置いた場所。設定: <code>%APPDATA%\winremap\config.toml</code>。
+          それだけです — サービスもドライバーもレジストリ設定もありません。</p>
+          <p class="mb-0"><strong>Store 版</strong>は Windows がパッケージアプリを置く場所に入り、
+          <code>%APPDATA%</code> の専用コピーも一緒に与えられます。そのため Store から新規に
+          入れた場合の設定は
+          <code>%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\</code>
+          に置かれます。覚えておく必要はありません。設定ウィンドウが実際に使っている
+          フォルダーを表示し、エクスプローラーで開くこともできます。</p>
+        </div>
       </div>
     </div>
     <div class="accordion-item">
@@ -251,7 +264,35 @@
 gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
 </code></pre>
           <p class="mb-0">詳細は <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>
-          を参照。GitHub Releases 以外で配布されているバイナリは非公式です。</p>
+          を参照。Store 版にこの手順は要りません — Microsoft が署名し、ストアのページが
+          発行元を名乗ります。この 2 つの経路以外で配布されているバイナリは非公式です。</p>
+        </div>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq10">Microsoft Store 版と GitHub 版は何が違う?</button>
+      </h3>
+      <div id="faq10" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          <p>同じソースから作った同じビルドで、バージョンも同じです。実用上の違いは 3 つ。</p>
+          <ul>
+            <li><strong>SmartScreen の警告が出ません</strong>(Store 版)。Microsoft がパッケージに
+            署名するためです。GitHub 版のバイナリは未署名なので、ダウンロード直後に
+            警告が出ることがあります。</li>
+            <li><strong>更新が自動で届きます</strong>(Store 版)。GitHub 版は新しい版を
+            自分でダウンロードします。</li>
+            <li><strong>設定ファイルの場所が違います。</strong>Windows はパッケージアプリに
+            <code>%APPDATA%</code> の専用コピーを与えるため、Store から新規に入れた場合の
+            <code>config.toml</code> は <code>%APPDATA%\winremap\</code> ではなく
+            パッケージ専用フォルダーに置かれます。どちらの場合も、設定ウィンドウが
+            実際に使っているフォルダーを表示します。</li>
+          </ul>
+          <p class="mb-0">乗り換えても大丈夫です。インストーラー版で作った
+          <code>%APPDATA%\winremap\config.toml</code> が既にあれば、Store 版はそのファイルを
+          引き続き使うので、書いたルールはそのまま持ち越されます。ポータブル版
+          (exe 1 つで動かす使い方)があるのは GitHub 版だけです。
+          <a href="install.html">インストールガイド</a>も参照してください。</p>
         </div>
       </div>
     </div>
@@ -265,6 +306,7 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
     <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
     <span><a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.ja.md">README (日本語)</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
+      <a href="privacy.html">プライバシー</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap">ソースコード</a> ·
       <a href="../" lang="en">English help</a></span>
     <span>トレイメニューのアイコンは <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>(MIT)を使用しています —
