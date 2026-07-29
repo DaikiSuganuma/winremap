@@ -94,6 +94,20 @@ if redirected.exists() || !path.exists() { redirected } else { path }
 
 1. `packaging\msix\build.ps1 -Register`
 2. スタートメニューから WinRemap を起動し、トレイから設定ウィンドウを開く
-3. アドレスバーが `…\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap` を指していること
-4. 「フォルダーを開く」で Explorer がその場所を実際に開くこと
-5. `Get-AppxPackage -Name SUGANUMADaiki.WinRemap | Remove-AppxPackage` で撤去
+3. アドレスバーの表示と、「フォルダーを開く」で Explorer が実際に開く場所が一致すること
+4. `Get-AppxPackage -Name SUGANUMADaiki.WinRemap | Remove-AppxPackage` で撤去
+
+**この確認は分岐ごとに 2 回必要である。** どちらを通るかは `%APPDATA%\winremap\config.toml` の有無で決まる。
+
+| 事前状態 | 通る分岐 | 期待されるアドレスバー |
+|---|---|---|
+| `%APPDATA%\winremap\config.toml` **あり**（インストーラー版からの移行） | 実体を使う | `C:\Users\<user>\AppData\Roaming\winremap` |
+| **なし**（Store からの新規導入） | リダイレクト先を使う | `…\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap` |
+
+### 確認結果（2026-07-29、オーナー実施）
+
+**移行の分岐のみ確認済み。** 既存の設定ファイルがある状態でアドレスバーは `C:\Users\suganuma\AppData\Roaming\winremap` を表示し、「フォルダーを開く」で Explorer がその場所を正常に開いた。設定が引き継がれ、外部プロセスへ渡したパスも通ることが確認できた。
+
+**リダイレクトの分岐は未確認。** これは Store から新規導入する利用者が必ず通る経路であり、**Store 提出前に消化しなければならない**。確認するには `%APPDATA%\winremap` を退避してから上記手順を実行する。
+
+未確認である以上、`family_name()` がパッケージ内で実際に値を返しているかは、まだ実測で裏付けられていない点に注意する（返さなければ両分岐とも実体パスを使い、移行の分岐だけを見ている限り修正前と区別がつかない）。
