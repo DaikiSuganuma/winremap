@@ -3,7 +3,7 @@
 - 作成日: 2026-07-29
 - 作成: Claude Code（AI モデル: claude-opus-5[1m]）／レビュー・承認: オーナー
 - ステータス: 採用
-- 関連: [ADR 0060](0060-msix-package.md)（MSIX パッケージ構成。本 ADR はそこで「未解決」として残した課題への回答）、[ADR 0050](../../v0.4/decisions/0050-config-file-switching.md)（設定ファイルの切り替え）、[ADR 0038](../../v0.2/decisions/0038-gui-win32-shell-open.md)（関連付け起動）、[ADR 0051](../../v0.4/decisions/0051-notify-file-watch.md)（設定ファイルの監視）
+- 関連: [ADR 0060](0060-msix-package.md)（MSIX パッケージ構成。本 ADR はそこで「未解決」として残した課題への回答）、[ADR 0050](../../v0.4/decisions/0050-config-file-switching.md)（設定ファイルの切り替え）、[ADR 0038](../../v0.2/decisions/0038-gui-win32-module.md)（関連付け起動）、[ADR 0051](../../v0.4/decisions/0051-notify-file-watch.md)（設定ファイルの監視）
 
 ## 背景
 

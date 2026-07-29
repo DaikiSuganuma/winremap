@@ -4,6 +4,7 @@
 
 - 作成日: 2026-07-18
 - 作成: Claude Code（AI モデル: claude-fable-5）／実施: オーナー
+- 更新: 2026-07-29（Claude Code / claude-opus-5[1m]）— **§4 Microsoft Store を追加**。v0.6.0 以降、**1 回のリリースで更新するチャネルは 2 つ**になった
 
 ---
 
@@ -41,10 +42,13 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 > **`--no-ff` で**マージする。`main` へ直接トピックブランチを入れない。
 
 0. **リリースブランチ**: `git checkout -b release/0.3.0 develop`
-1. **受け入れテスト**: 適用する全チェックリストを実施し、結果を記録・コミットする（マージ前にリリースブランチ上で行う）:
-   - [v0.1 受け入れチェックリスト](./v0.1/03_acceptance-checklist.md) — リマップ基盤の回帰確認（全項目）
-   - [v0.2 受け入れチェックリスト](./v0.2/03_acceptance-checklist.md) — ログ・設定ウィンドウ
-   - [v0.3 受け入れチェックリスト](./v0.3/03_acceptance-checklist.md) — マクロ記憶。とくに **M-50 群**（`delay_ms = 15` × 20 コマンドの再生を、打鍵しながら 10 回繰り返してもフックが外れずリマップが生き続けること）は本リリースの最重要確認
+1. **受け入れテスト**: そのバージョンのチェックリストを実施し、結果を記録・コミットする（マージ前にリリースブランチ上で行う）。
+
+   **v0.5 以降は「そのバージョンの 1 枚」だけを見ればよい。** v0.1〜v0.3 の約 200 項目は v0.5 で「自動で通す／手で通す／もう通さない」に仕分けてあり、手で通すものは [v0.5 チェックリスト §4](./v0.5/03_acceptance-checklist.md) の**手動最小集合 H-1〜H-9**（30〜40 分）に集約されている。各バージョンのチェックリストはこれを継承したうえで固有項目を足す形で作る。
+
+   - 最新: [v0.6 受け入れチェックリスト](./v0.6/03_acceptance-checklist.md)（H-1〜H-9 ＋ MSIX 固有の P-1〜P-7）
+   - 自動側: `cargo test` と `tests\ui\run-vm-ui-test.ps1`（[05_ui-test-automation.md](./05_ui-test-automation.md)）
+   - 過去分（仕分けの根拠として参照する）: [v0.1](./v0.1/03_acceptance-checklist.md)・[v0.2](./v0.2/03_acceptance-checklist.md)・[v0.3](./v0.3/03_acceptance-checklist.md)・[v0.4](./v0.4/03_acceptance-checklist.md)
 2. **CHANGELOG**: `Unreleased` の内容を新バージョン見出し（例 `## [0.1.0] - 2026-07-XX`）に切り出す
 3. **バージョン**: `Cargo.toml` の `version` が**リリースする番号になっているか確認**する。番号を上げるのは開発の開始時であって、ここではない（[04_git-branching.md](04_git-branching.md) §2.6）。上がっていなければこの時点で上げる
 4. **マージとタグ push**:
@@ -86,6 +90,12 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
    gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
    ```
 
+9. **配布チャネルを更新する。リリース 1 回につき 2 つある**（v0.6.0 以降）:
+   - **§4 Microsoft Store** — `.msix` を作って Partner Center へ提出する。ここが遅れると、**Store の利用者だけ古い版のまま**になる
+   - **§3 winget** — マニフェストを新しいタグの URL と SHA256 に更新して提出する
+
+   どちらも Release の公開後にしか行えない（§3 は資産の URL とハッシュが、§4 は Pages のプライバシーポリシー URL が、公開して初めて確定するため）。
+
 ## 3. パッケージマネージャーの更新（リリース後）
 
 winget / scoop のマニフェストは公式 Releases の資産（URL と SHA256）を指すため、**タグを打って Release を公開したあとに**更新・提出する（[ADR 0045](./v0.3/decisions/0045-package-manager-channels.md)）。提出物の control copy は [`packaging/`](../packaging/) にある（書き方・ローカル検証は [`packaging/README.md`](../packaging/README.md)）。
@@ -115,7 +125,67 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 >
 > **2026-07-26 実施**: v0.4.0 で再提出した（[PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875)）。提出前に 0. のチェック（出力が空）、`winget validate`、公開済み `winremap-setup.exe` を実際に落として SHA256 が manifest と一致することを確認済み。あわせて #405731 を理由を書いて close した。**初回登録は審査に時間がかかる**ため、マージされるまで `winget install DaikiSuganuma.WinRemap` は解決しない。
 
-## 4. 配布ポリシー（ブリーフ §10-3）
+## 4. Microsoft Store の更新（リリース後）
 
-- 配布の一次は GitHub Releases。winget（`DaikiSuganuma.WinRemap`）と scoop（公式 Extras バケット）は [ADR 0045](./v0.3/decisions/0045-package-manager-channels.md) で採用済みで、いずれも公式 Releases の URL と SHA256 を参照する**別の入口**である。**マニフェストの確定・提出は v0.3.0 のリリース後**（タグを打つまで資産の URL とハッシュが定まらないため）。パッケージ更新手順は Phase B で本書に追記する
+v0.6.0 で追加したチャネル（[ADR 0060](./v0.6/decisions/0060-msix-package.md)）。§3 の winget と違い、**参照ではなく実体を提出する**。Store は受け取った `.msix` を**再署名して配る**ため、GitHub Releases のバイナリとはファイルとして別物になる（中身は同じソース・同じタグから作った同じ exe である）。
+
+Partner Center の製品は登録済みで、**これらの値は変えてはならない**。変えるとパッケージ ID が変わり、既存の利用者にとって別アプリになる。
+
+| 項目 | 値 |
+|---|---|
+| Store ID | `9N6TQDXRX5WV` |
+| Identity/Name | `SUGANUMADaiki.WinRemap` |
+| Publisher | `CN=38CDEE8D-0FAC-4CBA-A3DA-17BBDD107F55` |
+| PublisherDisplayName | `SUGANUMA Daiki` |
+| パッケージファミリー名 | `SUGANUMADaiki.WinRemap_pktmgf1zdhxe0` |
+
+### 4.1 順序制約（重要）
+
+**Store 提出はタグを打って Release を公開したあと**である。理由は winget と違う。掲載情報に**プライバシーポリシーの URL** が要り、それを配信する GitHub Pages は `main` からのみ発行されるためである（`.github/workflows/pages.yml`）。`main` に入れてよいのは `release/*` と `hotfix/*` だけなので（[04_git-branching.md §2.5](./04_git-branching.md)）、抜け道は作らない。
+
+提出前に **`https://daikisuganuma.github.io/winremap/privacy.html` が 200 を返すこと**を確認する。
+
+### 4.2 手順
+
+1. **パッケージを作る**:
+
+   ```powershell
+   .\packaging\msix\build.ps1 -Pack   # -> packaging\msix\out\winremap-<version>.msix
+   ```
+
+   **署名しない。** Store が再署名するので、こちらの署名は不要であり、そもそも Partner Center 発行の Publisher ID で署名できる証明書は買えない。`-SelfSign` は手元でインストール経路を試すためだけのもので、**提出には使わない**（自己署名の Publisher はマニフェストごと書き換わる）。
+
+2. **バージョンは手で触らない。** `build.ps1` が `Cargo.toml` の `version` を読んで `AppxManifest.xml` の `Identity/@Version` に埋める。**第 4 フィールドは Store が使うので常に 0** である（`0.6.0` → `0.6.0.0`）。実行時に埋めた値が表示されるので、リリースする番号と一致しているか目で確認する。
+
+3. **Partner Center へ提出する** — 製品 → 新しい申請 → パッケージに `.msix` をアップロードし、以下を確認する:
+   - パッケージのバージョンと、公開しようとしている GitHub Release のタグが一致していること
+   - 掲載情報（説明・機能・スクリーンショット）が入っていること。文面と画像は [Store 掲載情報の草案](./v0.6/notes/20260729_store-listing.md) にある
+   - **`runFullTrust` の使用理由**を求められたら同ノート §3 の文面を貼る。低レベルキーボードフックはアプリコンテナでは動かない、という技術的必然性と、それ以外には使わないことの 2 点を答えるもの
+
+4. **認定を待つ**（数時間〜数日）。通過するとストアページが公開される。
+
+5. **公開後に確認する**（本バージョンの目的そのもの）:
+   - `https://apps.microsoft.com/detail/9N6TQDXRX5WV` が開くこと
+   - **Store からインストールしたときに SmartScreen の警告が出ないこと**
+   - 「認定通過後に公開されます」の但し書きを文書から消す（**6 か所**。[v0.6 開発計画 §4.3](./v0.6/01_development-plan.md) に一覧）
+
+### 4.3 認定に落ちた場合
+
+Partner Center の申請ページに落ちた項目と理由が出る。**落ちた申請は公開されていない**ので、直してその申請を差し替えればよい。GitHub Releases のように「出してしまったものは差し替えられない」制約は無い。
+
+- **`.msix` の作り直しで済む場合**（マニフェストの不備など）: `build.ps1 -Pack` からやり直して同じ申請に上げ直す
+- **exe の修正が要る場合**: `hotfix/*` を切って GitHub 側もリリースし直す。**Store だけ直して GitHub と中身がずれる状態を作らない**。SECURITY.md が「2 つの経路は同じソース・同じタグから作られる」と読者に約束しているためである
+
+> **バージョン番号の再利用**: 公開済みバージョン以下の番号は提出できない。落ちた申請は公開されていないため同じ番号で出し直せる**はず**だが、**未確認である**。v0.6.0 の提出で実際に落ちた場合は、そこで分かったことをここに追記する。
+
+### 4.4 このチャネルで注意すること
+
+- **設定ファイルの場所が違う。** パッケージ版は `%APPDATA%` への書き込みがパッケージ専用フォルダーへリダイレクトされる（[ADR 0061](./v0.6/decisions/0061-packaged-config-path.md)）。利用者向けの説明は README・ヘルプサイト・FAQ に入れてある。**問い合わせを受けたときに最初に疑う差分がこれ**である
+- **自動更新される。** GitHub 版と違い、利用者は明示的に更新しない。壊れた版を出すと全 Store 利用者に自動で届く。受け入れテスト（[v0.6 チェックリスト](./v0.6/03_acceptance-checklist.md)）を**リリースビルドで**通してから提出する
+- **アンインストールの挙動が違う。** パッケージ専用フォルダーは消えるが、`%APPDATA%\winremap` に置いた設定（インストーラー版から移行した利用者のもの）は残る
+
+## 5. 配布ポリシー（ブリーフ §10-3）
+
+- **公式の配布経路は 2 つ**である。**Microsoft Store**（§4。Microsoft が再署名。SmartScreen の警告が出ない唯一の経路）と **GitHub Releases**（未署名。`SHA256SUMS` とビルド来歴で検証する）。どちらも同じソース・同じタグから作る
+- winget（`DaikiSuganuma.WinRemap`）と scoop（公式 Extras バケット）は [ADR 0045](./v0.3/decisions/0045-package-manager-channels.md) で採用済みで、いずれも**公式 Releases の URL と SHA256 を参照する別の入口**である。実体を配っているわけではないので、上の「2 つ」には数えない
 - 他サイトで配布されているバイナリは非公式（README / SECURITY.md に明記済み）
