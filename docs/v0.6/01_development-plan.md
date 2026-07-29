@@ -366,6 +366,24 @@ P-1〜P-2（新規導入）と P-3（移行）は**事前状態が逆**である
 6. winget マニフェストを 0.6.0 に更新して提出する（**チャネルが 2 つになった**）
 7. 認定通過後、**「認定通過後に公開されます」の但し書きを 6 か所から消す**（§4.3 に一覧。URL 自体は既に実 URL である）
 
+### 7.2.1 実施記録（2026-07-29）— 手順 1〜5 の途中まで
+
+| 手順 | 状態 |
+|---|---|
+| 1. `release/0.6.0` を切る | ✅ `Cargo.toml` は `0.6.0`。上げ直しは不要だった |
+| 2. 受け入れ | ✅ 自動側全件緑、H-1〜H-9・P-1〜P-7 通過。**P-8 のみ未実施**（[受け入れ記録](03_acceptance-checklist.md) §5） |
+| 3. `main` マージ → `v0.6.0` タグ → ドラフト本文 | ✅ `164881d`。[リリースノート](notes/20260729_release-notes-0.6.0.md)（日英 5,692 文字）を投入 |
+| — オーナーが Publish | ✅ 2026-07-29 07:53 UTC |
+| 4. **Pages の発行確認** | ✅ `privacy.html`・`ja/privacy.html`・`install.html`・`ja/install.html` と README 用画像がすべて **200**。**順序制約を満たした** |
+| — 公開後の検証（§2 手順 8） | ✅ `SHA256SUMS` と実ファイルのハッシュ一致、`gh attestation verify` が両バイナリとも成功 |
+| — winget 提出前チェック（§3 手順 0） | ✅ 公開した `winremap.exe` に `vcruntime` / `msvcp` / `api-ms-win-crt` の参照なし |
+| 5a. `.msix` の作成 | ✅ `packaging\msix\out\winremap-0.6.0.msix`（4.3 MB・**未署名**）。バージョン `0.6.0.0`、Publisher は Partner Center 発行値 |
+| 5b. **Partner Center へ提出** | ⏳ **オーナー** |
+| 6. **winget を 0.6.0 に更新** | ⏳ **オーナー**（PR #407875 の差し替え。[03_release-operations.md §3](../03_release-operations.md)） |
+| 7. 但し書きの削除（6 か所） | ⏳ 認定通過後 |
+
+`.msix` を作る前に、**作業ツリーが `v0.6.0` タグと一致していること**を確認した（`git diff v0.6.0 HEAD` が空）。パッケージは開発機の `cargo build --release` で作るため、GitHub Actions が作った Releases のバイナリとはバイト一致しない。**同じソース・同じタグから作った同じビルド**という約束（SECURITY.md・リリースノート）は保つ必要があるので、ここでの確認はソースツリーに対して行う。
+
 ### 7.3 完了条件
 
 - v0.6.0 が GitHub Releases に出ている
