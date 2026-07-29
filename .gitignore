@@ -5,7 +5,9 @@
 /packaging/msix/layout/
 /packaging/msix/out/
 # Listing images. Uploaded to Partner Center; a PNG of a window is not source,
-# and the script plus the demo config beside it reproduce them.
+# and the script plus the demo config beside it reproduce them. The few that
+# the docs show are committed, cropped, under site/assets/screenshots/ --
+# export-doc-images.ps1 makes those from these.
 /packaging/msix/screenshots/
 # Test VM connection details, including the guest password. Never commit.
 /.secrets/

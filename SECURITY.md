@@ -1,7 +1,7 @@
 # Security Policy
 
 WinRemap is a keyboard remapper: a maliciously modified build could act as a
-keylogger. Please only use binaries from the official distribution channel
+keylogger. Please only use binaries from an official distribution channel
 and verify them as described below.
 
 ## Reporting a vulnerability
@@ -25,9 +25,25 @@ and checked in review.
 
 ## Official distribution and verification
 
-Official binaries are published **only** on
-[GitHub Releases](https://github.com/DaikiSuganuma/winremap/releases).
+WinRemap is published through **two** channels, both of them ours:
+
+| Channel | Who signs it | How you verify it |
+|---|---|---|
+| [Microsoft Store](https://apps.microsoft.com/detail/9N6TQDXRX5WV) | Microsoft, on submission | The Store page itself: publisher **SUGANUMA Daiki**, product ID **9N6TQDXRX5WV** |
+| [GitHub Releases](https://github.com/DaikiSuganuma/winremap/releases) | Unsigned | `SHA256SUMS` and a build-provenance attestation (below) |
+
 Binaries from any other site are unofficial.
+
+The Store package and the GitHub binaries are built from the same source at
+the same tag. Choosing between them is a matter of how you want to install
+and update, not of trust — see the
+[install guide](https://daikisuganuma.github.io/winremap/install.html) for
+the practical differences, including where each one keeps your config file.
+
+> The Store listing goes live when certification completes for v0.6.0; until
+> then the link above will not resolve.
+
+### Verifying a GitHub Releases download
 
 Each release includes `SHA256SUMS` and a GitHub build-provenance
 attestation covering both the portable `winremap.exe` and the installer

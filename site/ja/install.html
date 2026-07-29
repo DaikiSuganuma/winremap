@@ -79,15 +79,49 @@
 
 <section id="install" class="container py-4 border-bottom">
   <h2 class="mb-3"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>インストール</h2>
+  <p>公式の入手経路は 2 つあり、どちらも同じソースから作った同じビルドが入ります。
+  インストールと更新の好みで選んでください。</p>
+
+  <div class="table-responsive my-3">
+    <table class="table align-middle">
+      <thead>
+        <tr><th scope="col"></th><th scope="col">Microsoft Store</th><th scope="col">GitHub Releases</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row" class="fw-normal">SmartScreen の警告</th>
+            <td>出ません(Microsoft が署名するため)</td>
+            <td>ダウンロード直後は出ることがあります(下記)</td></tr>
+        <tr><th scope="row" class="fw-normal">更新</th>
+            <td>自動</td>
+            <td>新しい版を自分でダウンロード</td></tr>
+        <tr><th scope="row" class="fw-normal">設定ファイル</th>
+            <td>アプリ専用のフォルダー(場所は設定ウィンドウが表示します)</td>
+            <td><code>%APPDATA%\winremap\config.toml</code></td></tr>
+        <tr><th scope="row" class="fw-normal">ポータブル利用</th>
+            <td>不可</td>
+            <td>可(<code>winremap.exe</code> 単体)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="h5 mt-4">Microsoft Store から入れる</h3>
+  <p>ストアのページで［入手］を押すだけです。スタートメニューに WinRemap が追加され、
+  起動するとタスクトレイにキーボードのアイコンが現れます。Windows の起動時に
+  自動で立ち上げたい場合は<em>設定 → アプリ → スタートアップ</em>でオンにしてください。</p>
+
+  <div class="d-flex flex-wrap gap-2 my-3">
+    <a class="btn btn-primary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Microsoft Store で入手</a>
+  </div>
+  <p class="text-body-secondary small">ストアのページは v0.6.0 の認定通過後に公開されます。
+  それまでこのリンクは開けません。</p>
+
+  <h3 class="h5 mt-4">GitHub Releases から入れる</h3>
   <ol>
     <li><a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><code>winremap-setup.exe</code></a>
       をダウンロードして実行します。ユーザー単位のインストールなので<strong>管理者権限は不要</strong>です。</li>
     <li><strong>サインイン時に自動起動</strong>するかを選びます(常用するなら推奨。後から変更できます)。</li>
     <li>ウィザードを完了すると WinRemap が起動し、タスクトレイにキーボードのアイコンが現れます。</li>
   </ol>
-  <p>設定ファイルがまだ無い場合のみ、インストーラーが初期設定
-  <code>%APPDATA%\winremap\config.toml</code> を作成します。既存の設定には一切触れず、
-  アンインストールしても設定は残ります。</p>
 
   <div class="d-flex flex-wrap gap-2 my-3">
     <a class="btn btn-primary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>インストーラーをダウンロード</a>
@@ -98,13 +132,15 @@
   <div class="alert alert-warning d-flex gap-2" role="alert">
     <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
     <div><strong>「Windows によって PC が保護されました」(SmartScreen) が出たら?</strong>
-    WinRemap のバイナリはコード署名されていないため(無料ツールには署名証明書の費用負担が大きいため)、
+    これは GitHub からダウンロードしたファイルの話で、Store 版には出ません。
+    GitHub 版のバイナリはコード署名されていないため(無料ツールには署名証明書の費用負担が大きいため)、
     ダウンロード直後は
     この警告が表示されることがあります。<em>詳細情報</em> → <em>実行</em> で起動できます。
     やみくもに信用する代わりに、ダウンロードの検証を推奨します: 各リリースには
     <code>SHA256SUMS</code> と、このリポジトリの公開ソースからビルドされたことを証明する
     GitHub の attestation(ビルド来歴証明)が付属します。手順は
-    <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a> を参照してください。</div>
+    <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a> を参照してください。
+    Store から入れれば、この警告自体が出ません。</div>
   </div>
 
   <h3 class="h5 mt-4">パッケージマネージャーから入れる</h3>
@@ -119,6 +155,18 @@
   <code>%APPDATA%\winremap\config.toml</code>、または
   <code>--config パス\ファイル.toml</code> で指定したファイルを読みます。
   ほかのファイルやレジストリ項目は作りません。</p>
+
+  <h3 class="h5 mt-4">設定ファイルの置き場所</h3>
+  <p>設定ファイルがまだ無い場合、WinRemap は初回起動時に初期設定を作成します。
+  既存の設定には一切触れず、アンインストールしても設定は残ります。</p>
+  <p class="mb-0">場所はインストール経路で変わります。インストーラー版とポータブル版は
+  <code>%APPDATA%\winremap\config.toml</code> です。Windows はパッケージアプリに
+  <code>%APPDATA%</code> の専用コピーを与えるため、Store から新規に入れた場合は
+  <code>%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\</code>
+  に置かれます。これを打ち込む必要はありません。設定ウィンドウが<strong>実際に使っている
+  フォルダーを表示し</strong>、エクスプローラーで開くこともできます。
+  インストーラー版で作った設定が既にある場合、Store 版はそちらを引き続き使うので、
+  <strong>経路を乗り換えても設定は失われません</strong>。</p>
 </section>
 
 <section id="quickstart" class="container py-4">
@@ -155,7 +203,7 @@ application = ["notepad.exe"]
   <p>コピーして使える設定例:
   <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/minimal.toml">minimal.toml</a>(上の例)、
   <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/emacs.toml">emacs.toml</a>(fakeymacs 風 Emacs キーバインド)、
-  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/suganuma.toml">suganuma.toml</a>
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/personal-ja.toml">personal-ja.toml</a>
   (除外リスト・マクロ・プレフィックスキーを使った実運用例)。</p>
 
   <p class="mt-4">
@@ -173,6 +221,7 @@ application = ["notepad.exe"]
     <span><a href="https://getbootstrap.com/">Bootstrap</a> と
       <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>（MIT）で構築しています。</span>
     <span><a href="index.html">ヘルプ</a> ·
+      <a href="privacy.html">プライバシー</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap">ソース</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
       <a href="../install.html" lang="en">English</a></span>
