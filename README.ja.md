@@ -13,6 +13,9 @@ English: [README.md](README.md)
 📖 **ヘルプページ:** [daikisuganuma.github.io/winremap/ja/](https://daikisuganuma.github.io/winremap/ja/)
 ([English](https://daikisuganuma.github.io/winremap/))
 
+![WinRemap の設定ウィンドウ。3 つのキーマップがツリーに並び、選択したキーマップの
+対象 exe と、設定ファイルに書いたコメント付きのリマップ規則が表示されている](site/assets/screenshots/ja-01-settings.png)
+
 ## 動作のしくみ
 
 WinRemap がやるのはあくまで**キーストロークの置き換えだけ**で、アプリの機能を直接呼び出すことはありません。低レベルキーボードフックが物理キーイベントを抑止し、`SendInput` で置き換え先のキーを注入します。アプリは注入されたキーを「ユーザーが打ったキー」として受け取り、アプリ自身のネイティブな意味で解釈します。たとえば `A-a` を `C-a` にリマップすれば、アプリの Ctrl+A の動作（通常は全選択）がそのまま動きます。注入イベントはフックを素通しする（再変換しない）ため、ルール同士が連鎖したりループしたりすることはありません。
@@ -43,12 +46,22 @@ flowchart TD
 
 ## クイックスタート
 
-1. [Releases](https://github.com/DaikiSuganuma/winremap/releases) から
-   `winremap-setup.exe` をダウンロードして実行します（検証手順は
-   [SECURITY.md](SECURITY.md)）。インストーラーは管理者権限不要の
-   ユーザー単位インストールで、スタートメニューへの登録、サインイン時の
-   自動起動（任意）に対応し、設定ファイルがまだ無い場合は
-   `%APPDATA%\winremap\config.toml` を最小サンプルから作成します。
+1. インストールします。**公式の入手経路は 2 つ**あり、中身は同じビルドです。
+   好きなほうを選んでください（[SECURITY.md](SECURITY.md)）。
+
+   **Microsoft Store** — Microsoft が署名するため SmartScreen の警告が出ず、
+   更新も自動で届きます:
+
+   > [apps.microsoft.com/detail/9N6TQDXRX5WV](https://apps.microsoft.com/detail/9N6TQDXRX5WV)
+   > （v0.6.0 の認定通過後に公開）
+
+   **GitHub Releases** — [Releases](https://github.com/DaikiSuganuma/winremap/releases)
+   から `winremap-setup.exe` をダウンロードして実行します。インストーラーは
+   管理者権限不要のユーザー単位インストールで、スタートメニューへの登録と
+   サインイン時の自動起動（任意）に対応します。こちらのバイナリは
+   コード署名していないため、**「Windows によって PC が保護されました」**
+   が出ることがあります。信じて実行する代わりに検証する手順（2 コマンド）を
+   [SECURITY.md](SECURITY.md) に用意してあります。
 
    winget からも入れられます（マニフェストの受理後。リリースごとに提出します。
    [Releases](https://github.com/DaikiSuganuma/winremap/releases)
@@ -68,6 +81,9 @@ flowchart TD
    cargo build --release   # -> target\release\winremap.exe
    ```
 
+   どの経路で入れた場合も、**設定ファイルが無ければ初回起動時に作成します**。
+   既にある設定ファイルを上書きすることはありません。
+
 2. `%APPDATA%\winremap\config.toml` を編集します（例からのコピーでも可）:
 
    ```toml
@@ -86,6 +102,14 @@ flowchart TD
    winremap.exe                     # %APPDATA%\winremap\config.toml を使用
    winremap.exe --config my.toml    # パスを明示
    ```
+
+> **Store 版の設定ファイルはどこにあるか。** Windows はパッケージアプリに
+> `%APPDATA%` の専用コピーを与えるため、Store から新規に入れた場合の設定は
+> `%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\`
+> に置かれます。これを覚えておく必要はありません。設定ウィンドウが**実際に
+> 使っているフォルダーを表示し**、エクスプローラーで開くこともできます。
+> インストーラー版で作った `%APPDATA%\winremap\config.toml` が既にある場合、
+> Store 版はそちらを引き続き使うので、**経路を乗り換えても設定は失われません**。
 
 完全な例は [`examples/minimal.toml`](examples/minimal.toml)、
 [`examples/emacs.toml`](examples/emacs.toml)（fakeymacs 風 Emacs キーバインド）、
@@ -172,6 +196,9 @@ enabled = true                # 既定: false
 18:01:51.517 [判定]   C-h (BS 0x08) → Back (BS 0x08) に置換
 ```
 
+![WinRemap のログウィンドウ。時刻付きの各行に前面アプリと、キーごとの処理
+（素通し・置換・マクロ実行・プレフィックス待機）が並んでいる](site/assets/screenshots/ja-03-log.png)
+
 `[前面]` は「ルールが効かなくなった」ときと、`application` に何を書けばよいか分からないときに読む行です。対象のアプリに切り替えると、**指定すべき値そのもの**と、適用されるキーマップが出ます。`[判定]` はキー 1 つにつき 1 行で、WinRemap がそのキーをどうしたかを言います。
 
 ［全イベント］にチェックを入れると、流れた入力をすべて出します。物理キーの押下・解放（`[入力]`）と、それに対して WinRemap が送出したイベント（`[注入]`）です。**リマップは 2 つの時刻に分かれて起きます** — 置換先はキーを押した時に押され、離した時に離されます。時刻の列はそれを見分けるためのものです。記録はチェックの有無にかかわらず取っているので、**チェックを入れると、入れる前に押したキーの詳細も見えます**。
@@ -201,7 +228,7 @@ WinRemap は主に AI エージェント（Claude Code）が開発し、人間�
 ## セキュリティ
 
 - WinRemap は**キー入力の記録・保存を行わず**、**ネットワーク通信のコードを含みません**（テレメトリ・自動アップデートなし）。この方針はコードベースの規約として強制されています（[AGENTS.md](AGENTS.md)）
-- 公式バイナリの配布は [GitHub Releases](https://github.com/DaikiSuganuma/winremap/releases) **のみ**です。他サイトで配布されているバイナリは非公式です。[SECURITY.md](SECURITY.md) の手順でチェックサムとビルド来歴を検証してください
+- 公式の配布経路は **2 つ**です。[Microsoft Store](https://apps.microsoft.com/detail/9N6TQDXRX5WV)（Microsoft が署名）と [GitHub Releases](https://github.com/DaikiSuganuma/winremap/releases)（未署名。チェックサムとビルド来歴を検証できます）。他サイトで配布されているバイナリは非公式です。詳細は [SECURITY.md](SECURITY.md) を参照してください
 
 ## 謝辞
 

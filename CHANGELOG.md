@@ -13,8 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   package, which the Store re-signs — so installing it from there shows no
   "Windows protected your PC" warning at all. Downloads from GitHub Releases
   are unaffected and still warn; the binaries there remain unsigned.
+- Screenshots of the settings and log windows in both READMEs, and the Store
+  as a second install route throughout the docs: SECURITY.md now describes
+  two official channels rather than one, the install guide compares them, and
+  the FAQ answers what actually differs — including where each one keeps your
+  config file. Every page of the help site now links the privacy policy.
 
 ### Fixed
+
+- The help site linked `examples/suganuma.toml`, which was renamed to
+  `personal-ja.toml` in 0.5.0 — the link 404'd on both language versions.
 
 - **WinRemap starts on a machine that has no config file yet** (ADR 0059). It
   used to refuse, which was invisible only because the installer seeded
