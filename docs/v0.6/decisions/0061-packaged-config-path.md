@@ -104,10 +104,21 @@ if redirected.exists() || !path.exists() { redirected } else { path }
 | `%APPDATA%\winremap\config.toml` **あり**（インストーラー版からの移行） | 実体を使う | `C:\Users\<user>\AppData\Roaming\winremap` |
 | **なし**（Store からの新規導入） | リダイレクト先を使う | `…\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap` |
 
-### 確認結果（2026-07-29、オーナー実施）
+### 確認結果（2026-07-29）— 両分岐とも確認済み
 
-**移行の分岐のみ確認済み。** 既存の設定ファイルがある状態でアドレスバーは `C:\Users\suganuma\AppData\Roaming\winremap` を表示し、「フォルダーを開く」で Explorer がその場所を正常に開いた。設定が引き継がれ、外部プロセスへ渡したパスも通ることが確認できた。
+**移行の分岐**（オーナー実施）: 既存の設定ファイルがある状態でアドレスバーは `C:\Users\suganuma\AppData\Roaming\winremap` を表示し、「フォルダーを開く」で Explorer がその場所を正常に開いた。設定が引き継がれ、外部プロセスへ渡したパスも通る。
 
-**リダイレクトの分岐は未確認。** これは Store から新規導入する利用者が必ず通る経路であり、**Store 提出前に消化しなければならない**。確認するには `%APPDATA%\winremap` を退避してから上記手順を実行する。
+**リダイレクトの分岐**: 設定ウィンドウを開かずに測る方法を使った。`%APPDATA%\winremap` を退避し、**リダイレクト先にだけ壊れた TOML を置く**。起動時の読み込み失敗はエラーダイアログに解決後のパスをそのまま載せるので、修正の前後が区別できる。
 
-未確認である以上、`family_name()` がパッケージ内で実際に値を返しているかは、まだ実測で裏付けられていない点に注意する（返さなければ両分岐とも実体パスを使い、移行の分岐だけを見ている限り修正前と区別がつかない）。
+```
+failed to load C:\Users\suganuma\AppData\Local\Packages\
+  SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\config.toml:
+  TOML syntax error: ...
+```
+
+報告されたのは `%APPDATA%\winremap\config.toml` ではなくリダイレクト先だった。これにより次の 2 点が実測で裏付けられた。
+
+1. `GetCurrentPackageFamilyName` がパッケージ内で実際に値を返している（`family_name()` が `None` を返していれば、ここは実体パスと表示されたはずである）
+2. 実体が無いとき、解決はリダイレクト先を選ぶ
+
+ファイル配置を観察しても修正前後を区別できないのは前述のとおりだが、**エラーメッセージはアプリが「自分はどのパスを扱っているか」を宣言する唯一のテキスト出力**であり、そこを見れば GUI を開かずに済む。同種の確認が必要になったときはこの手を使う。
