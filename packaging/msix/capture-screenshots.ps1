@@ -356,11 +356,32 @@ if (Invoke-MenuFromBottom $MENU_UP.log) {
     # the log window is open (the observation carried from ADR 0058). So the
     # only content that reaches this window is somebody actually typing.
     if ($LogInteractive) {
-        $np = Start-Process notepad.exe -PassThru
-        Start-Sleep -Seconds 3
+        # Wait for a real window and put it in front, rather than launching and
+        # hoping. The first version slept three seconds and assumed Notepad had
+        # focus; it did not — Windows will not hand the foreground to a process
+        # started by a script that does not hold it — so the keys went to
+        # whichever window was in front, matched the global keymap, and were
+        # correctly passed through. The log then showed a remapper doing
+        # nothing, which took a measurement to tell apart from a broken one.
+        Start-Process notepad.exe | Out-Null
+        $np = $null
+        $deadline = (Get-Date).AddSeconds(30)
+        while ((Get-Date) -lt $deadline) {
+            $np = Get-Process -Name Notepad -ErrorAction SilentlyContinue |
+                Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+            if ($np) { break }
+            Start-Sleep -Milliseconds 300
+        }
+        if (-not $np) { Say '  notepad never opened; the log shot will be thin' }
+        else {
+            [void][Cap]::SetForegroundWindow($np.MainWindowHandle)
+            Start-Sleep -Seconds 2
+        }
         Write-Host ''
         Write-Host '  ------------------------------------------------------------' -ForegroundColor Yellow
-        Write-Host '  Type in Notepad now. The demo config remaps these there:' -ForegroundColor Yellow
+        Write-Host '  Notepad is in front. Type there — do NOT click any other' -ForegroundColor Yellow
+        Write-Host '  window, or the rules of a different keymap apply. Remapped' -ForegroundColor Yellow
+        Write-Host '  in Notepad by the demo config:' -ForegroundColor Yellow
         Write-Host '     Ctrl+H     -> Backspace   (one line per press)' -ForegroundColor Yellow
         Write-Host '     Ctrl+T     -> a macro of three keystrokes' -ForegroundColor Yellow
         Write-Host '     Alt+X then U -> Ctrl+Z    (a two-stroke sequence)' -ForegroundColor Yellow
