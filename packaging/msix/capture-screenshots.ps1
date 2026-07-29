@@ -394,45 +394,35 @@ if (Invoke-MenuFromBottom $MENU_UP.log) {
         # correctly passed through. The log then showed a remapper doing
         # nothing, which took a measurement to tell apart from a broken one.
         Start-Process notepad.exe | Out-Null
-        $np = $null
-        $deadline = (Get-Date).AddSeconds(30)
-        while ((Get-Date) -lt $deadline) {
-            $np = Get-Process -Name Notepad -ErrorAction SilentlyContinue |
-                Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-            if ($np) { break }
-            Start-Sleep -Milliseconds 300
-        }
-        if (-not $np) { Say '  notepad never opened; the log shot will be thin' }
-        else {
-            # Ask, then check. A process that does not hold the foreground
-            # cannot take it: SetForegroundWindow returns and flashes the
-            # taskbar button instead. Which window is in front decides which
-            # keymap applies, so guessing here produces a log full of keys
-            # that were correctly passed through — a picture of the product
-            # doing nothing, for a reason nothing on screen explains.
+        Start-Sleep -Seconds 2
+
+        # Which window is in front decides which keymap applies, so the
+        # countdown must not start until Notepad really is in front. Earlier
+        # versions gave up after a while and carried on; both times that
+        # produced a log of keys correctly passed through by the global
+        # keymap — a picture of the product doing nothing, for a reason
+        # nothing on screen explained. There is no timeout here on purpose:
+        # a person is already watching, and an unusable image costs them
+        # another full run.
+        $np = Get-Process -Name Notepad -ErrorAction SilentlyContinue |
+            Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+        if ($np) {
             [void][Cap]::SetForegroundWindow($np.MainWindowHandle)
             Start-Sleep -Seconds 1
-            if ([Cap]::ForegroundExe() -notlike 'Notepad*') {
-                $r = [Cap]::FrameOf($np.MainWindowHandle)
-                [void][Cap]::SetCursorPos([int](($r.Left + $r.Right) / 2), $r.Top + 80)
-                Start-Sleep -Milliseconds 200
-                [Cap]::mouse_event(0x0002, 0, 0, 0, [IntPtr]::Zero)
-                Start-Sleep -Milliseconds 80
-                [Cap]::mouse_event(0x0004, 0, 0, 0, [IntPtr]::Zero)
-                Start-Sleep -Seconds 1
-            }
-            $waited = 0
-            while ([Cap]::ForegroundExe() -notlike 'Notepad*' -and $waited -lt 30) {
-                if ($waited -eq 0) {
-                    Write-Host ''
-                    Write-Host '  Notepad is not in front and this script cannot put it there.' -ForegroundColor Red
-                    Write-Host '  Click the Notepad window; the countdown starts when you do.' -ForegroundColor Red
-                }
-                Start-Sleep -Seconds 1
-                $waited++
-            }
-            Say "  foreground is $([Cap]::ForegroundExe())"
         }
+        $asked = $false
+        while ([Cap]::ForegroundExe() -notlike 'Notepad*') {
+            if (-not $asked) {
+                Write-Host ''
+                Write-Host '  Notepad is not in front, and a script cannot put it there —' -ForegroundColor Red
+                Write-Host '  Windows only grants that to whoever already holds the' -ForegroundColor Red
+                Write-Host '  foreground. Click the Notepad window (open one if it did' -ForegroundColor Red
+                Write-Host '  not appear). The countdown starts as soon as you do.' -ForegroundColor Red
+                $asked = $true
+            }
+            Start-Sleep -Milliseconds 500
+        }
+        Say "  foreground is $([Cap]::ForegroundExe())"
         Write-Host ''
         Write-Host '  ------------------------------------------------------------' -ForegroundColor Yellow
         Write-Host '  Notepad is in front. Type there — do NOT click any other' -ForegroundColor Yellow
@@ -445,11 +435,15 @@ if (Invoke-MenuFromBottom $MENU_UP.log) {
         Write-Host "  Capturing in $InteractiveSeconds seconds." -ForegroundColor Yellow
         Write-Host '  ------------------------------------------------------------' -ForegroundColor Yellow
         for ($s = $InteractiveSeconds; $s -gt 0; $s--) {
-            Write-Host -NoNewline "`r  $s  "
+            $fg = [Cap]::ForegroundExe()
+            $mark = if ($fg -like 'Notepad*') { '' } else { "  <-- $fg is in front, not Notepad!" }
+            Write-Host -NoNewline "`r  $s $mark          "
             Start-Sleep -Seconds 1
         }
-        Write-Host "`r      "
-        if ($np -and -not $np.HasExited) { Stop-Process -Id $np.Id -Force -ErrorAction SilentlyContinue }
+        Write-Host "`r                                                    "
+        # Notepad is left running. Windows 11 runs it as a single process
+        # shared by every window, so force-killing it would take the user's
+        # own tabs with it.
         Start-Sleep -Seconds 1
     }
 
