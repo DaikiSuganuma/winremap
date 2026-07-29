@@ -214,31 +214,27 @@ function Open-TrayMenu {
 }
 
 # The popup's items are not in the UIA tree, so selection is by keyboard.
+#
 # Menu order (src/tray.rs): title (disabled), --, Enabled, --, Settings,
-# Reload config, Show log, --, Quit. Arrow keys land on the disabled title
-# too, hence the calibration below rather than a hard-coded count.
-function Invoke-MenuIndex([int]$Down) {
+# Reload config, Show log, --, Quit.
+#
+# Counted from the bottom, not the top. Arrow keys skip separators but may or
+# may not land on a disabled item, and the only disabled item is the title at
+# the very top — so counting up from Quit is exact while counting down from
+# the top is a guess. It also never touches Enabled, which the first version
+# of this script did: it probed downwards, switched remapping off on the way
+# past, and left it off. Every later keystroke then passed through unremapped
+# and the log shot came out empty, with nothing on screen to say why.
+$MENU_UP = @{ quit = 1; log = 2; reload = 3; settings = 4 }
+
+function Invoke-MenuFromBottom([int]$Up) {
+    if ($Up -lt 2) { throw "refusing to select menu item $Up from the bottom (that is Quit)" }
     $h = Open-TrayMenu
     if ($h -eq [IntPtr]::Zero) { return $false }
-    for ($i = 0; $i -lt $Down; $i++) { [Cap]::Key(0x28) }   # VK_DOWN
-    [Cap]::Key(0x0D)                                        # VK_RETURN
+    for ($i = 0; $i -lt $Up; $i++) { [Cap]::Key(0x26) }   # VK_UP
+    [Cap]::Key(0x0D)                                      # VK_RETURN
     Start-Sleep -Seconds 2
     return $true
-}
-
-# Finds how many Down presses reach Settings, by trying and looking for the
-# window. Everything above Settings in the menu is harmless to hit (the
-# disabled title does nothing, Enabled toggles, Reload reloads); Quit is
-# below it, so the search stops before reaching anything destructive.
-function Resolve-SettingsIndex([string]$SettingsTitle) {
-    foreach ($n in 1..5) {
-        Say "  probing menu index $n"
-        if (-not (Invoke-MenuIndex $n)) { continue }
-        if (Get-WindowLike $SettingsTitle) { Say "  settings is Down x$n"; return $n }
-        # An accidental Enabled toggle must not be left switched off.
-        [Cap]::Key(0x1B)
-    }
-    return 0
 }
 
 # --- capture ---------------------------------------------------------------
@@ -337,9 +333,9 @@ else { Say '  skipped tray menu shot' }
 # delay and an IME toggle — true, and no use at all as the first image a
 # customer sees. Selecting a keymap puts the rule table on screen, which is
 # the thing the product does.
-$index = Resolve-SettingsIndex $titles.settings
-if ($index -eq 0) { throw 'could not open the settings window from the tray menu' }
+if (-not (Invoke-MenuFromBottom $MENU_UP.settings)) { throw 'could not open the tray menu' }
 $settings = Wait-Window $titles.settings
+if (-not $settings) { throw 'the settings window did not open — check the tray menu order in src/tray.rs' }
 if (-not (Invoke-Named $settings $titles.keymap)) { Say '  keymap node not selected; General page will be shown' }
 Save-WindowShot (Get-WindowLike $titles.settings) "$Lang-01-settings" 'settings window, keymap rules'
 
@@ -350,9 +346,8 @@ if (Invoke-Named (Get-WindowLike $titles.settings) $titles.edit) {
 }
 else { Say '  skipped edit-mode shot' }
 
-# 4. Log window. Two indexes below Settings — Settings, Reload config, Show log
-# are consecutive with no separator between them.
-if (Invoke-MenuIndex ($index + 2)) {
+# 4. Log window.
+if (Invoke-MenuFromBottom $MENU_UP.log) {
     $log = Wait-Window $titles.log
 
     # An empty log is not a picture of a log, and there is no way around a
