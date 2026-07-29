@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-07-29
 
 ### Added
 
@@ -27,10 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its window closes — so a normal launch now hands the console back as soon as
   remapping is live. `--debug` still streams to the terminal and still ends
   with it, which is what that flag is for.
-
-- The help site linked `examples/suganuma.toml`, which was renamed to
-  `personal-ja.toml` in 0.5.0 — the link 404'd on both language versions.
-
 - **WinRemap starts on a machine that has no config file yet** (ADR 0059). It
   used to refuse, which was invisible only because the installer seeded
   `%APPDATA%\winremap\config.toml` for you — so the portable exe failed on
@@ -48,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   startup, so everything — the address bar, the file watch, both links —
   agrees on one location. A config carried over from an installed WinRemap
   keeps being used rather than being replaced by a fresh default.
+- The help site linked `examples/suganuma.toml`, which was renamed to
+  `personal-ja.toml` in 0.5.0 — the link 404'd on both language versions.
 
 ## [0.5.0] - 2026-07-29
 

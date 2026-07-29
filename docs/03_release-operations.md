@@ -117,6 +117,8 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 
 > **winget 初回登録の状況（2026-07-26 更新）**: v0.3.0 の提出（[PR #405731](https://github.com/microsoft/winget-pkgs/pull/405731)）は上記 0. の依存が原因で検証に失敗した。リリース済みバイナリは差し替えられないため、この PR は取り下げ、初回登録は v0.4.0 でやり直すことにした（オーナー決定 2026-07-23。経緯は[作業ノート](./v0.4/notes/20260723_winget-0.3.0-validation.md)）。
 >
+> **2026-07-29（v0.6.0 リリース時点）**: [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) は**まだ OPEN**（最終更新 2026-07-29 00:59 UTC）。v0.5.0 と同じ状況なので、**同じ判断を繰り返す** — 新規 PR を出さず、#407875 の中身を 0.6.0 に差し替える。手順は下記の「やり方」のとおり。**これで初回登録されるバージョンは 0.6.0 になる。**
+>
 > **2026-07-29 実施（オーナー決定）**: v0.5.0 の公開時点で [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) は未マージだったため、**新規 PR を出さず、#407875 の中身を 0.5.0 に差し替えた**。初回登録の PR が審査中に 2 本目の「新規パッケージ」PR を出すと重複扱いになり、どちらの審査も進まなくなるためである。**登録される最初のバージョンが 0.5.0 になる。**
 >
 > やり方（次に同じ状況になったとき用）: fork を **sparse checkout**（`git clone --filter=blob:none --sparse` ＋ `git sparse-checkout set manifests/d/<Publisher>`）する。winget-pkgs は 60 万ファイル超あり、素の clone は Windows のパス長制限で途中まで展開して失敗する。**マニフェストは PR 側のファイルを土台に、変更行だけ差し替える** — 提出済みのものは `wingetcreate` のヘッダー行と CRLF を持っており、`packaging/` の control copy をそのまま上書きすると全行差分になる。差し替えたら `winget validate <ディレクトリ>`、PR のタイトルも版に合わせ、何をしたかをコメントに残す。
