@@ -210,8 +210,10 @@
         sign-in is silent, and anything you must see (a startup error, a failed reload)
         appears as a dialog. Started from a terminal it is just as quiet — add
         <code>--debug</code> to have the log printed there, though the prompt returns
-        immediately so output arrives interleaved with it. For a readable running log, use
-        <em>Show log</em> in the tray.</div>
+        immediately so output arrives interleaved with it. A <code>--debug</code> session
+        also ends when you close that terminal, because it keeps printing to it; without
+        the flag WinRemap lets the terminal go once it is up and keeps running. For a
+        readable running log, use <em>Show log</em> in the tray.</div>
       </div>
     </div>
     <div class="accordion-item">

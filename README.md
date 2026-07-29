@@ -353,7 +353,13 @@ nothing** — starting it from a shell is as quiet as starting it from Explorer.
   undefined ordering.
 - Started from a terminal with `--debug`, WinRemap prints to that terminal but
   does not hold it: the prompt returns immediately and output arrives
-  interleaved with it. Without `--debug` it prints nothing at all.
+  interleaved with it. Closing that terminal also closes WinRemap — a `--debug`
+  session streams its log there, so it stays attached to the console and
+  Windows kills everything attached when the window goes. Without `--debug`
+  nothing is printed and WinRemap lets the console go once it is up, so it
+  keeps running after the terminal closes.
+- A launcher that puts its children in a job object with kill-on-close (some
+  IDE terminals do) still takes WinRemap down with it, whatever the flags.
 - IME **control** is out of scope by design (the optional indicator only
   *displays* the state); use the Windows 11 IME settings.
 - The IME indicator reads the state via the legacy IMM32 interface. It is
