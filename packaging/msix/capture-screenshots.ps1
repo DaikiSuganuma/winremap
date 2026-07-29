@@ -130,6 +130,9 @@ $root = [System.Windows.Automation.AutomationElement]::RootElement
 $desc = [System.Windows.Automation.TreeScope]::Descendants
 $kids = [System.Windows.Automation.TreeScope]::Children
 $any = [System.Windows.Automation.Condition]::TrueCondition
+$textType = New-Object System.Windows.Automation.PropertyCondition(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::Text)
 
 function Say([string]$m) { Write-Host $m -ForegroundColor Cyan }
 
@@ -268,7 +271,7 @@ function Invoke-MenuFromBottom([int]$Up) {
 # --- capture ---------------------------------------------------------------
 
 function Save-WindowShot($window, [string]$Name, [string]$Caption) {
-    if (-not $window) { Say "  no window for $Name"; return $false }
+    if (-not $window) { Say "  no window for $Name"; return }
     $h = [IntPtr]$window.Current.NativeWindowHandle
     [void][Cap]::SetForegroundWindow($h)
     Start-Sleep -Milliseconds 900
@@ -279,7 +282,7 @@ function Save-WindowShot($window, [string]$Name, [string]$Caption) {
 function Save-RectShot($r, [string]$Name, [string]$Caption) {
     $w = $r.Right - $r.Left
     $h = $r.Bottom - $r.Top
-    if ($w -le 0 -or $h -le 0) { Say "  empty rect for $Name"; return $false }
+    if ($w -le 0 -or $h -le 0) { Say "  empty rect for $Name"; return }
 
     $shot = New-Object System.Drawing.Bitmap($w, $h)
     $g = [System.Drawing.Graphics]::FromImage($shot)
@@ -305,7 +308,6 @@ function Save-RectShot($r, [string]$Name, [string]$Caption) {
     $canvas.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
     $canvas.Dispose(); $shot.Dispose()
     Say "  saved $Name.png  (window ${w}x${h}, scale $([Math]::Round($scale,2)))  $Caption"
-    return $true
 }
 
 # --- run -------------------------------------------------------------------
