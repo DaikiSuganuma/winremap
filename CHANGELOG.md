@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Closing the terminal you started WinRemap from no longer closes WinRemap**
+  (ADR 0062). It attaches to that terminal's console so `--debug` output has
+  somewhere to go, and Windows kills every process attached to a console when
+  its window closes — so a normal launch now hands the console back as soon as
+  remapping is live. `--debug` still streams to the terminal and still ends
+  with it, which is what that flag is for.
+
 - The help site linked `examples/suganuma.toml`, which was renamed to
   `personal-ja.toml` in 0.5.0 — the link 404'd on both language versions.
 

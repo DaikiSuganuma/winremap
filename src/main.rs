@@ -8,7 +8,7 @@
 // A resident tray app must not flash a console window when launched from
 // Explorer, the Start menu, or the autostart entry. Terminal users still get
 // output because notify::attach_parent_console hooks up to their console
-// (ADR 0029).
+// (ADR 0029), which run() lets go of again before going resident (ADR 0062).
 #![windows_subsystem = "windows"]
 
 mod clock;
@@ -117,6 +117,15 @@ fn run() -> anyhow::Result<()> {
     // names the recording keys (ADR 0043/0044).
     macro_record::sync_with_config();
     gui::log::emit(i18n::t().remapping_active);
+
+    // Startup is over, so the terminal that launched us has had everything it
+    // is going to get: let its console go, or closing that terminal would take
+    // a working WinRemap with it (ADR 0062). Late on purpose — every failure
+    // above this line still reaches the terminal it was reported from.
+    // `--debug` is the exception, since its log has nowhere else to stream.
+    if !cli.debug {
+        notify::detach_console();
+    }
 
     hook::run_message_loop(|| {
         tray.pump_events();

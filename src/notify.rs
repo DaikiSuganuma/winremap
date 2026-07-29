@@ -7,6 +7,10 @@
 //! dialog when there is no terminal. Both halves of that live here so the
 //! `unsafe` stays out of main.rs, by the same reasoning as ADR 0009
 //! (AGENTS.md invariant 3, ADR 0031).
+//!
+//! A borrowed console is also a leash — closing the terminal kills everything
+//! attached to it — so the attach is not permanent: [`detach_console`] hands
+//! it back once startup output is done (ADR 0062).
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -15,7 +19,7 @@ use windows::Win32::Storage::FileSystem::{
     CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
 };
 use windows::Win32::System::Console::{
-    ATTACH_PARENT_PROCESS, AttachConsole, GetStdHandle, STD_ERROR_HANDLE, STD_HANDLE,
+    ATTACH_PARENT_PROCESS, AttachConsole, FreeConsole, GetStdHandle, STD_ERROR_HANDLE, STD_HANDLE,
     STD_OUTPUT_HANDLE, SetStdHandle,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -26,6 +30,15 @@ use windows::core::{HSTRING, PCWSTR, w};
 /// Whether stdout/stderr reach a terminal. Read from the message loop and the
 /// tray callback, so it is an atomic rather than a `OnceLock<bool>`.
 static HAS_CONSOLE: AtomicBool = AtomicBool::new(false);
+
+/// Whether we borrowed the launcher's console, so [`detach_console`] knows
+/// there is one to give back.
+static ATTACHED: AtomicBool = AtomicBool::new(false);
+
+/// Whether the launcher set *both* standard handles itself — a file or a pipe
+/// that survives letting the console go. Recorded before the attach adopts
+/// anything, since after that the handles no longer say who set them.
+static LAUNCHER_OWNS_OUTPUT: AtomicBool = AtomicBool::new(false);
 
 /// Attaches to the console of the process that launched us, if it has one.
 ///
@@ -40,9 +53,14 @@ pub fn attach_parent_console() -> bool {
     // must win over both the console and the dialog fallback — otherwise a
     // script capturing our output would block on a message box instead.
     let redirected = std_handle_is_set(STD_OUTPUT_HANDLE);
+    LAUNCHER_OWNS_OUTPUT.store(
+        redirected && std_handle_is_set(STD_ERROR_HANDLE),
+        Ordering::Relaxed,
+    );
     // SAFETY: no arguments to get wrong; failure just means the launcher had
     // no console (Explorer, autostart), which is the expected silent case.
     let attached = unsafe { AttachConsole(ATTACH_PARENT_PROCESS) }.is_ok();
+    ATTACHED.store(attached, Ordering::Relaxed);
     if attached {
         // Attaching does not fill in handles the subsystem left unset, and
         // adopt_console_handle leaves already-set ones alone.
@@ -52,6 +70,37 @@ pub fn attach_parent_console() -> bool {
     let reachable = attached || redirected;
     HAS_CONSOLE.store(reachable, Ordering::Relaxed);
     reachable
+}
+
+/// Gives the launcher's console back, so closing that terminal no longer
+/// closes WinRemap.
+///
+/// Call once, when startup is over and the process is about to go resident,
+/// and only when the console is not a log destination — `--debug` streams to
+/// it for the whole run, so that mode stays attached and keeps dying with the
+/// terminal (ADR 0062).
+///
+/// The console is what ties the two together, not the parent process: closing
+/// a console window sends `CTRL_CLOSE_EVENT` to every process attached to it
+/// and terminates them once the handler returns, which no handler can refuse.
+/// Letting go is the only way out.
+pub fn detach_console() {
+    if !ATTACHED.swap(false, Ordering::Relaxed) {
+        return;
+    }
+    // Silenced first: the adopted CONOUT$ handles are about to dangle, and
+    // `println!` panics when a write fails.
+    HAS_CONSOLE.store(false, Ordering::Relaxed);
+    // SAFETY: no arguments to get wrong; the only failure is not being
+    // attached, which the swap above already ruled out.
+    let _ = unsafe { FreeConsole() };
+    // Output stays on only when every stream is the launcher's own file or
+    // pipe, which FreeConsole does not touch. Otherwise messages take the
+    // dialog path from here on, exactly as for an Explorer launch.
+    HAS_CONSOLE.store(
+        LAUNCHER_OWNS_OUTPUT.load(Ordering::Relaxed),
+        Ordering::Relaxed,
+    );
 }
 
 /// Whether the launcher handed us this standard handle (console, pipe, file).
