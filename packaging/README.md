@@ -50,8 +50,39 @@ wingetcreate submit packaging\winget
 scoop install packaging\scoop\winremap.json   # ローカルファイルから直接テスト
 ```
 
+## Microsoft Store / MSIX（`msix/`）
+
+winget・scoop と違い、**これだけは配信物そのものを作る**。Microsoft がパッケージを再署名するため、
+Store 経由で入れた利用者には SmartScreen の「Windows によって PC が保護されました」が出ない。
+方針と実測結果は [ADR 0060](../docs/v0.6/decisions/0060-msix-package.md) を参照。
+
+- 予約済み製品: Store ID `9N6TQDXRX5WV`、パッケージ ID `SUGANUMADaiki.WinRemap`
+- パッケージファミリー名: `SUGANUMADaiki.WinRemap_pktmgf1zdhxe0`
+- 構成: `AppxManifest.xml`（Identity は Partner Center 発行値）、`Assets/`（SVG から生成、コミット済み）、`build.ps1`
+
+```powershell
+# 動作確認（Developer Mode が必要。証明書も管理者権限も不要）
+packaging\msix\build.ps1 -Register
+
+# Partner Center へ上げる .msix を作る（署名しない — Store が署名する）
+packaging\msix\build.ps1 -Pack
+
+# 署名インストールの経路まで試す（証明書の信頼に管理者権限が要る）
+packaging\msix\build.ps1 -SelfSign
+```
+
+アイコンを描き直したときは、`assets/svg/kbd-enabled.svg` を差し替えて再生成する:
+
+```powershell
+cargo run --example msix_assets
+```
+
+`layout/` と `out/` は生成物で、Git 管理外。
+
 ## 参照（公式）
 
+- MSIX パッケージ（コマンドラインからの作成）: https://learn.microsoft.com/en-us/windows/msix/package/manual-packaging-root
+- Store 提出時のパッケージ要件: https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements
 - winget マニフェスト仕様: https://learn.microsoft.com/en-us/windows/package-manager/package/manifest
 - winget パッケージ提出: https://learn.microsoft.com/en-us/windows/package-manager/package/
 - Scoop App Manifests: https://github.com/ScoopInstaller/Scoop/wiki/App-Manifests

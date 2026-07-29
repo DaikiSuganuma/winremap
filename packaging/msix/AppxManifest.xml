@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WinRemap MSIX package manifest (ADR 0060).
+
+  Identity below is issued by Partner Center and must match the reserved
+  product byte for byte, or certification rejects the upload. Store ID
+  9N6TQDXRX5WV, package family name SUGANUMADaiki.WinRemap_pktmgf1zdhxe0.
+
+  Version is four-part with the revision fixed at 0: the Store reserves the
+  last field for itself. Keep the first three in step with Cargo.toml.
+
+  For a sideload test, build.ps1 rewrites Publisher to match the self-signed
+  certificate — Windows refuses to install a package whose Publisher differs
+  from its signing subject. The value here is the Store one.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap5 uap10 rescap">
+
+  <Identity
+    Name="SUGANUMADaiki.WinRemap"
+    Publisher="CN=38CDEE8D-0FAC-4CBA-A3DA-17BBDD107F55"
+    Version="0.6.0.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>WinRemap</DisplayName>
+    <PublisherDisplayName>SUGANUMA Daiki</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <!-- 19041 is the floor for the uap10 attributes below, not a WinRemap
+         requirement; the app itself runs on older Windows 10 from the
+         portable exe. -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+    <Resource Language="ja-jp" />
+  </Resources>
+
+  <Capabilities>
+    <!-- A low-level keyboard hook and SendInput are Win32, not WinRT: they
+         need an ordinary medium-IL process, which is what runFullTrust plus
+         TrustLevel="mediumIL" asks for. No app container, and none of the
+         WinRT input-injection capabilities apply. -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+
+  <Applications>
+    <Application
+      Id="WinRemap"
+      Executable="winremap.exe"
+      EntryPoint="Windows.FullTrustApplication"
+      uap10:TrustLevel="mediumIL"
+      uap10:RuntimeBehavior="packagedClassicApp">
+
+      <uap:VisualElements
+        DisplayName="WinRemap"
+        Description="A per-application key remapper for Windows"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png"
+        BackgroundColor="transparent">
+        <uap:DefaultTile ShortName="WinRemap" />
+      </uap:VisualElements>
+
+      <Extensions>
+        <!-- Replaces the Startup-folder shortcut the Inno installer creates
+             (installer/winremap.iss). A packaged app cannot drop a shortcut
+             there; this is the supported equivalent, and it gives the user a
+             switch in Settings > Apps > Startup that the shortcut never had.
+             Off by default: a remapper that turns itself on at sign-in
+             without being asked is the wrong first impression. -->
+        <uap5:Extension Category="windows.startupTask" Executable="winremap.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:StartupTask TaskId="WinRemapStartup" Enabled="false" DisplayName="WinRemap" />
+        </uap5:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+</Package>

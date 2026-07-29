@@ -47,6 +47,12 @@ winit = "0.30.13"
 [patch.crates-io]
 eframe = { git = "https://github.com/DaikiSuganuma/egui", branch = "accesskit-child-viewports" }
 
+[dev-dependencies]
+# `examples/msix_assets.rs` only. Already vetted as a build-dependency below;
+# this entry exists because examples cannot see those. Default features are
+# on here (the build-dependency turns them off) for `Pixmap::encode_png`.
+resvg = "0.47.0"
+
 [build-dependencies]
 # Build-time only: rasterizes the menu icons (ADR 0040). No runtime cost and
 # nothing of it ends up in the binary — only the pixels it produces do.

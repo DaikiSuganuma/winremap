@@ -1,5 +1,9 @@
 /target/
 /installer/output/
+# MSIX build products. Assets/ is generated too, but committed: packaging
+# should not need a Rust toolchain.
+/packaging/msix/layout/
+/packaging/msix/out/
 # Test VM connection details, including the guest password. Never commit.
 /.secrets/
 .mcp.json
