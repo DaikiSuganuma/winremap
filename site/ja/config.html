@@ -51,7 +51,7 @@
             data-bs-target="#nav" aria-controls="nav" aria-label="メニューを開く">
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="nav" aria-labelledby="navLabel">
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="nav" aria-labelledby="navLabel">
       <div class="offcanvas-header border-bottom">
         <h2 class="offcanvas-title h6 mb-0" id="navLabel">メニュー</h2>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="閉じる"></button>
@@ -91,7 +91,7 @@
 <main>
 
 <section id="shape" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-file-earmark-text text-primary me-2"></i>設定ファイルの形</h2>
+  <h2 class="mb-3"><i class="bi bi-file-earmark-text me-2"></i>設定ファイルの形</h2>
   <p>ファイルの場所は <code>%APPDATA%\winremap\config.toml</code> です
   （<code>--config &lt;パス&gt;</code> で変更できます）。<br>
   形式は
@@ -156,7 +156,7 @@ application = ["phpstorm64.exe", "idea64.exe"]
   間違いがあれば内容を報告したうえで、<em>直前の設定のまま動き続けます</em>。<br>
   書き間違いでキーボード環境が止まることはありません。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>WinRemap の中で編集する</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>WinRemap の中で編集する</h3>
   <p>ファイルを開かずに編集することもできます。<br>
   トレイアイコンを右クリックして
   <strong>設定</strong>を選び、<strong>編集</strong>を押してください。<br>
@@ -184,7 +184,7 @@ application = ["phpstorm64.exe", "idea64.exe"]
 </section>
 
 <section id="apps" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-bullseye text-primary me-2"></i>アプリの指定</h2>
+  <h2 class="mb-3"><i class="bi bi-bullseye me-2"></i>アプリの指定</h2>
   <p><code>[[keymap]]</code> は必ず「どのアプリに適用するか」から始めます。</p>
 
   <div class="table-responsive">
@@ -216,7 +216,7 @@ application = ["phpstorm64.exe", "idea64.exe"]
     </table>
   </div>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>どのブロックが勝つか</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>どのブロックが勝つか</h3>
   <p>複数のブロックが当てはまる場合、<strong>アプリ別のブロックが <code>"*"</code> の
   ブロックに勝ちます</strong>。<br>
   ファイルに書いた順序は関係ありません。<br>
@@ -240,7 +240,7 @@ application = ["code.exe"]
   どちらか一方だけを
   読んでいても気づけない衝突だからです。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>exe 名の調べ方</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>exe 名の調べ方</h3>
   <p>トレイアイコンを右クリックして<strong>ログを表示</strong>を選び、対象のアプリへ
   切り替えてください。<br>
   <code>[前面]</code> の行に、<code>application</code> に書くべき文字列
@@ -252,11 +252,11 @@ application = ["code.exe"]
 </section>
 
 <section id="rules" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-arrow-left-right text-primary me-2"></i>ルール</h2>
+  <h2 class="mb-3"><i class="bi bi-arrow-left-right me-2"></i>ルール</h2>
   <p><code>[keymap.remap]</code> の中では、左辺が「押すキー」、右辺が「アプリが受け取る
   キー」です。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>コマンドルールと単キールール</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>コマンドルールと単キールール</h3>
   <p>どちらになるかは、左辺に修飾キーが付いているかで決まります。<br>
   この違いは見た目以上に
   重要です。</p>
@@ -315,7 +315,7 @@ application = ["code.exe"]
     出力側なら問題ありません。</div>
   </div>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>プレフィックスキー（2 ストローク）</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>プレフィックスキー（2 ストローク）</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>"A-x u" = "C-z"      # Alt+X → U       →  元に戻す
 "A-x C-s" = "C-s"    # Alt+X → Ctrl+S  →  保存
 </code></pre>
@@ -329,7 +329,7 @@ application = ["code.exe"]
   1 打鍵目には修飾キーが必須です。<br>
   裸のキーをプレフィックスにすると、通常の入力まで飲み込んでしまうためです。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>マクロ</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>マクロ</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>"C-t" = ["C-Right", "C-Left", "C-S-Right"]   # 最大 8 コマンド
 </code></pre>
   <p>出力を配列にすると、各コマンドを順に 1 回ずつタップします。<br>
@@ -342,9 +342,9 @@ application = ["code.exe"]
 </section>
 
 <section id="sections" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-sliders text-primary me-2"></i>設定セクション</h2>
+  <h2 class="mb-3"><i class="bi bi-sliders me-2"></i>設定セクション</h2>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i><code>[macro]</code></h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i><code>[macro]</code></h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[macro]
 delay_ms = 8            # 0〜15、既定 0
 
@@ -389,7 +389,7 @@ record_play  = "F10"
     効いているのか分からない状態を作らないためです。</div>
   </div>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i><code>[ime_indicator]</code></h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i><code>[ime_indicator]</code></h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[ime_indicator]
 enabled = true                # 既定: false
 # trigger_keys = ["C-Space"]  # Ctrl+Space で IME を切り替えている場合
@@ -408,7 +408,7 @@ enabled = true                # 既定: false
 </section>
 
 <section id="keys" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-keyboard text-primary me-2"></i>キー記法</h2>
+  <h2 class="mb-3"><i class="bi bi-keyboard me-2"></i>キー記法</h2>
   <p>ルールでは Keyhac / fakeymacs でおなじみの Emacs 風記法を使います。<br>
   修飾キーの
   プレフィックス＋キー名で、<code>C-h</code>、<code>A-S-F5</code>、<code>W-Space</code>
@@ -446,7 +446,7 @@ enabled = true                # 既定: false
 
   <p>未対応: ルールの入力側に置く修飾キー。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>記号キーはキーボードによって違う</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>記号キーはキーボードによって違う</h3>
   <p>記号キーは、<strong>お使いのキーボードに刻印されているとおり</strong>に書きます。<br>
   <code>"C-;" = "Enter"</code> と書けば、<code>;</code> と刻まれたキーが対象になります。</p>
 
@@ -484,10 +484,10 @@ enabled = true                # 既定: false
 </section>
 
 <section id="recipes" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-code-square text-primary me-2"></i>記述例</h2>
+  <h2 class="mb-3"><i class="bi bi-code-square me-2"></i>記述例</h2>
   <p>いずれもそのまま設定ファイルに貼れる、完結したブロックです。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>CapsLock をもう一つの Ctrl にする</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>CapsLock をもう一つの Ctrl にする</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "capslock"
 application = ["*"]
@@ -500,7 +500,7 @@ application = ["*"]
   一切しなくなり、コマンドのために押しっぱなしにしたときも含めて <em>Ctrl そのもの</em>に
   なります。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Ctrl+H を Backspace に。<br>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Ctrl+H を Backspace に。<br>
   ただしターミナルは除く</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "backspace"
@@ -516,7 +516,7 @@ exclude = ["windowsterminal.exe", "mintty.exe"]  # 自前で 0x08 を送るた�
   なります。<br>
   ターミナルは既に正しく動くので除外します。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Emacs 風のカーソル移動をすべてのアプリで</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Emacs 風のカーソル移動をすべてのアプリで</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "emacs-motion"
 application = ["*"]
@@ -539,7 +539,7 @@ exclude = ["windowsterminal.exe", "emacs.exe"]
   もともと Emacs キーバインドを
   持つアプリは除外しないと、互いに衝突します。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>1 つのアプリだけ逆にしたい</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>1 つのアプリだけ逆にしたい</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "vscode"
 application = ["code.exe"]
@@ -550,7 +550,7 @@ application = ["code.exe"]
   <p>アプリ別のブロックは、上の <code>"*"</code> ブロックより後に書かなくても勝ちます。<br>
   コマンドを自分自身に対応させるのが「このアプリは例外」を表す書き方です。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Emacs 風のプレフィックスコマンド</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Emacs 風のプレフィックスコマンド</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "prefix"
 application = ["*"]
@@ -563,7 +563,7 @@ application = ["*"]
   <p><kbd>Alt</kbd>+<kbd>X</kbd> のあとに定義していないキーを押しても破棄されるので、
   打ち間違えて文書に文字が入ることはありません。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>1 キーで単語を選択する</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>1 キーで単語を選択する</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "select-word"
 application = ["*"]
@@ -576,7 +576,7 @@ application = ["*"]
   あっても、単語まるごとを選択できます。<br>
   1 マクロあたり最大 8 コマンドです。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>その場かぎりの繰り返し作業を記憶する</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>その場かぎりの繰り返し作業を記憶する</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[macro]
 delay_ms = 8
 record_start = "S-F10"   # Shift+F10 で開始、もう一度押して終了
@@ -592,7 +592,7 @@ record_play  = "F10"     # F10 で再生
   何が記録され何が記録されないかは
   <a href="macro.html">マクロ記憶</a>をご覧ください。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>出発点にする設定ファイル</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>出発点にする設定ファイル</h3>
   <p>WinRemap には 2 つの設定例が同梱されています。<br>
   どちらも通して読む価値があります:
   <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/minimal.toml">minimal.toml</a>
@@ -603,7 +603,7 @@ record_play  = "F10"     # F10 で再生
 </section>
 
 <section id="errors" class="container py-4">
-  <h2 class="mb-3"><i class="bi bi-exclamation-octagon text-primary me-2"></i>設定を間違えたとき</h2>
+  <h2 class="mb-3"><i class="bi bi-exclamation-octagon me-2"></i>設定を間違えたとき</h2>
   <p>問題は行番号付きで全件まとめて報告されます。<br>
   ファイルを 1 回見直すだけで全部直せます。<br>
   リロードに失敗した場合は、直前の有効な設定がそのまま動き続けます。</p>
@@ -666,7 +666,7 @@ record_play  = "F10"     # F10 で再生
   <strong>設定</strong>ウィンドウには今実際に効いている設定が出るので、
   リロードできていないことに気づく最短の方法でもあります。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>ログの読み方</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>ログの読み方</h3>
   <p>各行にはミリ秒までの時刻と、どの流れの行かを示すタグが付きます。<br>
   <code>[判定]</code> は
   キー 1 つにつき 1 行です。<br>
