@@ -94,6 +94,7 @@ cd D:\Projects\GitHub\winremap\tests\ui
 | `00-cli-smoke` | `--version` / `--help` / リダイレクト / 壊れた設定と不明な引数のダイアログ / 無音起動 | v0.1 起動スモーク、v0.2 A-1・A-4〜A-6・A-8・A-9・B0-11 |
 | `00-regression` | ウィンドウのライフサイクル、操作ログ、複数キーマップの表示、`--lang ja` | v0.2 A-15〜A-19・B0-5〜B0-12、v0.3 M-1・M-63・M-64・M-70・M-82 ほか |
 | `00-log-view` | ログの 2 モード（簡易／全イベント）、時刻・タグの列、クリップボード（[ADR 0057](v0.5/decisions/0057-log-view-modes.md)）、キー名・前面アプリ行・操作の記録・`--debug` の有無によるコンソール出力（[ADR 0058](v0.5/decisions/0058-log-readability.md)）、制御コード表示と印字可能文字を出さないこと（[ADR 0056](v0.5/decisions/0056-control-codes-in-the-log.md)） | v0.5 |
+| `01-settings-winapp` | シナリオ `01-settings-window` を **winapp CLI で書き直したもの**（AI 無し）。設定ウィンドウが開き、`Edit`・`General`・`Keymaps`・`notepad`・バージョン行が出ていること。**v0.7 の移行 Phase 2 として、エージェント版と並走させている**（[v0.7 開発計画 §3.3.1](v0.7/01_development-plan.md)） | v0.4 A-1 の一部、v0.2 B0-2 |
 
 `00-log-view` だけは **test-inject ビルド**で動く（[ADR 0053](v0.4/decisions/0053-test-inject-mode.md)）。キーを `keybd_event` で送るため、出荷ビルドでは注入として素通しされ、判定行がそもそも出ないからである。**両モードのスクリーンショットを `%TEMP%\winremap-log-view-*.png` に残す**。読みやすさは表明で確かめられないので、そこは人が見る。
 
