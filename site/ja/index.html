@@ -73,13 +73,20 @@
     <h1 class="display-5 fw-bold">WinRemap</h1>
     <p class="lead text-body-secondary">Rust 製の Windows 用アプリ別キーリマッパー。
     選んだアプリでだけキーを置き換え。設定はシンプルな TOML ファイル 1 つ。</p>
-    <div class="d-flex flex-wrap gap-2 justify-content-center my-4">
-      <a class="btn btn-primary btn-lg" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Microsoft Store</a>
-      <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>インストーラーをダウンロード</a>
-      <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>ポータブル版 exe</a>
-      <a class="btn btn-outline-secondary btn-lg" href="https://github.com/DaikiSuganuma/winremap"><i class="bi bi-github me-1"></i>GitHub</a>
+    <div class="d-flex justify-content-center mt-4 mb-2">
+      <a class="btn btn-primary btn-lg" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Microsoft Store アプリで開く</a>
     </div>
-    <p class="small text-body-secondary mb-1">どちらも公式で、入るのは同じビルドです
+    <p class="small text-body-secondary mb-3"><strong>Windows 専用です。</strong>このボタンは Store アプリに
+    引き渡すため、macOS・Linux・スマートフォンでは何も起きません。その場合は
+    <a href="https://apps.microsoft.com/detail/9N6TQDXRX5WV">ブラウザーでストアのページ</a>を開いてください。</p>
+    <div class="d-flex flex-wrap gap-2 justify-content-center mb-4">
+      <a class="btn btn-outline-secondary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-box-arrow-up-right me-1"></i>ストアのページ</a>
+      <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>インストーラーをダウンロード</a>
+      <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>ポータブル版 exe</a>
+      <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap"><i class="bi bi-github me-1"></i>GitHub</a>
+    </div>
+    <p class="small text-body-secondary mb-1"><strong>Store からの導入をおすすめします</strong> —
+    SmartScreen の警告が出ず、更新も自動で届きます。どちらも公式で、入るのは同じビルドです
     (<a href="install.html">違い</a>)。</p>
     <p class="small text-body-secondary mb-0">無料・オープンソース (MIT) · ネットワーク通信なし · キー入力を記録しない ·
     <a href="https://github.com/DaikiSuganuma/winremap/releases">全リリース</a></p>

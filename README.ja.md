@@ -46,8 +46,8 @@ flowchart TD
 
 ## クイックスタート
 
-1. インストールします。**公式の入手経路は 2 つ**あり、中身は同じビルドです。
-   好きなほうを選んでください（[SECURITY.md](SECURITY.md)）。
+1. インストールします。**公式の入手経路は 2 つ**あり、中身は同じビルドです
+   （[SECURITY.md](SECURITY.md)）。**おすすめは Store 版**です。
 
    **Microsoft Store** — Microsoft が署名するため SmartScreen の警告が出ず、
    更新も自動で届きます:
