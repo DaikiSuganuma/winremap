@@ -214,7 +214,10 @@ function Copy-Payload {
             @{ Local = (Join-Path $PSScriptRoot "guest\cli-smoke.ps1"); Guest = "$guestDir\cli-smoke.ps1" },
             # Dot-sourced by the two checks below, so it has to land first.
             @{ Local = (Join-Path $PSScriptRoot "guest\ui-helpers.ps1"); Guest = "$guestDir\ui-helpers.ps1" },
+            # The winapp CLI wrappers, dot-sourced by the ported scenarios.
+            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-helpers.ps1"); Guest = "$guestDir\winapp-helpers.ps1" },
             @{ Local = (Join-Path $PSScriptRoot "guest\regression-checks.ps1"); Guest = "$guestDir\regression-checks.ps1" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-settings-window.ps1"); Guest = "$guestDir\winapp-settings-window.ps1" },
             @{ Local = (Join-Path $PSScriptRoot "guest\log-view.ps1"); Guest = "$guestDir\log-view.ps1" }
         )) {
         Invoke-Vmrun copyFileFromHostToGuest $script:vm.VmxPath $pair.Local $pair.Guest | Out-Null
@@ -293,6 +296,11 @@ $harnessChecks = [ordered]@{
     "00-log-view"       = @{ Script = "log-view.ps1"; Result = "log-view.txt"; NeedsTray = $true; NeedsInject = $true
         Files = @("log-view-simple.png", "log-view-detailed.png")
     }
+    # Scenario 01 with the agent removed, driven by the winapp CLI. Runs
+    # alongside the agent version rather than replacing it until Phase 2 of the
+    # migration has its answer (v0.7 plan section 3.3): keeping both is what
+    # makes "the port decides the same thing" a comparison and not a claim.
+    "01-settings-winapp" = @{ Script = "winapp-settings-window.ps1"; Result = "winapp-settings-window.txt"; NeedsTray = $true }
 }
 
 function Invoke-GuestCheck {
