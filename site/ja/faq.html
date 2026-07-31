@@ -51,7 +51,7 @@
             data-bs-target="#nav" aria-controls="nav" aria-label="メニューを開く">
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="nav" aria-labelledby="navLabel">
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="nav" aria-labelledby="navLabel">
       <div class="offcanvas-header border-bottom">
         <h2 class="offcanvas-title h6 mb-0" id="navLabel">メニュー</h2>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="閉じる"></button>
@@ -90,144 +90,194 @@
 
 <main class="container py-4">
 
-<section id="faq1" class="mb-4 pb-3 border-bottom">
-  <h2 class="h5">特定のウィンドウでだけリマップが効かない</h2>
-<p class="mb-0">そのウィンドウが<strong>管理者として実行</strong>されている場合、Windows の保護機構
-        (UIPI)により通常権限のプログラムからの入力が届きません。<br>
-        どうしても必要なら
-        WinRemap も管理者として実行してください。<br>
-        アンチチート付きゲームや一部の仮想化ソフトも
-        注入入力を無視することがあります。</p>
+<section id="faq1" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>特定のウィンドウでだけリマップが効かない</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p class="mb-0">そのウィンドウが<strong>管理者として実行</strong>されている場合、Windows の保護機構
+            (UIPI)により通常権限のプログラムからの入力が届きません。<br>
+            どうしても必要なら
+            WinRemap も管理者として実行してください。<br>
+            アンチチート付きゲームや一部の仮想化ソフトも
+            注入入力を無視することがあります。</p>
+    </div>
+  </div>
 </section>
 
-<section id="faq2" class="mb-4 pb-3 border-bottom">
-  <h2 class="h5">今どの設定が効いているか確認したい</h2>
-<p>トレイアイコンを右クリックして<em>設定</em>を選んでください。<br>
-WinRemap が現在参照して
-          いる設定が表示されます。<br>
-          キーマップごとの対象アプリ・除外アプリ・リマップ規則が、設定
-          ファイルの同じ行に書いたコメント付きで並びます。<br>
-          同じ入力を複数のキーマップが束縛して
-          いる場合は、相手のキーマップ名を示す列が出ます(実際に効くのは 1 つだけのためです)。</p>
-          <p class="mb-0"><em>編集</em>を押すと、同じウィンドウがそのファイルのエディタになります。<br>
-          打ちながら記法を検証し、保存前に設定全体を検証してから書き込みます。<br>
-          触っていない箇所
-          (コメント・空行・並び順・綴り)はそのまま残ります。<br>
-          編集中も保存の瞬間もリマップは
-          止まりません。</p>
+<section id="faq2" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>今どの設定が効いているか確認したい</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>トレイアイコンを右クリックして<em>設定</em>を選んでください。<br>
+    WinRemap が現在参照して
+              いる設定が表示されます。<br>
+              キーマップごとの対象アプリ・除外アプリ・リマップ規則が、設定
+              ファイルの同じ行に書いたコメント付きで並びます。<br>
+              同じ入力を複数のキーマップが束縛して
+              いる場合は、相手のキーマップ名を示す列が出ます(実際に効くのは 1 つだけのためです)。</p>
+              <p class="mb-0"><em>編集</em>を押すと、同じウィンドウがそのファイルのエディタになります。<br>
+              打ちながら記法を検証し、保存前に設定全体を検証してから書き込みます。<br>
+              触っていない箇所
+              (コメント・空行・並び順・綴り)はそのまま残ります。<br>
+              編集中も保存の瞬間もリマップは
+              止まりません。</p>
+    </div>
+  </div>
 </section>
 
-<section id="faq3" class="mb-4 pb-3 border-bottom">
-  <h2 class="h5">ルールがマッチしない — どうやって調べる?</h2>
-<p class="mb-0">トレイアイコンを右クリックして<em>ログを表示</em>を選んでください。<br>
-読み込み中の設定
-        ファイル、前面ウィンドウごとの正確な <code>application</code> 値、そしてキーごとの
-        判定 (素通し / リマップ / マクロ / プレフィックス)が、時刻付きで 1 行ずつ出ます —
-        <code>C-h (BS 0x08) → Back (BS 0x08) に置換</code> のように。<br>
-        ［全イベント］に
-        チェックを入れると、押下・解放と WinRemap が送出したイベントまで全部見られます。<br>
-        ターミナル派の方は <code>winremap.exe --debug</code> で起動すれば同じ内容がそちらに
-        出ます (このオプションを付けない場合は何も出力しません)。<br>
-        入力した文章そのものが
-        ログに出ることはなく、ログがディスクに保存されることもありません。</p>
+<section id="faq3" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>ルールがマッチしない — どうやって調べる?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p class="mb-0">トレイアイコンを右クリックして<em>ログを表示</em>を選んでください。<br>
+    読み込み中の設定
+            ファイル、前面ウィンドウごとの正確な <code>application</code> 値、そしてキーごとの
+            判定 (素通し / リマップ / マクロ / プレフィックス)が、時刻付きで 1 行ずつ出ます —
+            <code>C-h (BS 0x08) → Back (BS 0x08) に置換</code> のように。<br>
+            ［全イベント］に
+            チェックを入れると、押下・解放と WinRemap が送出したイベントまで全部見られます。<br>
+            ターミナル派の方は <code>winremap.exe --debug</code> で起動すれば同じ内容がそちらに
+            出ます (このオプションを付けない場合は何も出力しません)。<br>
+            入力した文章そのものが
+            ログに出ることはなく、ログがディスクに保存されることもありません。</p>
+    </div>
+  </div>
 </section>
 
-<section id="faq4" class="mb-4 pb-3 border-bottom">
-  <h2 class="h5">Keyhac や AutoHotkey と併用できる?</h2>
-<p class="mb-0">同じキーに対しては非推奨です。<br>
-低レベルフックが重なると処理順が不定になり、
-        挙動が予測できなくなります。<br>
-        検証時はどちらか一方を OFF にしてください。</p>
+<section id="faq4" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>Keyhac や AutoHotkey と併用できる?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p class="mb-0">同じキーに対しては非推奨です。<br>
+    低レベルフックが重なると処理順が不定になり、
+            挙動が予測できなくなります。<br>
+            検証時はどちらか一方を OFF にしてください。</p>
+    </div>
+  </div>
 </section>
 
-<section id="faq6" class="mb-4 pb-3 border-bottom">
-  <h2 class="h5">インストール後に自動起動を ON/OFF したい</h2>
-<kbd>Win</kbd>+<kbd>R</kbd> → <code>shell:startup</code> を実行し、開いたフォルダで
-        <em>WinRemap</em> のショートカットを追加・削除してください(インストーラーを再実行して
-        選び直すこともできます)。<br>
+<section id="faq6" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>インストール後に自動起動を ON/OFF したい</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <kbd>Win</kbd>+<kbd>R</kbd> → <code>shell:startup</code> を実行し、開いたフォルダで
+            <em>WinRemap</em> のショートカットを追加・削除してください(インストーラーを再実行して
+            選び直すこともできます)。<br>
+    </div>
+  </div>
 </section>
 
-<section id="faq7" class="mb-4 pb-3 border-bottom">
-  <h2 class="h5">マクロが速すぎて対象アプリが取りこぼす</h2>
-<code>[macro]</code> セクションに <code>delay_ms = 8</code>(0〜15)を設定してください。<br>
-        入力を非同期に処理するアプリでは、一括注入されたストロークの一部が落ちることがあります。<br>
+<section id="faq7" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>マクロが速すぎて対象アプリが取りこぼす</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <code>[macro]</code> セクションに <code>delay_ms = 8</code>(0〜15)を設定してください。<br>
+            入力を非同期に処理するアプリでは、一括注入されたストロークの一部が落ちることがあります。<br>
+    </div>
+  </div>
 </section>
 
-<section id="faq8" class="mb-4 pb-3 border-bottom">
-  <h2 class="h5">WinRemap はどこに何を保存する?</h2>
-<p>プログラム本体: <code>%LOCALAPPDATA%\Programs\WinRemap</code>(インストーラー利用時)
-          またはポータブル exe を置いた場所。<br>
-          設定: <code>%APPDATA%\winremap\config.toml</code>。<br>
-          それだけです — サービスもドライバーもレジストリ設定もありません。</p>
-          <p class="mb-0"><strong>Store 版</strong>は Windows がパッケージアプリを置く場所に入り、
-          <code>%APPDATA%</code> の専用コピーも一緒に与えられます。<br>
-          そのため Store から新規に
-          入れた場合の設定は
-          <code>%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\</code>
-          に置かれます。<br>
-          覚えておく必要はありません。<br>
-          設定ウィンドウが実際に使っている
-          フォルダーを表示し、エクスプローラーで開くこともできます。</p>
+<section id="faq8" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>WinRemap はどこに何を保存する?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>プログラム本体: <code>%LOCALAPPDATA%\Programs\WinRemap</code>(インストーラー利用時)
+              またはポータブル exe を置いた場所。<br>
+              設定: <code>%APPDATA%\winremap\config.toml</code>。<br>
+              それだけです — サービスもドライバーもレジストリ設定もありません。</p>
+              <p class="mb-0"><strong>Store 版</strong>は Windows がパッケージアプリを置く場所に入り、
+              <code>%APPDATA%</code> の専用コピーも一緒に与えられます。<br>
+              そのため Store から新規に
+              入れた場合の設定は
+              <code>%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\</code>
+              に置かれます。<br>
+              覚えておく必要はありません。<br>
+              設定ウィンドウが実際に使っている
+              フォルダーを表示し、エクスプローラーで開くこともできます。</p>
+    </div>
+  </div>
 </section>
 
-<section id="faq9" class="mb-4 pb-3 border-bottom">
-  <h2 class="h5">ダウンロードが本物か検証するには?</h2>
-<p>リリース添付の <code>SHA256SUMS</code> とハッシュを比較し、GitHub CLI で
-          ビルド来歴の attestation を確認します:</p>
-<pre class="bg-body-tertiary border rounded p-3 mb-2"><code>(Get-FileHash .\winremap-setup.exe -Algorithm SHA256).Hash.ToLower()
-gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
-</code></pre>
-          <p class="mb-0">詳細は <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>
-          を参照。<br>
-          Store 版にこの手順は要りません — Microsoft が署名し、ストアのページが
-          発行元を名乗ります。<br>
-          この 2 つの経路以外で配布されているバイナリは非公式です。</p>
+<section id="faq9" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>ダウンロードが本物か検証するには?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>リリース添付の <code>SHA256SUMS</code> とハッシュを比較し、GitHub CLI で
+              ビルド来歴の attestation を確認します:</p>
+    <pre class="bg-body-tertiary border rounded p-3 mb-2"><code>(Get-FileHash .\winremap-setup.exe -Algorithm SHA256).Hash.ToLower()
+    gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
+    </code></pre>
+              <p class="mb-0">詳細は <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>
+              を参照。<br>
+              Store 版にこの手順は要りません — Microsoft が署名し、ストアのページが
+              発行元を名乗ります。<br>
+              この 2 つの経路以外で配布されているバイナリは非公式です。</p>
+    </div>
+  </div>
 </section>
 
-<section id="faq10" class="mb-4 pb-3 border-bottom">
-  <h2 class="h5">Microsoft Store 版と GitHub 版は何が違う?</h2>
-<p>同じソースから作った同じビルドで、バージョンも同じです。<br>
-実用上の違いは 3 つ。</p>
-          <ul>
-            <li><strong>SmartScreen の警告が出ません</strong>(Store 版)。<br>
-            Microsoft がパッケージに
-            署名するためです。<br>
-            GitHub 版のバイナリは未署名なので、ダウンロード直後に
-            警告が出ることがあります。</li>
-            <li><strong>更新が自動で届きます</strong>(Store 版)。<br>
-            GitHub 版は新しい版を
-            自分でダウンロードします。</li>
-            <li><strong>設定ファイルの場所が違います。<br></strong>Windows はパッケージアプリに
-            <code>%APPDATA%</code> の専用コピーを与えるため、Store から新規に入れた場合の
-            <code>config.toml</code> は <code>%APPDATA%\winremap\</code> ではなく
-            パッケージ専用フォルダーに置かれます。<br>
-            どちらの場合も、設定ウィンドウが
-            実際に使っているフォルダーを表示します。</li>
-          </ul>
-          <p class="mb-0">乗り換えても大丈夫です。<br>
-          インストーラー版で作った
-          <code>%APPDATA%\winremap\config.toml</code> が既にあれば、Store 版はそのファイルを
-          引き続き使うので、書いたルールはそのまま持ち越されます。<br>
-          ポータブル版
-          (exe 1 つで動かす使い方)があるのは GitHub 版だけです。<br>
-          <a href="install.html">インストールガイド</a>も参照してください。</p>
+<section id="faq10" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>Microsoft Store 版と GitHub 版は何が違う?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>同じソースから作った同じビルドで、バージョンも同じです。<br>
+    実用上の違いは 3 つ。</p>
+              <ul>
+                <li><strong>SmartScreen の警告が出ません</strong>(Store 版)。<br>
+                Microsoft がパッケージに
+                署名するためです。<br>
+                GitHub 版のバイナリは未署名なので、ダウンロード直後に
+                警告が出ることがあります。</li>
+                <li><strong>更新が自動で届きます</strong>(Store 版)。<br>
+                GitHub 版は新しい版を
+                自分でダウンロードします。</li>
+                <li><strong>設定ファイルの場所が違います。<br></strong>Windows はパッケージアプリに
+                <code>%APPDATA%</code> の専用コピーを与えるため、Store から新規に入れた場合の
+                <code>config.toml</code> は <code>%APPDATA%\winremap\</code> ではなく
+                パッケージ専用フォルダーに置かれます。<br>
+                どちらの場合も、設定ウィンドウが
+                実際に使っているフォルダーを表示します。</li>
+              </ul>
+              <p class="mb-0">乗り換えても大丈夫です。<br>
+              インストーラー版で作った
+              <code>%APPDATA%\winremap\config.toml</code> が既にあれば、Store 版はそのファイルを
+              引き続き使うので、書いたルールはそのまま持ち越されます。<br>
+              ポータブル版
+              (exe 1 つで動かす使い方)があるのは GitHub 版だけです。<br>
+              <a href="install.html">インストールガイド</a>も参照してください。</p>
+    </div>
+  </div>
 </section>
 
-<section id="faq11" class="mb-4 pb-3 border-bottom">
-  <h2 class="h5"><code class="text-reset">"C-@"</code> と書いたらエラーになりました</h2>
-<p>お使いのキーボードで <code>@</code> がキーではなく、
-          <kbd>Shift</kbd>+<kbd>2</kbd> だからです（US 配列の場合）。<br>
-          Shift ごと書いてください。</p>
-<pre class="bg-body-tertiary border rounded p-3 mb-2"><code>"C-S-2" = "Esc"</code></pre>
-          <p>WinRemap は黙って Shift を補わず、書くべき綴りを添えてお伝えします。<br>
-          補ってしまうと
-          <code>C-@</code> と <code>C-S-2</code> が、ある機械では同じルール、別の機械では
-          違うルールになってしまうためです。</p>
-          <p class="mb-0">日本語配列なら <code>@</code> は独立したキーなので、
-          <code>"C-@"</code> がそのまま通ります。<br>
-          記号キーは刻印どおりに書き、それがどのキーかは
-          キーボードによって違います —
-          <a href="config.html#keys">設定ガイドで説明しています</a>。</p>
+<section id="faq11" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span><code class="text-reset">"C-@"</code> と書いたらエラーになりました</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>お使いのキーボードで <code>@</code> がキーではなく、
+              <kbd>Shift</kbd>+<kbd>2</kbd> だからです（US 配列の場合）。<br>
+              Shift ごと書いてください。</p>
+    <pre class="bg-body-tertiary border rounded p-3 mb-2"><code>"C-S-2" = "Esc"</code></pre>
+              <p>WinRemap は黙って Shift を補わず、書くべき綴りを添えてお伝えします。<br>
+              補ってしまうと
+              <code>C-@</code> と <code>C-S-2</code> が、ある機械では同じルール、別の機械では
+              違うルールになってしまうためです。</p>
+              <p class="mb-0">日本語配列なら <code>@</code> は独立したキーなので、
+              <code>"C-@"</code> がそのまま通ります。<br>
+              記号キーは刻印どおりに書き、それがどのキーかは
+              キーボードによって違います —
+              <a href="config.html#keys">設定ガイドで説明しています</a>。</p>
+    </div>
+  </div>
 </section>
 
 </main>

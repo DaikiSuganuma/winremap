@@ -51,7 +51,7 @@
             data-bs-target="#nav" aria-controls="nav" aria-label="メニューを開く">
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="nav" aria-labelledby="navLabel">
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="nav" aria-labelledby="navLabel">
       <div class="offcanvas-header border-bottom">
         <h2 class="offcanvas-title h6 mb-0" id="navLabel">メニュー</h2>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="閉じる"></button>
@@ -91,7 +91,7 @@
 <main>
 
 <section id="install" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>インストール</h2>
+  <h2 class="mb-3"><i class="bi bi-box-arrow-in-down me-2"></i>インストール</h2>
   <p>公式の入手経路は 2 つあり、どちらも同じソースから作った同じビルドが入ります。<br>
   <strong>おすすめは Microsoft Store です</strong> — SmartScreen の警告が出ず、更新も自動で届きます。<br>
   ポータブル版の <code>winremap.exe</code> が欲しい場合や、ダウンロードを自分で検証したい場合は
@@ -119,7 +119,7 @@
     </table>
   </div>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Microsoft Store から入れる</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Microsoft Store から入れる</h3>
   <p>ストアのページで［入手］を押すだけです。<br>
   スタートメニューに WinRemap が追加され、
   起動するとタスクトレイにキーボードのアイコンが現れます。<br>
@@ -137,7 +137,7 @@
     <a class="btn btn-outline-secondary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-box-arrow-up-right me-1"></i>ブラウザーでストアのページ</a>
   </div>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>GitHub Releases から入れる</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>GitHub Releases から入れる</h3>
   <ol>
     <li><a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><code>winremap-setup.exe</code></a>
       をダウンロードして実行します。<br>
@@ -169,13 +169,13 @@
     Store から入れれば、この警告自体が出ません。</div>
   </div>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>パッケージマネージャーから入れる</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>パッケージマネージャーから入れる</h3>
   <p>マニフェストの受理後、winget からも導入できます。<br>
   GitHub Releases の同じ公式
   バイナリを取得します:</p>
 <pre class="bg-body-tertiary border rounded p-3"><code>winget install winremap</code></pre>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>ポータブル利用(インストーラーなし)</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>ポータブル利用(インストーラーなし)</h3>
   <p>1 ファイルで使いたい場合は
   <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><code>winremap.exe</code></a>
   をダウンロードして好きな場所から実行してください。<br>
@@ -184,7 +184,7 @@
   <code>--config パス\ファイル.toml</code> で指定したファイルを読みます。<br>
   ほかのファイルやレジストリ項目は作りません。</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>設定ファイルの置き場所</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>設定ファイルの置き場所</h3>
   <p>設定ファイルがまだ無い場合、WinRemap は初回起動時に初期設定を作成します。<br>
   既存の設定には一切触れず、アンインストールしても設定は残ります。</p>
   <p class="mb-0">場所はインストール経路で変わります。<br>
@@ -202,7 +202,7 @@
 </section>
 
 <section id="quickstart" class="container py-4">
-  <h2 class="mb-3"><i class="bi bi-rocket-takeoff text-primary me-2"></i>クイックスタート</h2>
+  <h2 class="mb-3"><i class="bi bi-rocket-takeoff me-2"></i>クイックスタート</h2>
   <p>WinRemap はタスクトレイに常駐します。<br>
   操作はすべてトレイメニューから:</p>
   <ul>

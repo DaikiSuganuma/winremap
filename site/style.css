@@ -1,12 +1,14 @@
 /* WinRemap help site — Bootstrap 5.3 does the work (ADR 0028, ADR 0047).
  *
- * Only three things are ours here. Everything else is stock Bootstrap
+ * Only a few things are ours here. Everything else is stock Bootstrap
  * components and utility classes, at Bootstrap's own widths.
  *
  *   1. The brand colour — WinRemap's icon blue (#0078D4) — mapped onto
  *      Bootstrap's primary and link colours for both themes.
  *   2. The hero band.
  *   3. The hero's button group, stacked on a narrow screen.
+ *   4. The width of the phone menu.
+ *   5. The FAQ's question and answer marks.
  *
  * Colours reference Bootstrap's --bs-* custom properties, so dark mode comes
  * from Bootstrap (switched by data-bs-theme, set from the OS by a small inline
@@ -76,4 +78,77 @@
   .hero .btn-group > .btn + .btn {
     margin-top: -1px;
   }
+}
+
+/* --- 4. the width of the phone menu ---------------------------------- */
+
+/* Bootstrap's offcanvas is 400px wide, which on most phones is the whole
+ * screen and then some. Stopping it short of the right edge keeps the
+ * toggler you just pressed in view, and leaves a strip of the page to tap
+ * to dismiss the menu. Above the lg breakpoint the navbar expands and the
+ * offcanvas is inert, so this only ever applies on a phone or tablet. */
+#nav {
+  --bs-offcanvas-width: min(20rem, calc(100vw - 4.5rem));
+}
+
+/* --- 5. the FAQ's question and answer marks --------------------------- */
+
+/* Each entry is a Q row and an A row, marked the way a printed FAQ marks
+ * them. The point is that the answer is recognisable as an answer without
+ * reading it — indentation alone did not carry that. */
+
+.faq-item {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.faq-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.faq-q,
+.faq-a {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.faq-q {
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.faq-mark {
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+  background-color: var(--bs-primary);
+  color: #fff;
+}
+
+.faq-a .faq-mark {
+  margin-top: 0.15rem;             /* sits on the answer's first line */
+  background-color: var(--bs-secondary-bg);
+  color: var(--bs-secondary-color);
+  border: 1px solid var(--bs-border-color);
+}
+
+/* min-width lets a wide <pre> scroll inside the row instead of stretching
+ * it; without it a flex item refuses to shrink below its content. */
+.faq-body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.faq-body > :last-child {
+  margin-bottom: 0;
 }
