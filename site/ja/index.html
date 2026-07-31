@@ -6,7 +6,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WinRemap — ヘルプ</title>
-<meta name="description" content="WinRemap ヘルプ: Windows 用アプリ別キーリマッパー。インストール・設定・マクロ記憶・トラブルシューティング。">
+<meta name="description" content="WinRemap ヘルプ: Windows 用アプリ別キーリマッパー。 インストール・設定・マクロ記憶・トラブルシューティング。">
 <meta name="color-scheme" content="light dark">
 <!-- Bootstrap 5.3.8 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
 <link rel="stylesheet"
@@ -58,7 +58,7 @@
         <li class="nav-item"><a class="nav-link" href="config.html">設定</a></li>
         <li class="nav-item"><a class="nav-link" href="macro.html">マクロ記憶</a></li>
         <li class="nav-item"><a class="nav-link" href="ime.html">IME 表示</a></li>
-        <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
+        <li class="nav-item"><a class="nav-link" href="faq.html">FAQ</a></li>
       </ul>
       <ul class="navbar-nav">
         <li class="nav-item"><a class="nav-link" href="../" lang="en">English</a></li>
@@ -72,21 +72,24 @@
     <img src="../assets/kbd-enabled.svg" alt="WinRemap アイコン" width="96" height="96" class="mb-3">
     <h1 class="display-5 fw-bold">WinRemap</h1>
     <p class="lead text-body-secondary">Rust 製の Windows 用アプリ別キーリマッパー。
-    選んだアプリでだけキーを置き換え。設定はシンプルな TOML ファイル 1 つ。</p>
-    <div class="d-flex justify-content-center mt-4 mb-2">
+    選んだアプリでだけキーを置き換え。
+    設定はシンプルな TOML ファイル 1 つ。</p>
+    <div class="d-flex justify-content-center mt-5 mb-2">
       <a class="btn btn-primary btn-lg" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Microsoft Store アプリで開く</a>
     </div>
     <p class="small text-body-secondary mb-3"><strong>Windows 専用です。</strong>このボタンは Store アプリに
-    引き渡すため、macOS・Linux・スマートフォンでは何も起きません。その場合は
+    引き渡すため、macOS・Linux・スマートフォンでは何も起きません。
+    その場合は
     <a href="https://apps.microsoft.com/detail/9N6TQDXRX5WV">ブラウザーでストアのページ</a>を開いてください。</p>
-    <div class="d-flex flex-wrap gap-2 justify-content-center mb-4">
+    <div class="btn-group flex-wrap mt-5 mb-4" role="group" aria-label="Other download routes">
       <a class="btn btn-outline-secondary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-box-arrow-up-right me-1"></i>ストアのページ</a>
       <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>インストーラーをダウンロード</a>
       <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>ポータブル版 exe</a>
       <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap"><i class="bi bi-github me-1"></i>GitHub</a>
     </div>
     <p class="small text-body-secondary mb-1"><strong>Store からの導入をおすすめします</strong> —
-    SmartScreen の警告が出ず、更新も自動で届きます。どちらも公式で、入るのは同じビルドです
+    SmartScreen の警告が出ず、更新も自動で届きます。
+    どちらも公式で、入るのは同じビルドです
     (<a href="install.html">違い</a>)。</p>
     <p class="small text-body-secondary mb-0">無料・オープンソース (MIT) · ネットワーク通信なし · キー入力を記録しない ·
     <a href="https://github.com/DaikiSuganuma/winremap/releases">全リリース</a></p>
@@ -134,16 +137,26 @@
         </div>
       </div>
     </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-question-circle text-primary me-2"></i>FAQ・困ったとき</h3>
+          <p class="card-text text-body-secondary">管理者権限のウィンドウ、ルールが効かないときの調べ方、Store 版と GitHub 版の違い、記号キー。</p>
+          <a href="faq.html" class="stretched-link">答えを読む<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
-<section id="about" class="container py-4 border-bottom">
+<section id="about" class="container py-4">
   <h2 class="mb-3"><i class="bi bi-shield-check text-primary me-2"></i>セキュリティと設計方針</h2>
   <ul>
     <li>WinRemap は<strong>キー入力を記録・保存しません</strong> — 単なる方針ではなく
       リポジトリ規約として強制されています。</li>
     <li><strong>ネットワーク通信コードは一切ありません</strong>: テレメトリも自動アップデートもなし。</li>
-    <li>フック処理はヒープ確保・ロック・I/O のない純 Rust。最悪レイテンシを低く保ち、
+    <li>フック処理はヒープ確保・ロック・I/O のない純 Rust。
+    最悪レイテンシを低く保ち、
       スクリプト型リマッパーで起きがちなフックのタイムアウト(切り離し)を回避します。</li>
     <li>設計上の対象外: IME の<em>制御</em>(インジケーターは表示のみ)、クリップボード
       ツール、ランチャー、macOS/Linux 対応(Linux には
@@ -151,197 +164,20 @@
   </ul>
 </section>
 
-<section id="faq" class="container py-4">
-  <h2 class="mb-3"><i class="bi bi-question-circle text-primary me-2"></i>FAQ・トラブルシューティング</h2>
-
-  <div class="accordion" id="faqAccordion">
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">特定のウィンドウでだけリマップが効かない</button>
-      </h3>
-      <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">そのウィンドウが<strong>管理者として実行</strong>されている場合、Windows の保護機構
-        (UIPI)により通常権限のプログラムからの入力が届きません。どうしても必要なら
-        WinRemap も管理者として実行してください。アンチチート付きゲームや一部の仮想化ソフトも
-        注入入力を無視することがあります。</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">今どの設定が効いているか確認したい</button>
-      </h3>
-      <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">
-          <p>トレイアイコンを右クリックして<em>設定</em>を選んでください。WinRemap が現在参照して
-          いる設定が表示されます。キーマップごとの対象アプリ・除外アプリ・リマップ規則が、設定
-          ファイルの同じ行に書いたコメント付きで並びます。同じ入力を複数のキーマップが束縛して
-          いる場合は、相手のキーマップ名を示す列が出ます(実際に効くのは 1 つだけのためです)。</p>
-          <p class="mb-0"><em>編集</em>を押すと、同じウィンドウがそのファイルのエディタになります。
-          打ちながら記法を検証し、保存前に設定全体を検証してから書き込みます。触っていない箇所
-          (コメント・空行・並び順・綴り)はそのまま残ります。編集中も保存の瞬間もリマップは
-          止まりません。</p>
-        </div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">ルールがマッチしない — どうやって調べる?</button>
-      </h3>
-      <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">トレイアイコンを右クリックして<em>ログを表示</em>を選んでください。読み込み中の設定
-        ファイル、前面ウィンドウごとの正確な <code>application</code> 値、そしてキーごとの
-        判定 (素通し / リマップ / マクロ / プレフィックス)が、時刻付きで 1 行ずつ出ます —
-        <code>C-h (BS 0x08) → Back (BS 0x08) に置換</code> のように。［全イベント］に
-        チェックを入れると、押下・解放と WinRemap が送出したイベントまで全部見られます。
-        ターミナル派の方は <code>winremap.exe --debug</code> で起動すれば同じ内容がそちらに
-        出ます (このオプションを付けない場合は何も出力しません)。入力した文章そのものが
-        ログに出ることはなく、ログがディスクに保存されることもありません。</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">Keyhac や AutoHotkey と併用できる?</button>
-      </h3>
-      <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">同じキーに対しては非推奨です。低レベルフックが重なると処理順が不定になり、
-        挙動が予測できなくなります。検証時はどちらか一方を OFF にしてください。</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">コンソールウィンドウはどこへ?</button>
-      </h3>
-      <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">表示しなくなりました。エクスプローラー・スタートメニュー・サインイン時の自動起動は
-        すべて無音で起動し、利用者が知るべきこと(起動時エラー、リロード失敗)はダイアログで
-        表示されます。ターミナルから起動した場合も同じように静かで、<code>--debug</code> を
-        付けたときだけそのターミナルにログを出力します (プロンプトがすぐ戻るため出力が
-        混ざって見えます)。<code>--debug</code> はそのターミナルに出力し続けるため、
-        ターミナルを閉じると WinRemap も終了します。付けない場合は起動完了時に
-        ターミナルを切り離すので、閉じても動き続けます。読みやすいログが必要なときは
-        トレイの<em>ログを表示</em>をお使いください。</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq6">インストール後に自動起動を ON/OFF したい</button>
-      </h3>
-      <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body"><kbd>Win</kbd>+<kbd>R</kbd> → <code>shell:startup</code> を実行し、開いたフォルダで
-        <em>WinRemap</em> のショートカットを追加・削除してください(インストーラーを再実行して
-        選び直すこともできます)。</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq7">マクロが速すぎて対象アプリが取りこぼす</button>
-      </h3>
-      <div id="faq7" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body"><code>[macro]</code> セクションに <code>delay_ms = 8</code>(0〜15)を設定してください。
-        入力を非同期に処理するアプリでは、一括注入されたストロークの一部が落ちることがあります。</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq8">WinRemap はどこに何を保存する?</button>
-      </h3>
-      <div id="faq8" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">
-          <p>プログラム本体: <code>%LOCALAPPDATA%\Programs\WinRemap</code>(インストーラー利用時)
-          またはポータブル exe を置いた場所。設定: <code>%APPDATA%\winremap\config.toml</code>。
-          それだけです — サービスもドライバーもレジストリ設定もありません。</p>
-          <p class="mb-0"><strong>Store 版</strong>は Windows がパッケージアプリを置く場所に入り、
-          <code>%APPDATA%</code> の専用コピーも一緒に与えられます。そのため Store から新規に
-          入れた場合の設定は
-          <code>%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\</code>
-          に置かれます。覚えておく必要はありません。設定ウィンドウが実際に使っている
-          フォルダーを表示し、エクスプローラーで開くこともできます。</p>
-        </div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq9">ダウンロードが本物か検証するには?</button>
-      </h3>
-      <div id="faq9" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">
-          <p>リリース添付の <code>SHA256SUMS</code> とハッシュを比較し、GitHub CLI で
-          ビルド来歴の attestation を確認します:</p>
-<pre class="bg-body-tertiary border rounded p-3 mb-2"><code>(Get-FileHash .\winremap-setup.exe -Algorithm SHA256).Hash.ToLower()
-gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
-</code></pre>
-          <p class="mb-0">詳細は <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>
-          を参照。Store 版にこの手順は要りません — Microsoft が署名し、ストアのページが
-          発行元を名乗ります。この 2 つの経路以外で配布されているバイナリは非公式です。</p>
-        </div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq10">Microsoft Store 版と GitHub 版は何が違う?</button>
-      </h3>
-      <div id="faq10" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">
-          <p>同じソースから作った同じビルドで、バージョンも同じです。実用上の違いは 3 つ。</p>
-          <ul>
-            <li><strong>SmartScreen の警告が出ません</strong>(Store 版)。Microsoft がパッケージに
-            署名するためです。GitHub 版のバイナリは未署名なので、ダウンロード直後に
-            警告が出ることがあります。</li>
-            <li><strong>更新が自動で届きます</strong>(Store 版)。GitHub 版は新しい版を
-            自分でダウンロードします。</li>
-            <li><strong>設定ファイルの場所が違います。</strong>Windows はパッケージアプリに
-            <code>%APPDATA%</code> の専用コピーを与えるため、Store から新規に入れた場合の
-            <code>config.toml</code> は <code>%APPDATA%\winremap\</code> ではなく
-            パッケージ専用フォルダーに置かれます。どちらの場合も、設定ウィンドウが
-            実際に使っているフォルダーを表示します。</li>
-          </ul>
-          <p class="mb-0">乗り換えても大丈夫です。インストーラー版で作った
-          <code>%APPDATA%\winremap\config.toml</code> が既にあれば、Store 版はそのファイルを
-          引き続き使うので、書いたルールはそのまま持ち越されます。ポータブル版
-          (exe 1 つで動かす使い方)があるのは GitHub 版だけです。
-          <a href="install.html">インストールガイド</a>も参照してください。</p>
-        </div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq11"><code class="text-reset">"C-@"</code> と書いたらエラーになりました</button>
-      </h3>
-      <div id="faq11" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">
-          <p>お使いのキーボードで <code>@</code> がキーではなく、
-          <kbd>Shift</kbd>+<kbd>2</kbd> だからです（US 配列の場合）。Shift ごと書いてください。</p>
-<pre class="bg-body-tertiary border rounded p-3 mb-2"><code>"C-S-2" = "Esc"</code></pre>
-          <p>WinRemap は黙って Shift を補わず、書くべき綴りを添えてお伝えします。補ってしまうと
-          <code>C-@</code> と <code>C-S-2</code> が、ある機械では同じルール、別の機械では
-          違うルールになってしまうためです。</p>
-          <p class="mb-0">日本語配列なら <code>@</code> は独立したキーなので、
-          <code>"C-@"</code> がそのまま通ります。記号キーは刻印どおりに書き、それがどのキーかは
-          キーボードによって違います —
-          <a href="config.html#keys">設定ガイドで説明しています</a>。</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
 </main>
 
 <footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
-  <div class="container small d-grid gap-2">
-    <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
-    <span><a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.ja.md">README (日本語)</a> ·
+  <div class="container">
+  <p class="text-center mb-3 lh-lg"><a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.ja.md">README (日本語)</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
       <a href="privacy.html">プライバシー</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap">ソースコード</a> ·
-      <a href="../" lang="en">English help</a></span>
-    <span>トレイメニューのアイコンは <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>(MIT)を使用しています —
+      <a href="../" lang="en">English help</a></p>
+  <p class="text-center small mb-1">WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</p>
+  <p class="text-center small mb-0">トレイメニューのアイコンは <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>(MIT)を使用しています —
       <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">ライセンス表示</a>。
-      本サイトは <a href="https://getbootstrap.com/">Bootstrap</a>(MIT)で構築しています。</span>
-    <span><a href="https://github.com/xremap/xremap">xremap</a> と
-      <a href="https://sites.google.com/site/craftware/keyhac-ja">Keyhac</a> /
-      <a href="https://github.com/smzht/fakeymacs">fakeymacs</a> に影響を受けた
-      独立プロジェクトです(フォーク・公式関連プロジェクトではありません)。</span>
+      本サイトは <a href="https://getbootstrap.com/">Bootstrap</a>(MIT)で構築しています。</p>
   </div>
 </footer>
 
