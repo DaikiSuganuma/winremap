@@ -98,10 +98,18 @@ cd D:\Projects\GitHub\winremap\tests\ui
 | `02-config-winapp` | 同 `02-config-display`。アドレスバーのフォルダーとコンボボックスの値が `C:\Test` / `minimal.toml`、ナビに `General`・`Keymaps`・`notepad`、キーマップを選ぶと `notepad.exe`・`C-h`・`Back` が出ること | v0.2 B1-1・B1-2 |
 | `03-tray-winapp` | 同 `03-tray-actions`。有効/無効の往復・Reload・Quit を**トレイアイコンの名前**で判定する | v0.2 A-21 |
 | `04-log-winapp` | 同 `04-log-window`。セッション行・`Follow newest`・`Clear`・`Copy all` | v0.2 A-10・B1-29 |
+| `05-remap-winapp` | 同 `05-remap-notepad`。Notepad で `C-h` → `x` が入り、置換パネルが開かないこと。**さらに WinRemap を止めて同じキーを送り、パネルが開くことまで確かめる** | v0.1 M2-1 と同じ経路 |
 
-上の 4 本は **v0.7 の winapp CLI 移行（Phase 3 まで完了）**で作った、エージェント版と同じことを AI 無しで確かめる検査である。**2 回通して 46 チェックが全件一致**し、所要は 4 本合計 1 分 27 秒（エージェント版は 8 分 48 秒）。[v0.7 開発計画 §3.4.1](v0.7/01_development-plan.md) が実測と踏んだ落とし穴の記録。terminator 版を消すかどうかは移行 Phase 5 の判断なので、**当面は並走**する。
+上の 5 本は **v0.7 の winapp CLI 移行（Phase 4 まで完了）**で作った、エージェント版と同じことを AI 無しで確かめる検査である。01〜04 は**2 回通して 46 チェックが全件一致**（4 本合計 1 分 27 秒。エージェント版は 8 分 48 秒）、05 は**10 チェックが 2 回一致**（各 30 秒。エージェント版は 3:34 / 1:19）。[v0.7 開発計画 §3.4.1・§3.4.2](v0.7/01_development-plan.md) が実測と踏んだ落とし穴の記録。terminator 版を消すかどうかは移行 Phase 5 の判断なので、**当面は並走**する。
 
-`00-log-view` だけは **test-inject ビルド**で動く（[ADR 0053](v0.4/decisions/0053-test-inject-mode.md)）。キーを `keybd_event` で送るため、出荷ビルドでは注入として素通しされ、判定行がそもそも出ないからである。**両モードのスクリーンショットを `%TEMP%\winremap-log-view-*.png` に残す**。読みやすさは表明で確かめられないので、そこは人が見る。
+`00-log-view` と `05-remap-winapp` は **test-inject ビルド**で動く（[ADR 0053](v0.4/decisions/0053-test-inject-mode.md)）。キーを合成して送る以上それは注入であり、出荷ビルドでは素通しされて判定行がそもそも出ないからである。`00-log-view` は**両モードのスクリーンショットを `%TEMP%\winremap-log-view-*.png` に残す**。読みやすさは表明で確かめられないので、そこは人が見る。
+
+**キーを送るときは、押されたことを効果で確かめる。** `05-remap-winapp` の移植で実測したこと（[§3.4.2](v0.7/01_development-plan.md)）:
+
+| 事実 | 影響 |
+|---|---|
+| 和音の綴りは **`ctrl+h`**。`^h` と `{Ctrl}h` は**終了コード 0 のまま「文字として」入る** | 綴りを間違えても winapp は成功を返す。送出のたびに対象のテキストを読み直す |
+| `--via send-input` が必須。既定の `--via post-message` はウィンドウメッセージで、**低レベルフックを通らない** | WinRemap のフックに届かないので、既定のままでは何も検証していないことになる |
 
 仕分けの全体像（どの項目を自動で通し、何を手で残すか）は [v0.5 受け入れチェックリスト](v0.5/03_acceptance-checklist.md) が正である。
 
