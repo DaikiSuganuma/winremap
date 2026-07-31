@@ -132,6 +132,51 @@ function WinappSlug([string]$Name, [string[]]$Target, [string]$Type = "") {
     return $null
 }
 
+# An element's own properties, as winapp reports them. What a combo box is
+# *showing* is a value rather than a name, and `inspect` carries only the name -
+# which for a combo box is empty, so the file it is showing is invisible to the
+# element list.
+#
+# `get-property --json` answers with the properties one level down and with
+# capitalised names, which is not the shape `inspect` uses:
+#
+#   { "elementId": "cmb-6321",
+#     "properties": { "Name": "", "ControlType": "ComboBox", ...,
+#                     "Value": "minimal.toml", "IsReadOnly": false } }
+#
+# Measured rather than assumed (2026-07-31): the first version of this helper
+# looked for a top-level lowercase `value` and found nothing, and the check
+# reported the settings window as showing no file at all.
+function WinappProperties([string]$Selector, [string[]]$Target) {
+    $json = WJson (@("ui", "get-property", $Selector, "--json") + $Target)
+    foreach ($o in @($json)) {
+        if ($o.PSObject.Properties.Name -contains "properties") { return $o.properties }
+        return $o
+    }
+    return $null
+}
+
+# One property by name, or "" when the element does not carry it.
+function WinappProperty([string]$Selector, [string]$Name, [string[]]$Target) {
+    $props = WinappProperties $Selector $Target
+    if ($props -and $props.PSObject.Properties.Name -contains $Name) { return [string]$props.$Name }
+    return ""
+}
+
+# Presses what the element offers. `invoke` tries the Invoke pattern and the
+# selection patterns, which is enough for a button and for most list items;
+# egui's tree items expose neither, so a real click by slug is the fallback.
+# The slug comes from `search`, never typed by hand - it changes every run.
+function WinappActivate([string]$Name, [string[]]$Target) {
+    $inv = W (@("ui", "invoke", $Name) + $Target)
+    if ($inv.Code -eq 0) { return "invoke" }
+    $slug = WinappSlug $Name $Target
+    if (-not $slug) { return $null }
+    $click = W (@("ui", "click", $slug) + $Target)
+    if ($click.Code -eq 0) { return "click:$slug" }
+    return $null
+}
+
 # Waits for a transition instead of sleeping through it. `--timeout` is in
 # MILLISECONDS (the default is 5000); seconds here would wait 5 ms and call the
 # element missing. wait-for does not wait for the app to start either - with no

@@ -218,6 +218,9 @@ function Copy-Payload {
             @{ Local = (Join-Path $PSScriptRoot "guest\winapp-helpers.ps1"); Guest = "$guestDir\winapp-helpers.ps1" },
             @{ Local = (Join-Path $PSScriptRoot "guest\regression-checks.ps1"); Guest = "$guestDir\regression-checks.ps1" },
             @{ Local = (Join-Path $PSScriptRoot "guest\winapp-settings-window.ps1"); Guest = "$guestDir\winapp-settings-window.ps1" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-config-display.ps1"); Guest = "$guestDir\winapp-config-display.ps1" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-tray-actions.ps1"); Guest = "$guestDir\winapp-tray-actions.ps1" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-log-window.ps1"); Guest = "$guestDir\winapp-log-window.ps1" },
             @{ Local = (Join-Path $PSScriptRoot "guest\log-view.ps1"); Guest = "$guestDir\log-view.ps1" }
         )) {
         Invoke-Vmrun copyFileFromHostToGuest $script:vm.VmxPath $pair.Local $pair.Guest | Out-Null
@@ -301,6 +304,9 @@ $harnessChecks = [ordered]@{
     # migration has its answer (v0.7 plan section 3.3): keeping both is what
     # makes "the port decides the same thing" a comparison and not a claim.
     "01-settings-winapp" = @{ Script = "winapp-settings-window.ps1"; Result = "winapp-settings-window.txt"; NeedsTray = $true }
+    "02-config-winapp"   = @{ Script = "winapp-config-display.ps1"; Result = "winapp-config-display.txt"; NeedsTray = $true }
+    "03-tray-winapp"     = @{ Script = "winapp-tray-actions.ps1"; Result = "winapp-tray-actions.txt"; NeedsTray = $true }
+    "04-log-winapp"      = @{ Script = "winapp-log-window.ps1"; Result = "winapp-log-window.txt"; NeedsTray = $true }
 }
 
 function Invoke-GuestCheck {
