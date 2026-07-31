@@ -58,7 +58,7 @@
         <li class="nav-item"><a class="nav-link" href="config.html">設定</a></li>
         <li class="nav-item"><a class="nav-link" href="macro.html">マクロ記憶</a></li>
         <li class="nav-item"><a class="nav-link" href="ime.html">IME 表示</a></li>
-        <li class="nav-item"><a class="nav-link" href="index.html#faq">FAQ</a></li>
+        <li class="nav-item"><a class="nav-link" href="faq.html">FAQ</a></li>
       </ul>
       <ul class="navbar-nav">
         <li class="nav-item"><a class="nav-link" href="../privacy.html" lang="en">English</a></li>
@@ -70,7 +70,8 @@
 <header class="hero text-center py-5" id="top">
   <div class="container">
     <h1 class="display-5 fw-bold">プライバシーポリシー</h1>
-    <p class="lead text-body-secondary mb-0">WinRemap は何も収集しません。それが具体的に
+    <p class="lead text-body-secondary mb-0">WinRemap は何も収集しません。
+    それが具体的に
     何を意味するのか、そしてご自身で確かめる方法を説明します。</p>
   </div>
 </header>
@@ -84,33 +85,43 @@
     アカウントも、テレメトリも、アクセス解析も、クラッシュレポートもありません。
     そもそもプログラム内にネットワーク通信を行うコードが 1 行もありません。</div>
   </div>
-  <p class="text-body-secondary">最終更新: 2026-07-29。WinRemap は SUGANUMA Daiki が
+  <p class="text-body-secondary">最終更新: 2026-07-29。
+  WinRemap は SUGANUMA Daiki が
   <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT ライセンス</a>で公開している
   自由ソフトウェアです。</p>
 </section>
 
 <section class="mb-5">
   <h2 class="h4">キーリマッパーがこれを明言すべき理由</h2>
-  <p>WinRemap は低レベルキーボードフックを設置して動作します。つまり、<strong>あなたが押した
-  すべてのキーがこのプログラムを通過します</strong>。これはキーロガーが使うのと同じ仕組みです。
-  違いは「見えたものをどう扱うか」だけにあります。だからこそ問われて当然であり、
+  <p>WinRemap は低レベルキーボードフックを設置して動作します。
+  つまり、<strong>あなたが押した
+  すべてのキーがこのプログラムを通過します</strong>。
+  これはキーロガーが使うのと同じ仕組みです。
+  違いは「見えたものをどう扱うか」だけにあります。
+  だからこそ問われて当然であり、
   その答えは約束ではなく検証できるものであるべきだと考えています。</p>
   <p>WinRemap は各キーイベントについて、設定したルールが当てはまるかを判定し、そのまま通すか
-  別のキーに置き換えるかを決めます。処理が終わった後には何も残しません。</p>
+  別のキーに置き換えるかを決めます。
+  処理が終わった後には何も残しません。</p>
 </section>
 
 <section class="mb-5">
   <h2 class="h4">WinRemap が行わないこと</h2>
   <ul>
     <li><strong>キー入力の記録を行いません。</strong>入力内容がディスクに書かれることは
-    ありません。処理した瞬間を超えてメモリに保持することも、どこかに表示することも
-    ありません。任意で有効にできるデバッグログが記録するのは<em>キー名</em>だけで
+    ありません。
+    処理した瞬間を超えてメモリに保持することも、どこかに表示することも
+    ありません。
+    任意で有効にできるデバッグログが記録するのは<em>キー名</em>だけで
     （「<code>Ctrl+H</code> を <code>Back</code> に置換した」という粒度）、既定では
-    無効です。ログウィンドウと、<code>--debug</code> 指定時の端末にのみ出力され、
+    無効です。
+    ログウィンドウと、<code>--debug</code> 指定時の端末にのみ出力され、
     ファイルには一切書き出しません。</li>
     <li><strong>ネットワーク通信を行いません。</strong>WinRemap にはネットワーク関連の
-    コードが含まれていません。本体への通信も、更新確認も、診断情報の送信も、
-    <em>それを行う手段自体が存在しない</em>ため不可能です。そうしたコードの追加は、
+    コードが含まれていません。
+    本体への通信も、更新確認も、診断情報の送信も、
+    <em>それを行う手段自体が存在しない</em>ため不可能です。
+    そうしたコードの追加は、
     このプロジェクトの開発規約で明示的に禁止しています。</li>
     <li><strong>アカウントも識別子もありません。</strong>サインインする対象がなく、
     端末や利用者を識別する ID を生成することも読み取ることもありません。</li>
@@ -124,11 +135,14 @@
   <ul>
     <li><code>%APPDATA%\winremap\config.toml</code> — リマップのルール。
     Microsoft Store から導入した場合は、パッケージ専用フォルダー
-    （<code>%LOCALAPPDATA%\Packages\</code> 配下）に置かれます。実際の場所は
+    （<code>%LOCALAPPDATA%\Packages\</code> 配下）に置かれます。
+    実際の場所は
     設定ウィンドウに常に表示されます。</li>
   </ul>
-  <p>このファイルはお使いのコンピューター上に留まります。同期もアップロードもされず、
-  WinRemap 以外が読むこともありません。アンインストールしてもこのファイルは削除されません
+  <p>このファイルはお使いのコンピューター上に留まります。
+  同期もアップロードもされず、
+  WinRemap 以外が読むこともありません。
+  アンインストールしてもこのファイルは削除されません
   （Store 版は Windows の仕様に従い、パッケージ専用フォルダー内の複製を削除します）。</p>
 </section>
 
@@ -138,17 +152,20 @@
   <ul>
     <li><strong>ソースコードを読む。</strong>すべて
     <a href="https://github.com/DaikiSuganuma/winremap">github.com/DaikiSuganuma/winremap</a>
-    にあります。キー入力の記録とネットワーク通信を禁じる規約は
+    にあります。
+    キー入力の記録とネットワーク通信を禁じる規約は
     <a href="https://github.com/DaikiSuganuma/winremap/blob/main/AGENTS.md">AGENTS.md</a>
     に明文化され、レビューで担保しています。</li>
     <li><strong>配布物がそのソースから作られたことを確かめる。</strong>各リリースには
     ビルド来歴（build provenance attestation）が付属しており、ダウンロードした
-    バイナリがこのリポジトリからビルドされたことを証明できます。手順は
+    バイナリがこのリポジトリからビルドされたことを証明できます。
+    手順は
     <a href="install.html">インストール</a>と
     <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>
     を参照してください。</li>
     <li><strong>通信を監視する。</strong>ファイアウォールやネットワークモニターで
-    <code>winremap.exe</code> を観察してください。どこにも接続しません。</li>
+    <code>winremap.exe</code> を観察してください。
+    どこにも接続しません。</li>
   </ul>
 </section>
 
@@ -166,15 +183,15 @@
 </main>
 
 <footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
-  <div class="container small d-grid gap-2">
-    <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
-    <span><a href="https://getbootstrap.com/">Bootstrap</a> と
-      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>（MIT）で構築しています。</span>
-    <span><a href="index.html">ヘルプ</a> ·
+  <div class="container">
+  <p class="text-center mb-3 lh-lg"><a href="index.html">ヘルプ</a> ·
       <a href="privacy.html">プライバシー</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap">ソース</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
-      <a href="../privacy.html" lang="en">English</a></span>
+      <a href="../privacy.html" lang="en">English</a></p>
+  <p class="text-center small mb-1">WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</p>
+  <p class="text-center small mb-0"><a href="https://getbootstrap.com/">Bootstrap</a> と
+      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>（MIT）で構築しています。</p>
   </div>
 </footer>
 
