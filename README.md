@@ -75,8 +75,8 @@ flowchart TD
 
 ## Quick start
 
-1. Install it. Both channels are official and carry the same build; pick
-   whichever suits you (see [SECURITY.md](SECURITY.md)).
+1. Install it. Both channels are official and carry the same build (see
+   [SECURITY.md](SECURITY.md)); **the Store is the recommended one**.
 
    **Microsoft Store** — signed by Microsoft, so Windows installs it without
    a SmartScreen warning, and it updates itself:
