@@ -47,22 +47,35 @@
     <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#top">
       <img src="../assets/kbd-enabled-32.png" alt="" width="24" height="24">WinRemap
     </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-            data-bs-target="#nav" aria-controls="nav" aria-expanded="false"
-            aria-label="ナビゲーション切り替え">
+    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
+            data-bs-target="#nav" aria-controls="nav" aria-label="メニューを開く">
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="collapse navbar-collapse" id="nav">
-      <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link" href="install.html">インストール</a></li>
-        <li class="nav-item"><a class="nav-link" href="config.html">設定</a></li>
-        <li class="nav-item"><a class="nav-link" href="macro.html">マクロ記憶</a></li>
-        <li class="nav-item"><a class="nav-link" href="ime.html">IME 表示</a></li>
-        <li class="nav-item"><a class="nav-link" href="faq.html">FAQ</a></li>
-      </ul>
-      <ul class="navbar-nav">
-        <li class="nav-item"><a class="nav-link" href="../" lang="en">English</a></li>
-      </ul>
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="nav" aria-labelledby="navLabel">
+      <div class="offcanvas-header border-bottom">
+        <h2 class="offcanvas-title h6 mb-0" id="navLabel">メニュー</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="閉じる"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="install.html"><i class="bi bi-box-arrow-in-down me-2"></i>インストール</a></li>
+          <li class="nav-item"><a class="nav-link" href="config.html"><i class="bi bi-gear me-2"></i>設定</a></li>
+          <li class="nav-item"><a class="nav-link" href="macro.html"><i class="bi bi-record-circle me-2"></i>マクロ記憶</a></li>
+          <li class="nav-item"><a class="nav-link" href="ime.html"><i class="bi bi-translate me-2"></i>IME 表示</a></li>
+        </ul>
+        <!-- The FAQ and the language switch are not part of the guide, so they
+             are set apart from it: a rule and a gap on a phone, extra margin on
+             a wide screen. -->
+        <hr class="d-lg-none my-2">
+        <ul class="navbar-nav ms-lg-3">
+          <li class="nav-item"><a class="nav-link" href="faq.html"><i class="bi bi-question-circle me-2"></i>FAQ</a></li>
+        </ul>
+        <hr class="d-lg-none my-2">
+        <ul class="navbar-nav ms-lg-3">
+          <li class="nav-item"><a class="nav-link" href="../" lang="en"><i class="bi bi-globe2 me-2"></i>English</a></li>
+          <li class="nav-item"><a class="nav-link" href="https://github.com/DaikiSuganuma/winremap" aria-label="GitHub"><i class="bi bi-github me-2"></i><span class="d-lg-none">GitHub</span></a></li>
+        </ul>
+      </div>
     </div>
   </div>
 </nav>
@@ -71,24 +84,23 @@
   <div class="container">
     <img src="../assets/kbd-enabled.svg" alt="WinRemap アイコン" width="96" height="96" class="mb-3">
     <h1 class="display-5 fw-bold">WinRemap</h1>
-    <p class="lead text-body-secondary">Rust 製の Windows 用アプリ別キーリマッパー。
-    選んだアプリでだけキーを置き換え。
+    <p class="lead text-body-secondary">Rust 製の Windows 用アプリ別キーリマッパー。<br>
+    選んだアプリでだけキーを置き換え。<br>
     設定はシンプルな TOML ファイル 1 つ。</p>
-    <div class="d-flex justify-content-center mt-5 mb-2">
-      <a class="btn btn-primary btn-lg" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Microsoft Store アプリで開く</a>
+    <div class="d-flex justify-content-center mt-5 mb-3">
+      <a class="btn btn-primary btn-lg px-3" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-2"></i>Microsoft Store アプリで開く</a>
     </div>
-    <p class="small text-body-secondary mb-3"><strong>Windows 専用です。</strong>このボタンは Store アプリに
-    引き渡すため、macOS・Linux・スマートフォンでは何も起きません。
+    <p class="small text-body-secondary mb-3"><strong>Windows 専用です。<br></strong>このボタンは Store アプリに
+    引き渡すため、macOS・Linux・スマートフォンでは何も起きません。<br>
     その場合は
     <a href="https://apps.microsoft.com/detail/9N6TQDXRX5WV">ブラウザーでストアのページ</a>を開いてください。</p>
     <div class="btn-group flex-wrap mt-5 mb-4" role="group" aria-label="Other download routes">
       <a class="btn btn-outline-secondary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-box-arrow-up-right me-1"></i>ストアのページ</a>
       <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>インストーラーをダウンロード</a>
       <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>ポータブル版 exe</a>
-      <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap"><i class="bi bi-github me-1"></i>GitHub</a>
     </div>
     <p class="small text-body-secondary mb-1"><strong>Store からの導入をおすすめします</strong> —
-    SmartScreen の警告が出ず、更新も自動で届きます。
+    SmartScreen の警告が出ず、更新も自動で届きます。<br>
     どちらも公式で、入るのは同じビルドです
     (<a href="install.html">違い</a>)。</p>
     <p class="small text-body-secondary mb-0">無料・オープンソース (MIT) · ネットワーク通信なし · キー入力を記録しない ·
@@ -155,7 +167,7 @@
     <li>WinRemap は<strong>キー入力を記録・保存しません</strong> — 単なる方針ではなく
       リポジトリ規約として強制されています。</li>
     <li><strong>ネットワーク通信コードは一切ありません</strong>: テレメトリも自動アップデートもなし。</li>
-    <li>フック処理はヒープ確保・ロック・I/O のない純 Rust。
+    <li>フック処理はヒープ確保・ロック・I/O のない純 Rust。<br>
     最悪レイテンシを低く保ち、
       スクリプト型リマッパーで起きがちなフックのタイムアウト(切り離し)を回避します。</li>
     <li>設計上の対象外: IME の<em>制御</em>(インジケーターは表示のみ)、クリップボード
@@ -169,14 +181,18 @@
 
 <footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
   <div class="container">
-  <p class="text-center mb-3 lh-lg"><a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.ja.md">README (日本語)</a> ·
-      <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
-      <a href="privacy.html">プライバシー</a> ·
-      <a href="https://github.com/DaikiSuganuma/winremap">ソースコード</a> ·
+  <p class="text-center mb-4 lh-lg"><a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.ja.md">README (日本語)</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a>
+      |
+      <a href="privacy.html">プライバシー</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap">ソースコード</a>
+      |
       <a href="../" lang="en">English help</a></p>
   <p class="text-center small mb-1">WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</p>
   <p class="text-center small mb-0">トレイメニューのアイコンは <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>(MIT)を使用しています —
-      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">ライセンス表示</a>。
+      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">ライセンス表示</a>。<br>
       本サイトは <a href="https://getbootstrap.com/">Bootstrap</a>(MIT)で構築しています。</p>
   </div>
 </footer>
