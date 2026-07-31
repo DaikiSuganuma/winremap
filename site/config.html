@@ -47,22 +47,35 @@
     <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="index.html">
       <img src="assets/kbd-enabled-32.png" alt="" width="24" height="24">WinRemap
     </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-            data-bs-target="#nav" aria-controls="nav" aria-expanded="false"
-            aria-label="Toggle navigation">
+    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
+            data-bs-target="#nav" aria-controls="nav" aria-label="Open the menu">
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="collapse navbar-collapse" id="nav">
-      <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link" href="install.html">Install</a></li>
-        <li class="nav-item"><a class="nav-link active" aria-current="page" href="config.html">Configuration</a></li>
-        <li class="nav-item"><a class="nav-link" href="macro.html">Macro recording</a></li>
-        <li class="nav-item"><a class="nav-link" href="ime.html">IME indicator</a></li>
-        <li class="nav-item"><a class="nav-link" href="faq.html">FAQ</a></li>
-      </ul>
-      <ul class="navbar-nav">
-        <li class="nav-item"><a class="nav-link" href="ja/config.html" lang="ja">日本語</a></li>
-      </ul>
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="nav" aria-labelledby="navLabel">
+      <div class="offcanvas-header border-bottom">
+        <h2 class="offcanvas-title h6 mb-0" id="navLabel">Menu</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="install.html"><i class="bi bi-box-arrow-in-down me-2"></i>Install</a></li>
+          <li class="nav-item"><a class="nav-link" href="config.html"><i class="bi bi-gear me-2"></i>Configuration</a></li>
+          <li class="nav-item"><a class="nav-link" href="macro.html"><i class="bi bi-record-circle me-2"></i>Macro recording</a></li>
+          <li class="nav-item"><a class="nav-link" href="ime.html"><i class="bi bi-translate me-2"></i>IME indicator</a></li>
+        </ul>
+        <!-- The FAQ and the language switch are not part of the guide, so they
+             are set apart from it: a rule and a gap on a phone, extra margin on
+             a wide screen. -->
+        <hr class="d-lg-none my-2">
+        <ul class="navbar-nav ms-lg-3">
+          <li class="nav-item"><a class="nav-link" href="faq.html"><i class="bi bi-question-circle me-2"></i>FAQ</a></li>
+        </ul>
+        <hr class="d-lg-none my-2">
+        <ul class="navbar-nav ms-lg-3">
+          <li class="nav-item"><a class="nav-link" href="ja/" lang="ja"><i class="bi bi-globe2 me-2"></i>日本語</a></li>
+          <li class="nav-item"><a class="nav-link" href="https://github.com/DaikiSuganuma/winremap" aria-label="GitHub"><i class="bi bi-github me-2"></i><span class="d-lg-none">GitHub</span></a></li>
+        </ul>
+      </div>
     </div>
   </div>
 </nav>
@@ -133,7 +146,7 @@ application = ["phpstorm64.exe", "idea64.exe"]
   If the file has a mistake, WinRemap reports it and <em>keeps running the previous
   config</em> — a typo can never leave you without a keyboard setup.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Editing it without leaving WinRemap</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Editing it without leaving WinRemap</h3>
   <p>You do not have to open the file at all. Right-click the tray icon, pick
   <strong>Settings</strong>, and press <strong>Edit</strong>: names, target apps,
   exclusions and rules become fields, keymaps can be added, deleted and reordered,
@@ -188,7 +201,7 @@ application = ["phpstorm64.exe", "idea64.exe"]
     </table>
   </div>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Which block wins</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Which block wins</h3>
   <p>When more than one block could apply, <strong>an app-specific block beats a
   <code>"*"</code> block</strong>, regardless of the order they appear in the file. Within
   the same class, the first match wins.</p>
@@ -208,7 +221,7 @@ application = ["code.exe"]
   the settings window shows a column naming the other block — that clash is invisible
   when reading either one alone.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Finding the exe name</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Finding the exe name</h3>
   <p>Right-click the tray icon, pick <strong>Show log</strong>, then switch to the app you
   want to target. The <code>[window]</code> line prints the exact string to put in
   <code>application</code>, and which of your keymaps reach it — the full path is on the
@@ -222,7 +235,7 @@ application = ["code.exe"]
   <p>Inside <code>[keymap.remap]</code>, the left side is what you press and the right side
   is what the application receives.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Chord rules and bare-key rules</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Chord rules and bare-key rules</h3>
   <p>Which one you get depends on whether the left side has a modifier. The difference
   matters more than it looks.</p>
 
@@ -269,7 +282,7 @@ application = ["code.exe"]
     are consumed before any lookup happens. They are fine as outputs.</div>
   </div>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Prefix keys (two-stroke sequences)</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Prefix keys (two-stroke sequences)</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>"A-x u" = "C-z"      # Alt+X, then U    →  undo
 "A-x C-s" = "C-s"    # Alt+X, then Ctrl+S  →  save
 </code></pre>
@@ -281,7 +294,7 @@ application = ["code.exe"]
   document. The first chord must have a modifier: a bare prefix would swallow ordinary
   typing.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Macros</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Macros</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>"C-t" = ["C-Right", "C-Left", "C-S-Right"]   # up to 8 commands
 </code></pre>
   <p>An array output taps each command once, in order. The whole run is injected as a
@@ -294,7 +307,7 @@ application = ["code.exe"]
 <section id="sections" class="container py-4 border-bottom">
   <h2 class="mb-3"><i class="bi bi-sliders text-primary me-2"></i>Settings sections</h2>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i><code>[macro]</code></h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i><code>[macro]</code></h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[macro]
 delay_ms = 8            # 0–15, default 0
 
@@ -331,7 +344,7 @@ record_play  = "F10"
     one is in effect.</div>
   </div>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i><code>[ime_indicator]</code></h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i><code>[ime_indicator]</code></h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[ime_indicator]
 enabled = true                # default: false
 # trigger_keys = ["C-Space"]  # if you toggle the IME with Ctrl+Space
@@ -382,7 +395,7 @@ enabled = true                # default: false
 
   <p>Not supported: modifier keys on the input side of a rule.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Symbol keys follow your keyboard</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Symbol keys follow your keyboard</h3>
   <p>Write a symbol key as <strong>the character printed on it</strong>.
   <code>"C-;" = "Enter"</code> means the key engraved <code>;</code>.</p>
 
@@ -418,7 +431,7 @@ enabled = true                # default: false
   <h2 class="mb-3"><i class="bi bi-code-square text-primary me-2"></i>Worked examples</h2>
   <p>Each of these is a complete, self-contained block you can paste into your config.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>CapsLock as another Ctrl</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>CapsLock as another Ctrl</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "capslock"
 application = ["*"]
@@ -429,7 +442,7 @@ application = ["*"]
   <p>A bare-key rule, so it holds whatever else you are pressing. CapsLock stops toggling
   caps entirely — it <em>is</em> Ctrl now, including when held for a chord.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Ctrl+H as Backspace, except where the terminal needs it</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Ctrl+H as Backspace, except where the terminal needs it</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "backspace"
 application = ["*"]
@@ -442,7 +455,7 @@ exclude = ["windowsterminal.exe", "mintty.exe"]  # these send their own 0x08
   opens Find &amp; Replace; here it deletes one character instead. Terminals are excluded
   because they already do the right thing.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Emacs cursor movement everywhere</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Emacs cursor movement everywhere</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "emacs-motion"
 application = ["*"]
@@ -463,7 +476,7 @@ exclude = ["windowsterminal.exe", "emacs.exe"]
   end of the line, then cut. Exclude apps that already speak Emacs, or you will fight
   them.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>One app that needs the opposite</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>One app that needs the opposite</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "vscode"
 application = ["code.exe"]
@@ -475,7 +488,7 @@ application = ["code.exe"]
   written after it. Mapping a chord to itself is the idiom for "this app is an
   exception".</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Emacs-style prefix commands</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Emacs-style prefix commands</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "prefix"
 application = ["*"]
@@ -488,7 +501,7 @@ application = ["*"]
   <p>Anything you press after <kbd>Alt</kbd>+<kbd>X</kbd> that is not listed is discarded,
   so a slip never types into your document.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Selecting a word with one key</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Selecting a word with one key</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
 name = "select-word"
 application = ["*"]
@@ -499,7 +512,7 @@ application = ["*"]
   <p>Jump past the word, back to its start, then select to its end — which lands the caret
   on a whole word no matter where in it you started. Up to 8 commands per macro.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Recording a one-off repetitive edit</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Recording a one-off repetitive edit</h3>
 <pre class="bg-body-tertiary border rounded p-3"><code>[macro]
 delay_ms = 8
 record_start = "S-F10"   # Shift+F10 starts, and stops
@@ -511,7 +524,7 @@ record_play  = "F10"     # F10 replays
   See <a href="macro.html">macro recording</a> for what it does and does not
   capture.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>A starting file</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>A starting file</h3>
   <p>Two examples ship with WinRemap and are worth reading end to end:
   <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/minimal.toml">minimal.toml</a>
   (one rule, for checking that WinRemap is alive) and
@@ -575,7 +588,7 @@ record_play  = "F10"     # F10 replays
   with each keystroke, and the <strong>Settings</strong> window shows the config actually
   in effect — which is the fastest way to see that a reload did not happen.</p>
 
-  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Reading the log</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill text-primary me-2 small"></i>Reading the log</h3>
   <p>Every line carries the time to the millisecond and a tag saying which stream it
   belongs to. <code>[decided]</code> is one line per key; tick <strong>Every event</strong>
   for the whole stream — <code>[input]</code> for the presses and releases that arrived,
@@ -606,10 +619,14 @@ record_play  = "F10"     # F10 replays
 
 <footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
   <div class="container">
-  <p class="text-center mb-3 lh-lg"><a href="index.html">Help</a> ·
-      <a href="privacy.html">Privacy</a> ·
-      <a href="https://github.com/DaikiSuganuma/winremap">Source</a> ·
-      <a href="https://github.com/DaikiSuganuma/winremap/issues">Report an issue</a> ·
+  <p class="text-center mb-4 lh-lg"><a href="index.html">Help</a>
+      |
+      <a href="privacy.html">Privacy</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap">Source</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap/issues">Report an issue</a>
+      |
       <a href="ja/config.html" lang="ja">日本語版</a></p>
   <p class="text-center small mb-1">WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</p>
   <p class="text-center small mb-0">Built with <a href="https://getbootstrap.com/">Bootstrap</a> and
