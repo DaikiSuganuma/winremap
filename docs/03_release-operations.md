@@ -146,7 +146,9 @@ Partner Center の製品は登録済みで、**これらの値は変えてはな
 
 ### 4.1 順序制約（重要）
 
-**Store 提出はタグを打って Release を公開したあと**である。理由は winget と違う。掲載情報に**プライバシーポリシーの URL** が要り、それを配信する GitHub Pages は `main` からのみ発行されるためである（`.github/workflows/pages.yml`）。`main` に入れてよいのは `release/*` と `hotfix/*` だけなので（[04_git-branching.md §2.5](./04_git-branching.md)）、抜け道は作らない。
+**Store 提出はタグを打って Release を公開したあと**である。理由は winget と違う。掲載情報に**プライバシーポリシーの URL** が要り、それを配信する GitHub Pages は `main` からのみ発行されるためである（`.github/workflows/pages.yml`）。
+
+`site/` だけを `develop` 経由で先に `main` へ入れれば URL は生きる（[04_git-branching.md §2.5.1](./04_git-branching.md)）が、**それは抜け道として使わない**。提出するパッケージのバージョンに対応する Release がまだ無い状態でストアの審査が通ると、ストアからしか入手できない版が生まれ、SECURITY.md が読者に約束した「2 つの経路は同じソース・同じタグ」が崩れる。
 
 提出前に **`https://daikisuganuma.github.io/winremap/privacy.html` が 200 を返すこと**を確認する。
 

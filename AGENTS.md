@@ -41,7 +41,7 @@ WinRemap の開発作業（実装・レビュー・ドキュメント作成）�
 1. 実装前に必読ドキュメント（上記 5 点）を読む
 2. 設計判断（クレート追加、仕様変更、アルゴリズム選択）を行ったら開発中バージョンの `docs/<version>/decisions/`（現在: `docs/v0.4/decisions/`）に ADR を 1 件追加する。「なぜそうしたか」「却下した代替案」を必ず書く
 3. コミットは Conventional Commits（`feat:` / `fix:` / `docs:` / `refactor:` / `test:` / `chore:` / `ci:`）。1 コミット 1 関心事
-4. ブランチは `develop` から切り、`feature/*` / `fix/*` / `docs/*` / `chore/*` と命名する。**マージは必ず `--no-ff`**（fast-forward するとトピックブランチが存在した情報が履歴から消える）。マージコミットのメッセージにはそのブランチが何をしたのかを書く。マージ済みブランチはローカル・リモートとも削除する。`main` へ入れてよいのは `release/*` と `hotfix/*` のみ。詳細は `docs/04_git-branching.md`
+4. ブランチは `develop` から切り、`feature/*` / `fix/*` / `docs/*` / `chore/*` と命名する。**マージは必ず `--no-ff`**（fast-forward するとトピックブランチが存在した情報が履歴から消える）。マージコミットのメッセージにはそのブランチが何をしたのかを書く。マージ済みブランチはローカル・リモートとも削除する。`main` へ入れてよいのは `release/*` と `hotfix/*`、およびリリースの合間のドキュメント・サイト修正を運ぶ `develop`（`src/` と `Cargo.toml` を含めない。`docs/04_git-branching.md` §2.5.1）。詳細は `docs/04_git-branching.md`
 5. `cargo fmt` と `cargo clippy -- -D warnings` を通らないコードをコミットしない
 6. `keymap.rs` / `config.rs` の変更にはテストを伴わせる（フック層はテスト免除）
 7. 公開ドキュメント（README 等）は英語が正、`README.ja.md` を追随させる。コード内コメントは英語で、「何を」ではなく「なぜ」を書く。非自明な分岐・フォールバック・回避策には意図を一言添え、TODO/FIXME には理由を添える（詳細は `docs/02_rust-guidelines.md` §6）
