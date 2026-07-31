@@ -4,20 +4,36 @@
 use winremap::config;
 use winremap::keymap::{KeyCombo, Layout, Output, RemapTable, Resolution, parse_key_combo};
 
-/// No keyboard: nothing here writes a symbol key, and the shipped examples
-/// must compile on any keyboard — including one whose layout could not be
-/// read at all. That is exactly what an empty snapshot stands for (ADR 0063).
+/// A keyboard whose layout could not be read: no symbol key can be named by
+/// its character, only by its alias (ADR 0063).
 fn no_keyboard() -> Layout {
     Layout::empty()
 }
 
+/// Just the symbol keys the shipped examples name. Spelled out rather than
+/// read from the machine running the tests, so the examples mean the same
+/// thing here as on a CI runner.
+fn a_keyboard() -> Layout {
+    Layout::new(vec![(0xBA, ';'), (0xBD, '-'), (0xBF, '/')], Vec::new())
+}
+
 fn combo(spec: &str) -> KeyCombo {
-    parse_key_combo(spec, &no_keyboard()).unwrap()
+    parse_key_combo(spec, &a_keyboard()).unwrap()
 }
 
 fn load_example(name: &str) -> RemapTable {
     let path = format!("{}/examples/{name}", env!("CARGO_MANIFEST_DIR"));
-    config::parse_str(&std::fs::read_to_string(path).unwrap(), &no_keyboard()).unwrap()
+    config::parse_str(&std::fs::read_to_string(path).unwrap(), &a_keyboard()).unwrap()
+}
+
+/// The file first run writes has to load on **any** keyboard, including one
+/// whose layout Windows would not answer for. It is the one config a user
+/// never chose, so it may not depend on what they have plugged in.
+#[test]
+fn the_first_run_config_needs_no_keyboard() {
+    let path = format!("{}/examples/minimal.toml", env!("CARGO_MANIFEST_DIR"));
+    let source = std::fs::read_to_string(path).unwrap();
+    config::parse_str(&source, &no_keyboard()).expect("minimal.toml must load with no layout");
 }
 
 /// The chord a plain exact rule resolves to, or a panic with context.
@@ -74,6 +90,10 @@ fn emacs_example_parses_and_resolves() {
     let exe = "notepad.exe";
     assert_eq!(chord_target(&table, exe, "C-b"), combo("Left"));
     assert_eq!(chord_target(&table, exe, "C-h"), combo("Back"));
+    // The symbol-key line: written as the character, resolved through the
+    // keyboard, and it must reach the same key the alias names.
+    assert_eq!(chord_target(&table, exe, "C-/"), combo("C-z"));
+    assert_eq!(chord_target(&table, exe, "C-Oem2"), combo("C-z"));
     // Targets with modifiers (word motion -> Ctrl+Arrow).
     assert_eq!(chord_target(&table, exe, "A-f"), combo("C-Right"));
     // Not listed -> untouched.

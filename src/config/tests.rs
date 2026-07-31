@@ -1,6 +1,6 @@
 use super::*;
 use crate::keymap::tests::us_101;
-use crate::keymap::{KeyCombo, Output, Resolution, parse_key_combo};
+use crate::keymap::{KeyCombo, Layout, Output, Resolution, parse_key_combo};
 
 /// Every case here compiles against the same reference US keyboard, so a
 /// rule's meaning is fixed no matter what is plugged into the machine running
@@ -431,8 +431,10 @@ fn scratch_dir(tag: &str) -> std::path::PathBuf {
 #[test]
 fn the_default_config_is_valid() {
     // What first run writes must load, or WinRemap creates a file and then
-    // refuses to start on it.
-    let table = parse_str(DEFAULT_CONFIG).unwrap();
+    // refuses to start on it. Checked with *no* keyboard: this is the one
+    // config the user did not choose, so it may not depend on what they have
+    // plugged in — or on the layout having been readable (ADR 0063).
+    let table = super::parse_str(DEFAULT_CONFIG, &Layout::empty()).unwrap();
     assert_eq!(table.keymaps.len(), 1);
     assert_eq!(table.keymaps[0].name, "notepad");
 }

@@ -302,6 +302,25 @@ gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
         </div>
       </div>
     </div>
+    <div class="accordion-item">
+      <h3 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq11">I wrote <code class="text-reset">"C-@"</code> and got an error. Why?</button>
+      </h3>
+      <div id="faq11" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body">
+          <p>Because on your keyboard <code>@</code> is not a key — it is
+          <kbd>Shift</kbd>+<kbd>2</kbd>. Write the Shift into the rule:</p>
+<pre class="bg-body-tertiary border rounded p-3 mb-2"><code>"C-S-2" = "Esc"</code></pre>
+          <p>WinRemap tells you this, with the spelling to use, rather than adding the Shift
+          behind your back — otherwise <code>C-@</code> and <code>C-S-2</code> would be the
+          same rule on your machine and different rules on someone else's.</p>
+          <p class="mb-0">On a Japanese keyboard <code>@</code> <em>is</em> a key of its own,
+          and <code>"C-@"</code> works there. Symbol keys are written the way they are
+          engraved, and which key that is depends on the keyboard —
+          <a href="config.html#keys">the configuration guide explains it</a>.</p>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 

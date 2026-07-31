@@ -15,7 +15,9 @@
 #   "C-t" = ["C-Right", "C-Left"]  # マクロ: 書いた順に送る
 #
 # 修飾キーは C- Ctrl、A- Alt、S- Shift、W- Win。キー名は Windows のもの
-# （Back、Delete、Enter、Home、F1 …）。個別のアプリに紐づかない設定は
+# （Back、Delete、Enter、Home、F1 …）。記号キーは、そのキーに刻印されている
+# 文字で書く（C-; C-/ C--）。その文字に Shift が要るキーボードなら Shift ごと
+# 書く（C-@ ではなく C-S-2）。個別のアプリに紐づかない設定は
 # [macro] と [ime_indicator] に書く。
 # 全項目の説明: https://daikisuganuma.github.io/winremap/ja/config.html
 

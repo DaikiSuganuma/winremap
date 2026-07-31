@@ -374,13 +374,44 @@ enabled = true                # default: false
         <tr><td>Editing</td><td><code>Back</code> (<code>Backspace</code>, <code>BS</code>), <code>Tab</code>, <code>Enter</code> (<code>Return</code>), <code>Esc</code> (<code>Escape</code>), <code>Space</code>, <code>Insert</code> (<code>Ins</code>), <code>Delete</code> (<code>Del</code>)</td></tr>
         <tr><td>Navigation</td><td><code>PageUp</code> (<code>PgUp</code>), <code>PageDown</code> (<code>PgDn</code>), <code>Home</code>, <code>End</code>, <code>Left</code>, <code>Up</code>, <code>Right</code>, <code>Down</code></td></tr>
         <tr><td>Lock</td><td><code>CapsLock</code></td></tr>
+        <tr><td>Symbols</td><td><strong>The character printed on the key</strong> (<code>;</code>, <code>/</code>, <code>-</code>, <code>[</code>, …). Aliases: <code>Oem1</code>–<code>Oem8</code>, <code>Oem102</code>, <code>OemPlus</code>, <code>OemComma</code>, <code>OemMinus</code>, <code>OemPeriod</code></td></tr>
         <tr><td>Modifiers as output keys</td><td><code>LCtrl</code>, <code>RCtrl</code>, <code>LShift</code>, <code>RShift</code>, <code>LAlt</code>, <code>RAlt</code>, <code>LWin</code>, <code>RWin</code>, <code>Apps</code> (<code>Menu</code>) — output side only</td></tr>
       </tbody>
     </table>
   </div>
 
-  <p>Not supported: punctuation and OEM keys (<code>;</code>, <code>,</code>, … their key
-  codes depend on the keyboard layout), and modifier keys on the input side of a rule.</p>
+  <p>Not supported: modifier keys on the input side of a rule.</p>
+
+  <h3 class="h5 mt-4">Symbol keys follow your keyboard</h3>
+  <p>Write a symbol key as <strong>the character printed on it</strong>.
+  <code>"C-;" = "Enter"</code> means the key engraved <code>;</code>.</p>
+
+  <p>Which key that is genuinely differs between keyboards: one and the same key prints
+  <code>;</code> on a US layout and <code>:</code> on a Japanese one. WinRemap does not
+  assume — <strong>it asks Windows when it loads your config</strong>. So the same file
+  picks the key that matches <strong>what is engraved on the keyboard in front of you</strong>.</p>
+
+  <div class="alert alert-warning">
+    <p class="mb-2"><strong>A character that needs Shift is written with it.</strong></p>
+    <p class="mb-2">On a US keyboard <code>@</code> is <kbd>Shift</kbd>+<kbd>2</kbd>, so the
+    rule is <code>"C-S-2"</code>, not <code>"C-@"</code>. WinRemap will not quietly add the
+    Shift for you; it says so, with the spelling to use:</p>
+    <pre class="bg-body-tertiary border rounded p-2 mb-2"><code>`@` needs Shift on this keyboard; write `S-2` instead</code></pre>
+    <p class="mb-0">On a Japanese keyboard <code>@</code> is a key of its own, so
+    <code>"C-@"</code> is exactly right there. <strong>Different layout, different
+    spelling</strong> — because the keyboards really are different, and hiding that would
+    cost you more than knowing it.</p>
+  </div>
+
+  <p>To carry one config <strong>between machines with different keyboards</strong>, use the
+  aliases: <code>"C-OemMinus"</code> names the same key on any layout. They are also the only
+  way to reach a key with nothing printed on it (<code>Oem8</code>), or to pick between two
+  keys that print the same character — a US layout has <code>\</code> on two of them.</p>
+
+  <p class="text-body-secondary">Changed keyboards? Choose <strong>Reload config</strong> from
+  the tray menu; the question is asked again each time the config is read. The key-notation
+  panel in the settings window (<i class="bi bi-keyboard"></i>) lists
+  <strong>the symbol keys of the keyboard you have attached right now</strong>.</p>
 </section>
 
 <section id="recipes" class="container py-4 border-bottom">
@@ -499,8 +530,14 @@ record_play  = "F10"     # F10 replays
       <tbody>
         <tr>
           <td><code>unknown key `Bogus`</code></td>
-          <td>The name is not in the <a href="#keys">key notation</a> table. Punctuation keys
-            are the usual cause — they are not supported.</td>
+          <td>The name is not in the <a href="#keys">key notation</a> table. If it is a
+            symbol, your keyboard does not print it on any key — check the panel in the
+            settings window for the ones it does.</td>
+        </tr>
+        <tr>
+          <td><code>`@` needs Shift on this keyboard; write `S-2` instead</code></td>
+          <td>That character is on a key's shifted face. Write it with the Shift, exactly as
+            the message spells it (<a href="#keys">symbol keys</a>).</td>
         </tr>
         <tr>
           <td><code>modifier key `LCtrl` cannot be a remap input</code></td>

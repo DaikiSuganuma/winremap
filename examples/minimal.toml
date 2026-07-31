@@ -15,8 +15,10 @@
 #   "C-t" = ["C-Right", "C-Left"]  # macro: the chords are sent in this order
 #
 # Modifier prefixes are C- Ctrl, A- Alt, S- Shift, W- Win, and key names are
-# the Windows ones (Back, Delete, Enter, Home, F1 …). Settings that are not
-# about one application live in [macro] and [ime_indicator].
+# the Windows ones (Back, Delete, Enter, Home, F1 …). A symbol key is written
+# as the character printed on it (C-; C-/ C--); if that character needs Shift
+# on your keyboard, write the Shift too (C-S-2, not C-@). Settings that are
+# not about one application live in [macro] and [ime_indicator].
 # Every option: https://daikisuganuma.github.io/winremap/config.html
 
 # --- This file -------------------------------------------------------------

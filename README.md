@@ -38,13 +38,16 @@ flowchart TD
     P --> A["Application interprets the keys natively<br/>(Ctrl+A → Select All)"]
 ```
 
-## Features (v0.5)
+## Features (v0.7)
 
 - **Per-application remapping**: rules apply only to the processes you list
   (`notepad.exe`, `chrome.exe`, ...), or globally (`*`) with an optional
   `exclude` list
 - **Declarative TOML config** with Emacs-style key notation (`C-h`, `A-f`,
   `Back`, ...) familiar to Keyhac/fakeymacs users
+- **Symbol keys written as they are engraved** (`C-;`, `C-/`): which physical
+  key that is depends on your keyboard, and WinRemap asks Windows instead of
+  guessing — so the notation matches what you can see on the key
 - **Two-stroke sequences** (`"A-x h"`, Emacs-style prefix keys) and **macro
   outputs** (`"C-t" = ["C-Right", "C-Left", "C-S-Right"]`)
 - **Macro recording**: press a key to start recording, work as usual, press
@@ -155,6 +158,17 @@ complete examples.
   plus a key name: `a`-`z`, `0`-`9`, `F1`-`F24`, `Back`, `Enter`, `Esc`,
   `Tab`, `Space`, `Delete`, `Home`, `End`, `PageUp`, `PageDown`, arrow keys,
   `CapsLock`, and side-specific modifiers (`LCtrl`, ...) as outputs.
+- Symbol keys are written as **the character printed on the key**: `"C-;"`,
+  `"C-/"`, `"C--"`. Which key that is depends on your keyboard, and WinRemap
+  asks Windows rather than assuming — so the same file means different
+  physical keys on a US and a Japanese keyboard, matching what is engraved on
+  each. `Oem1`-`Oem8`, `Oem102`, `OemPlus`, `OemComma`, `OemMinus` and
+  `OemPeriod` name those keys the same way on every layout, for a config you
+  want to carry between machines.
+  > A character that needs Shift is written with it: on a US keyboard `@` is
+  > `Shift`+`2`, so the rule is `"C-S-2"`, not `"C-@"`. WinRemap says so, with
+  > the spelling to use, rather than silently adding the Shift for you.
+  > Changed keyboards? Pick **Reload config** from the tray menu.
 - A rule with modifiers (`"C-h" = "Back"`) matches that exact chord and
   replaces the modifier state too (the app receives a plain Backspace). A
   bare-key rule (`"CapsLock" = "LCtrl"`) swaps the key regardless of held
@@ -313,11 +327,13 @@ when you press the key and released when you let go — which is what the time
 column is for. Everything is recorded whether the box is ticked or not, so
 ticking it explains the keys you already pressed, not just the next ones.
 
-Keys are named the way your keyboard is: `Num1 (0x61)`, and for punctuation
-the character your layout prints on the key. Where a key or a chord carries
-an ASCII control code the log says so — `C-h (BS 0x08)`, `Enter (CR 0x0D)`.
-Letters and digits never show a code: WinRemap logs keys, not what you typed,
-and nothing goes to disk.
+Keys are named the way your keyboard is: punctuation reads as the character
+your layout prints on the key, so `/` — exactly what you would write in a
+rule, ready to copy into the file. A key you *cannot* name in a rule keeps
+its raw code in parentheses (`Num1 (0x61)`); that is the signal. Where a key
+or a chord carries an ASCII control code the log says so — `C-h (BS 0x08)`,
+`Enter (CR 0x0D)`, `C-[ (ESC 0x1B)`. Letters and digits never show a code:
+WinRemap logs keys, not what you typed, and nothing goes to disk.
 
 > **Ctrl+H, Backspace, and terminals** — the pair this project started from.
 > A terminal sends DEL `0x7f` when you press the Backspace *key* and BS
@@ -338,9 +354,6 @@ nothing** — starting it from a shell is as quiet as starting it from Explorer.
 - **Windows with elevated privileges** (admin) do not receive events from a
   non-elevated hook (UIPI, User Interface Privilege Isolation). Run WinRemap
   elevated only if you need remapping there.
-- **Punctuation/OEM keys** (`;`, `,`, ...) cannot be used in rules yet — their
-  virtual-key codes are keyboard-layout dependent. The log does name them
-  (`/ (0xBF)`), so you can at least see which one you pressed.
 - **No tap/hold or mark mode** yet; sequences are limited to two strokes.
 - Chords involving **Alt or Win** inject a masking key so the modifier lift
   does not pop the menu bar / Start menu; if a specific app still shows menu

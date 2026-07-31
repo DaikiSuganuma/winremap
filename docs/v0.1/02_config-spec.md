@@ -5,7 +5,10 @@
 
 - 作成日: 2026-07-18
 - 作成: Claude Code（AI モデル: claude-fable-5）／レビュー・承認: オーナー
-- 最終更新: 2026-07-19 — 用語「チョード」を「コマンド」に変更（英語ドキュメントの chord に対応）／§6 `[ime_indicator]` を追加（ADR 0020）
+- 最終更新: 2026-07-31 — §2 に記号（OEM）キーを追加し、「v0.1 の制限」と §5 将来拡張から外した（v0.7・[ADR 0063](../v0.7/decisions/0063-symbol-keys.md)）
+- 更新履歴: 2026-07-19 — 用語「チョード」を「コマンド」に変更（英語ドキュメントの chord に対応）／§6 `[ime_indicator]` を追加（ADR 0020）
+
+> **この文書はバージョン非依存の仕様の正本である。** `docs/v0.1/` に置かれているのは初出がそのバージョンだったためで、以後の変更もここに反映する（ADR は書き換えないという規約は ADR に対するもの）。
 
 ---
 
@@ -90,10 +93,20 @@ exclude = ["WindowsTerminal.exe"]
 | 移動 | `PageUp`（`PgUp`）, `PageDown`（`PgDn`）, `End`, `Home`, `Left`, `Up`, `Right`, `Down` | 0x21-0x28 |
 | ロック | `CapsLock` | 0x14 |
 | 修飾キー単体 | `LShift`, `RShift`, `LCtrl`（`LControl`）, `RCtrl`（`RControl`）, `LAlt`, `RAlt`, `LWin`, `RWin`, `Apps`（`Menu`） | 0xA0-0xA5, 0x5B, 0x5C, 0x5D |
+| **記号（OEM）キー** | **そのキーに刻印されている 1 文字**（`;` `/` `-` `[` 等）。別名 `Oem1`〜`Oem8`, `Oem102`, `OemPlus`, `OemComma`, `OemMinus`, `OemPeriod` | 0xBA-0xC0, 0xDB-0xDF, 0xE2 |
 
-**v0.1 の制限**:
+### 記号（OEM）キー（v0.7 で対応。[ADR 0063](../v0.7/decisions/0063-symbol-keys.md)）
 
-- 記号キー（`;` `,` `-` 等の OEM キー。OEM = Original Equipment Manufacturer）は非対応。VK（Virtual-Key）コードがキーボードレイアウト依存（特に JP 配列）のため、対応時に ADR を書いて判断する
+OEM = Original Equipment Manufacturer。VK（Virtual-Key）コードと記号の対応が**キーボードによって違う**キー群である（`0xC0` は JP 106 で `@`、US 101 で `` ` ``）。
+
+- **刻印の文字で書く**のが主の記法。どのキーがそれかは設定の読み込み時に Windows へ問い合わせて解決する（`VkKeyScanW` / `MapVirtualKeyW`）。**静的な表を持たない**
+- `Oem*` の別名は**配列に依存しない**。文字を持たないキー（`Oem8`）や、同じ文字を刻む 2 つのキー（US 配列の `\` は `Oem5` と `Oem102` の両方）を指すのに要る
+- **Shift が要る文字は書けない。** US 配列の `@` は `Shift`+`2` なので `S-2` と書く。暗黙に Shift を補うと `C-@` と `C-S-2` が同じルールになり、その重複が機械によって発生したりしなかったりするため（§3.1 の完全一致規則と衝突する）。エラーには書くべき綴りを添える
+- 解決は**読み込み時に 1 回**。キーボードを差し替えたらリロードが要る
+- 同じ文字を 2 つのキーが刻む場合は **VK の小さいほうに解決する**
+
+**制限**:
+
 - IME 関連キー（変換・無変換・かな）は Non-goal（ブリーフ §3.3）
 - **修飾キー（`LCtrl` / `LShift` 等）を入力側（LHS: Left-Hand Side、ルールの左辺）にすることはできない**（設定エラー）。フックが修飾キーをコマンド判定の状態管理に使うため。出力側（RHS: Right-Hand Side、右辺）には使える（`"CapsLock" = "LCtrl"`）
 
@@ -160,7 +173,7 @@ invalid configuration:
 
 - tap/hold、マークモード、3 ストローク以上のシーケンス
 - ウィンドウタイトルによるマッチ
-- 記号（OEM）キー、左右個別の修飾キープレフィックス（`LC-` 等）
+- 左右個別の修飾キープレフィックス（`LC-` 等）
 
 ## 6. IME 状態インジケーター（`[ime_indicator]`）
 
