@@ -80,7 +80,9 @@
 <section id="install" class="container py-4 border-bottom">
   <h2 class="mb-3"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>Install</h2>
   <p>There are two official ways to get WinRemap, and they install the same build from
-  the same source. Pick the one that suits how you like to install and update software.</p>
+  the same source. <strong>The Microsoft Store is the recommended one</strong> — Windows installs it
+  without a SmartScreen warning and updates arrive on their own. Take GitHub Releases if you want a
+  portable <code>winremap.exe</code>, or if you would rather verify the download yourself.</p>
 
   <div class="table-responsive my-3">
     <table class="table align-middle">
@@ -110,8 +112,14 @@
   To have it start with Windows, turn it on under
   <em>Settings → Apps → Startup</em>.</p>
 
-  <div class="d-flex flex-wrap gap-2 my-3">
-    <a class="btn btn-primary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Get it from the Microsoft Store</a>
+  <div class="d-flex mt-3 mb-2">
+    <a class="btn btn-primary btn-lg" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Open in the Microsoft Store app</a>
+  </div>
+  <p class="text-body-secondary small"><strong>Windows only.</strong> This button hands off to the Store
+  app, so it does nothing on macOS, Linux or a phone, and your browser will ask for permission the first
+  time. Use the Store page below if the button does not work.</p>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-secondary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-box-arrow-up-right me-1"></i>Store page in your browser</a>
   </div>
 
   <h3 class="h5 mt-4">From GitHub Releases</h3>

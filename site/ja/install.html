@@ -80,7 +80,9 @@
 <section id="install" class="container py-4 border-bottom">
   <h2 class="mb-3"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>インストール</h2>
   <p>公式の入手経路は 2 つあり、どちらも同じソースから作った同じビルドが入ります。
-  インストールと更新の好みで選んでください。</p>
+  <strong>おすすめは Microsoft Store です</strong> — SmartScreen の警告が出ず、更新も自動で届きます。
+  ポータブル版の <code>winremap.exe</code> が欲しい場合や、ダウンロードを自分で検証したい場合は
+  GitHub Releases を選んでください。</p>
 
   <div class="table-responsive my-3">
     <table class="table align-middle">
@@ -109,8 +111,14 @@
   起動するとタスクトレイにキーボードのアイコンが現れます。Windows の起動時に
   自動で立ち上げたい場合は<em>設定 → アプリ → スタートアップ</em>でオンにしてください。</p>
 
-  <div class="d-flex flex-wrap gap-2 my-3">
-    <a class="btn btn-primary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Microsoft Store で入手</a>
+  <div class="d-flex mt-3 mb-2">
+    <a class="btn btn-primary btn-lg" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Microsoft Store アプリで開く</a>
+  </div>
+  <p class="text-body-secondary small"><strong>Windows 専用です。</strong>このボタンは Store アプリに
+  引き渡すため、macOS・Linux・スマートフォンでは何も起きません。初回はブラウザーが確認を求めます。
+  開けない場合は下のストアのページをお使いください。</p>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-secondary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-box-arrow-up-right me-1"></i>ブラウザーでストアのページ</a>
   </div>
 
   <h3 class="h5 mt-4">GitHub Releases から入れる</h3>
