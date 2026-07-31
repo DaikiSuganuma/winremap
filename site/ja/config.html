@@ -370,13 +370,44 @@ enabled = true                # 既定: false
         <tr><td>編集</td><td><code>Back</code>（<code>Backspace</code>、<code>BS</code>）、<code>Tab</code>、<code>Enter</code>（<code>Return</code>）、<code>Esc</code>（<code>Escape</code>）、<code>Space</code>、<code>Insert</code>（<code>Ins</code>）、<code>Delete</code>（<code>Del</code>）</td></tr>
         <tr><td>移動</td><td><code>PageUp</code>（<code>PgUp</code>）、<code>PageDown</code>（<code>PgDn</code>）、<code>Home</code>、<code>End</code>、<code>Left</code>、<code>Up</code>、<code>Right</code>、<code>Down</code></td></tr>
         <tr><td>ロック</td><td><code>CapsLock</code></td></tr>
+        <tr><td>記号</td><td><strong>そのキーに刻印されている文字</strong>（<code>;</code>、<code>/</code>、<code>-</code>、<code>[</code> など）。別名は <code>Oem1</code>〜<code>Oem8</code>、<code>Oem102</code>、<code>OemPlus</code>、<code>OemComma</code>、<code>OemMinus</code>、<code>OemPeriod</code></td></tr>
         <tr><td>出力用の修飾キー</td><td><code>LCtrl</code>、<code>RCtrl</code>、<code>LShift</code>、<code>RShift</code>、<code>LAlt</code>、<code>RAlt</code>、<code>LWin</code>、<code>RWin</code>、<code>Apps</code>（<code>Menu</code>）— 出力側のみ</td></tr>
       </tbody>
     </table>
   </div>
 
-  <p>未対応: 記号・OEM キー（<code>;</code>、<code>,</code> など。キーコードがキーボード
-  レイアウトに依存するため）と、ルールの入力側に置く修飾キー。</p>
+  <p>未対応: ルールの入力側に置く修飾キー。</p>
+
+  <h3 class="h5 mt-4">記号キーはキーボードによって違う</h3>
+  <p>記号キーは、<strong>お使いのキーボードに刻印されているとおり</strong>に書きます。
+  <code>"C-;" = "Enter"</code> と書けば、<code>;</code> と刻まれたキーが対象になります。</p>
+
+  <p>どのキーがそれなのかは、実はキーボードによって違います。同じキーが US 配列では
+  <code>;</code>、日本語配列では <code>:</code> を刻んでいる、ということが起こります。
+  WinRemap は決め打ちせず、<strong>設定を読み込むときに Windows へ問い合わせます</strong>。
+  ですから同じ設定ファイルでも、それぞれのキーボードで<strong>刻印どおりのキー</strong>が
+  対象になります。</p>
+
+  <div class="alert alert-warning">
+    <p class="mb-2"><strong>Shift が要る文字は、Shift ごと書きます。</strong></p>
+    <p class="mb-2">US 配列の <code>@</code> は <kbd>Shift</kbd>+<kbd>2</kbd> です。この場合
+    <code>"C-@"</code> ではなく <code>"C-S-2"</code> と書きます。WinRemap が黙って Shift を
+    足すことはせず、こう教えます。</p>
+    <pre class="bg-body-tertiary border rounded p-2 mb-2"><code>`@` needs Shift on this keyboard; write `S-2` instead</code></pre>
+    <p class="mb-0">日本語配列なら <code>@</code> は単独のキーなので、そのまま
+    <code>"C-@"</code> と書けます。<strong>配列が違えば書き方も違う</strong> — これは
+    キーボードが実際にそうなっているからで、隠さずにお伝えしています。</p>
+  </div>
+
+  <p>設定を<strong>別のキーボードのマシンへ持って行きたい</strong>場合は、別名を使います。
+  <code>"C-OemMinus"</code> のように書くと、配列に関係なく同じキーを指します。
+  文字が刻まれていないキー（<code>Oem8</code>）や、同じ文字を刻んだキーが 2 つある場合
+  （US 配列の <code>\</code> は 2 か所にあります）も、別名でなければ指せません。</p>
+
+  <p class="text-body-secondary">キーボードを差し替えたら、トレイメニューの
+  ［設定を再読み込み］を選んでください。読み込み直すときに問い合わせ直します。
+  設定ウィンドウのキー記法パネル（<i class="bi bi-keyboard"></i>）には、
+  <strong>今つながっているキーボードの記号キー</strong>が並びます。</p>
 </section>
 
 <section id="recipes" class="container py-4 border-bottom">
@@ -495,8 +526,14 @@ record_play  = "F10"     # F10 で再生
       <tbody>
         <tr>
           <td><code>unknown key `Bogus`</code></td>
-          <td>その名前が<a href="#keys">キー記法</a>の表にありません。記号キーを書いた場合が
-            大半です（未対応です）。</td>
+          <td>その名前が<a href="#keys">キー記法</a>の表にありません。記号の場合は、
+            お使いのキーボードのどのキーにもその文字が刻まれていないということです。
+            設定ウィンドウのキー記法パネルで、刻まれている記号を確認してください。</td>
+        </tr>
+        <tr>
+          <td><code>`@` needs Shift on this keyboard; write `S-2` instead</code></td>
+          <td>その文字はキーのシフト面にあります。メッセージが示すとおり、Shift ごと
+            書いてください（<a href="#keys">記号キー</a>）。</td>
         </tr>
         <tr>
           <td><code>modifier key `LCtrl` cannot be a remap input</code></td>
