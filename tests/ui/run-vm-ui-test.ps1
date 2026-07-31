@@ -1,23 +1,29 @@
 <#
 .SYNOPSIS
-    Runs WinRemap's UI test scenarios on the VMware guest (host-side entry).
+    Runs WinRemap's UI test checks on the VMware guest (host-side entry).
 
 .DESCRIPTION
-    Standard flow, once per scenario (docs/05_ui-test-automation.md):
+    Standard flow, once per check (docs/05_ui-test-automation.md):
       1. revert the guest to the golden snapshot, boot it and wait until it can
          take an interactive program, so no resident WinRemap or global hook is
-         carried over from the previous scenario
-      2. build the binary the scenario asks for and copy it, with
-         examples/minimal.toml, to C:\Test on the guest
-      3. run `claude -p <scenario prompt>` in the guest's session 1 through
-         windows-utility's run-in-vm-vmware.ps1 (UI automation needs an
-         interactive desktop)
-      4. read the verdict from the agent's final line
+         carried over from the previous check
+      2. build the binary the check asks for and copy it, with the fixtures and
+         the guest-side scripts, to C:\Test on the guest
+      3. run the check's script in the guest's session 1 through vmrun
+         -interactive (UI automation needs an interactive desktop)
+      4. copy its result file back and read the verdict off its own tally
 
-    Scenarios whose prompt mentions --accept-injected are built with the
-    default-off `test-inject` feature (ADR 0053); the others run the same
-    shape of binary that ships. Launches pass --lang en so the prompts can
-    name UI strings regardless of the guest's locale.
+    Every check drives the app through the Windows App Development CLI
+    (`winapp`) or a plain UI Automation client, and decides for itself. There
+    is no LLM in the loop: the agent-driven scenarios this suite started with
+    were retired in v0.7 once all five had been ported (ADR 0064), because the
+    ported checks decide the same things about six times faster and, unlike the
+    agent, decide them the same way twice.
+
+    Checks marked NeedsInject are built with the default-off `test-inject`
+    feature (ADR 0053); the others run the same shape of binary that ships.
+    Launches pass --lang en so the assertions can name UI strings regardless of
+    the guest's locale.
 
     One project, one VM: this suite owns winremap-test, and its connection
     details live in this repository's own .secrets\test-vm.json (git-ignored,
@@ -37,37 +43,36 @@
     WinRemap left resident in it comes back on every revert, keeps its log file
     open, and the next run times out silently with nothing to show.
 
-    -DumpUia runs no scenario at all: it opens the settings and log windows and
-    prints their UI Automation trees, which is where the selectors the
-    scenarios name are read from. Re-run it whenever the GUI changes.
+    -DumpUia asserts nothing: it opens the settings and log windows and prints
+    their UI Automation trees, which is where the names the checks look for are
+    read from. Re-run it whenever the GUI changes.
 
 .EXAMPLE
     .\run-vm-ui-test.ps1
-    .\run-vm-ui-test.ps1 -Scenario 05-remap-notepad -NoRevert
+    .\run-vm-ui-test.ps1 -Check 05-remap-notepad -NoRevert
+    .\run-vm-ui-test.ps1 -Check 01-settings-window,04-log-window
     .\run-vm-ui-test.ps1 -DumpUia
     .\run-vm-ui-test.ps1 -VmConfig test-vm.spare.json
 #>
 
 param(
-    # Scenario file stem under .\scenarios, or "all".
-    [string]$Scenario = "all",
-    # windows-utility's guest-command entry point. It provides the environment;
-    # what runs in it — the binary, the fixtures, the scenarios — is ours.
+    # One of the names in $checks below, a comma-separated subset, or "all".
+    # -Scenario still works: that is what this parameter was called while the
+    # suite was agent-driven, and it is in the older acceptance checklists.
+    [Alias("Scenario")]
+    [string]$Check = "all",
+    # windows-utility's guest-command entry point, used for the revert. It
+    # provides the environment; what runs in it — the binary, the fixtures, the
+    # checks — is ours.
     [string]$EntryScript = "D:\Projects\GitLab\windows-utility\test-vm\scripts\run-in-vm-vmware.ps1",
     [string]$Snapshot = "ready",
-    # Generous on purpose: a green run measured 11:54 / 14:05 / 3:34 / 12:23 /
-    # 1:38, so anything near 15 turns a slow scenario into a false ERROR — and
-    # a false ERROR costs more than a slow pass, because it sends someone
-    # looking for a defect that is not there. A scenario can ask for its own
-    # budget with `# timeout: <minutes>`.
-    [int]$TimeoutMin = 25,
-    # Reuses the running guest as-is. For iterating on a prompt only: results
-    # are not reproducible once a scenario has left state behind.
+    # Reuses the running guest as-is. For iterating on a check only: results
+    # are not reproducible once a check has left state behind.
     [switch]$NoRevert,
     [switch]$SkipBuild,
-    # Runs no scenario. Opens the settings and log windows and prints what they
-    # expose to UI Automation, so the selectors in the scenarios can be read
-    # off a machine instead of guessed. Run this after changing the GUI.
+    # Asserts nothing. Opens the settings and log windows and prints what they
+    # expose to UI Automation, so the names the checks look for can be read off
+    # a machine instead of guessed. Run this after changing the GUI.
     [switch]$DumpUia,
     # File name under this repository's .secrets (or a full path) naming the VM
     # to run against. The default is this suite's own guest, winremap-test.
@@ -78,7 +83,6 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$scenarioDir = Join-Path $PSScriptRoot "scenarios"
 $guestDir = "C:\Test"
 
 function Resolve-Vmrun {
@@ -147,7 +151,7 @@ function Invoke-Vmrun {
 # it rather than re-implementing them. What we used to do — wait for Tools to
 # answer, then sleep a flat 15 seconds — is not the same condition: Tools
 # answers minutes before the desktop will accept an interactive program, and a
-# scenario launched into that gap fails looking like the app.
+# check launched into that gap fails looking like the app.
 #
 # The entry script needs a command, and there is nothing useful to run yet:
 # the payload is copied after the revert, because the revert would wipe it.
@@ -192,47 +196,36 @@ function Build-Binary {
     return $exe
 }
 
+# Everything the guest needs, flattened into C:\Test. The guest side is listed
+# by directory rather than by name on purpose: the hand-kept list this replaced
+# went stale every time a check was added, and a check whose script was never
+# copied fails as "the result file is missing" — an ERROR that says nothing
+# about what is wrong.
+#
+# Flat on the guest matters: the check scripts dot-source their helpers as
+# "$PSScriptRoot\ui-helpers.ps1", which only resolves if everything landed in
+# one directory.
 function Copy-Payload {
     param([string]$Exe)
     Invoke-Vmrun createDirectoryInGuest $script:vm.VmxPath $guestDir | Out-Null
-    foreach ($pair in @(
-            @{ Local = $Exe; Guest = "$guestDir\winremap.exe" },
-            # minimal.toml is what the display scenarios read back; uitest.toml
-            # is the fixture the remap scenario needs (see its header).
-            @{ Local = (Join-Path $repoRoot "examples\minimal.toml"); Guest = "$guestDir\minimal.toml" },
-            # The regression checks need a config with more than one keymap,
-            # macros and a [macro] section; that is this one (v0.2 B1-3 named
-            # it suganuma.toml, since renamed).
-            @{ Local = (Join-Path $repoRoot "examples\personal-ja.toml"); Guest = "$guestDir\personal-ja.toml" },
-            @{ Local = (Join-Path $PSScriptRoot "fixtures\uitest.toml"); Guest = "$guestDir\uitest.toml" },
-            @{ Local = (Join-Path $PSScriptRoot "fixtures\broken.toml"); Guest = "$guestDir\broken.toml" },
-            # A global keymap, which the log-view checks need: they type into
-            # WinRemap's own window, where a per-app rule would never fire.
-            @{ Local = (Join-Path $PSScriptRoot "fixtures\logview.toml"); Guest = "$guestDir\logview.toml" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\promote-tray-icon.ps1"); Guest = "$guestDir\promote-tray-icon.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\dump-uia.ps1"); Guest = "$guestDir\dump-uia.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\cli-smoke.ps1"); Guest = "$guestDir\cli-smoke.ps1" },
-            # Dot-sourced by the two checks below, so it has to land first.
-            @{ Local = (Join-Path $PSScriptRoot "guest\ui-helpers.ps1"); Guest = "$guestDir\ui-helpers.ps1" },
-            # The winapp CLI wrappers, dot-sourced by the ported scenarios.
-            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-helpers.ps1"); Guest = "$guestDir\winapp-helpers.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\regression-checks.ps1"); Guest = "$guestDir\regression-checks.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-settings-window.ps1"); Guest = "$guestDir\winapp-settings-window.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-config-display.ps1"); Guest = "$guestDir\winapp-config-display.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-tray-actions.ps1"); Guest = "$guestDir\winapp-tray-actions.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-log-window.ps1"); Guest = "$guestDir\winapp-log-window.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-remap-notepad.ps1"); Guest = "$guestDir\winapp-remap-notepad.ps1" },
-            @{ Local = (Join-Path $PSScriptRoot "guest\log-view.ps1"); Guest = "$guestDir\log-view.ps1" }
-        )) {
-        Invoke-Vmrun copyFileFromHostToGuest $script:vm.VmxPath $pair.Local $pair.Guest | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "copying $($pair.Local) to the guest failed" }
+    $payload = @($Exe)
+    # minimal.toml is what the display checks read back; personal-ja.toml is
+    # the one with more than one keymap, macros and a [macro] section, which
+    # 00-regression needs (v0.2 B1-3 named it suganuma.toml, since renamed).
+    $payload += (Join-Path $repoRoot "examples\minimal.toml")
+    $payload += (Join-Path $repoRoot "examples\personal-ja.toml")
+    $payload += @(Get-ChildItem (Join-Path $PSScriptRoot "fixtures\*.toml") | ForEach-Object { $_.FullName })
+    $payload += @(Get-ChildItem (Join-Path $PSScriptRoot "guest\*.ps1") | ForEach-Object { $_.FullName })
+    foreach ($local in $payload) {
+        $guest = Join-Path $guestDir (Split-Path $local -Leaf)
+        Invoke-Vmrun copyFileFromHostToGuest $script:vm.VmxPath $local $guest | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "copying $local to the guest failed" }
     }
-    Write-Host "  payload copied to $guestDir" -ForegroundColor Gray
+    Write-Host "  payload copied to $guestDir ($($payload.Count) files)" -ForegroundColor Gray
 }
 
-# A scenario that fails or hangs leaves nothing behind once the guest is
-# reverted, and the agent's own output is the first thing missing when it
-# hangs. Grab the screen and the guest-side log while they still exist.
+# Evidence for a check that failed or hung: the guest is reverted straight
+# afterwards, so anything not copied out now is gone.
 function Save-Diagnostics {
     param([string]$Name)
     $dir = Join-Path $env:TEMP "winremap-ui-test"
@@ -245,7 +238,7 @@ function Save-Diagnostics {
 }
 
 # Puts WinRemap's icon on the taskbar instead of in the overflow flyout; see
-# guest\promote-tray-icon.ps1 for why the scenarios cannot open that flyout.
+# guest\promote-tray-icon.ps1 for why the checks cannot open that flyout.
 function Set-TrayIconPromoted {
     $ps = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
     $result = Join-Path $env:TEMP "winremap-promote-result.txt"
@@ -275,44 +268,46 @@ function Set-TrayIconPromoted {
     return $false
 }
 
-# The deterministic half of the suite. Everything an agent has to interpret
-# lives in the scenarios; these scripts drive the app through a plain UI
-# Automation client and assert what changed. Through terminator the same two
-# buttons landed about half the time, and a check that flaky reports bad days
-# as regressions — these have yet to miss.
+# The suite. Every entry is a guest-side script that drives the app and decides
+# for itself; the name is the script's own stem, so a check and its file are
+# never two things to keep in step.
 #
 # Each one writes CHECK/RESULT/FAILED lines to a file in the guest, because
 # vmrun does not carry guest stdout back: a script that dies silently would
 # otherwise look exactly like one that never ran.
-$harnessChecks = [ordered]@{
-    # Runs before the rest: if the windows expose nothing, every scenario after
-    # it fails for the same reason and the summary says so five times.
-    "00-uia-actuation"  = @{ Script = "dump-uia.ps1"; Result = "uia-dump.txt"; NeedsTray = $true }
+$checks = [ordered]@{
+    # Runs before the rest: if the windows expose nothing, every check after it
+    # fails for the same reason and the summary says so nine times.
+    #
+    # It is also the suite's control implementation — the only one that reads
+    # the app through a plain UI Automation client rather than through winapp.
+    # That is what tells "winapp is wrong" apart from "the app is wrong", and
+    # both Phase 2 and Phase 4 of the migration produced exactly that kind of
+    # false alarm (ADR 0064). Keep it even though 01 and 02 overlap it.
+    "00-uia-actuation" = @{ Script = "dump-uia.ps1"; Result = "uia-dump.txt"; NeedsTray = $true }
     # No tray, no windows: the command line and what a silent launch does.
-    "00-cli-smoke"      = @{ Script = "cli-smoke.ps1"; Result = "cli-smoke.txt"; NeedsTray = $false }
+    "00-cli-smoke"     = @{ Script = "cli-smoke.ps1"; Result = "cli-smoke.txt"; NeedsTray = $false }
     # The v0.1〜v0.3 regression items that are machine-checkable
     # (docs/v0.5/03_acceptance-checklist.md §5).
-    "00-regression"     = @{ Script = "regression-checks.ps1"; Result = "regression-checks.txt"; NeedsTray = $true }
+    "00-regression"    = @{ Script = "regression-checks.ps1"; Result = "regression-checks.txt"; NeedsTray = $true }
     # The log window's two views (ADR 0057). Needs the test-inject build: the
     # keys are sent with keybd_event, and a shipped build passes injections
     # through, so there would be no decision to log. The screenshots are
     # evidence for the half no assertion covers — whether it reads well.
-    "00-log-view"       = @{ Script = "log-view.ps1"; Result = "log-view.txt"; NeedsTray = $true; NeedsInject = $true
+    "00-log-view"      = @{ Script = "log-view.ps1"; Result = "log-view.txt"; NeedsTray = $true; NeedsInject = $true
         Files = @("log-view-simple.png", "log-view-detailed.png")
     }
-    # Scenario 01 with the agent removed, driven by the winapp CLI. Runs
-    # alongside the agent version rather than replacing it until Phase 2 of the
-    # migration has its answer (v0.7 plan section 3.3): keeping both is what
-    # makes "the port decides the same thing" a comparison and not a claim.
-    "01-settings-winapp" = @{ Script = "winapp-settings-window.ps1"; Result = "winapp-settings-window.txt"; NeedsTray = $true }
-    "02-config-winapp"   = @{ Script = "winapp-config-display.ps1"; Result = "winapp-config-display.txt"; NeedsTray = $true }
-    "03-tray-winapp"     = @{ Script = "winapp-tray-actions.ps1"; Result = "winapp-tray-actions.txt"; NeedsTray = $true }
-    "04-log-winapp"      = @{ Script = "winapp-log-window.ps1"; Result = "winapp-log-window.txt"; NeedsTray = $true }
-    # Scenario 05 ported. The only one that needs the test-inject build: it
-    # presses a real chord, and every way of pressing one from a script is an
-    # injection, which a shipped build passes through untouched (ADR 0053).
-    # No tray - it never opens WinRemap's own windows.
-    "05-remap-winapp"    = @{ Script = "winapp-remap-notepad.ps1"; Result = "winapp-remap-notepad.txt"; NeedsTray = $false; NeedsInject = $true }
+    # 01〜05 were the agent-driven scenarios until v0.7 (ADR 0064). Same names,
+    # same subjects, no LLM.
+    "01-settings-window" = @{ Script = "01-settings-window.ps1"; Result = "01-settings-window.txt"; NeedsTray = $true }
+    "02-config-display"  = @{ Script = "02-config-display.ps1"; Result = "02-config-display.txt"; NeedsTray = $true }
+    "03-tray-actions"    = @{ Script = "03-tray-actions.ps1"; Result = "03-tray-actions.txt"; NeedsTray = $true }
+    "04-log-window"      = @{ Script = "04-log-window.ps1"; Result = "04-log-window.txt"; NeedsTray = $true }
+    # The other check that needs the test-inject build: it presses a real chord,
+    # and every way of pressing one from a script is an injection, which a
+    # shipped build passes through untouched (ADR 0053). No tray — it never
+    # opens WinRemap's own windows.
+    "05-remap-notepad"   = @{ Script = "05-remap-notepad.ps1"; Result = "05-remap-notepad.txt"; NeedsTray = $false; NeedsInject = $true }
 }
 
 function Invoke-GuestCheck {
@@ -342,70 +337,6 @@ function Invoke-GuestCheck {
     return "ERROR"
 }
 
-function Invoke-Scenario {
-    param([System.IO.FileInfo]$File, [int]$Minutes)
-
-    # Directive lines configure the run and are not part of the prompt.
-    $prompt = ((Get-Content $File.FullName -Raw) -replace '(?m)^#\s*(needs|timeout):.*\r?\n', '').TrimEnd()
-    # The guest's PATH does not include npm's global bin in a non-login shell,
-    # and the token lives in the User environment (never in this repo).
-    # Set-Location matters: vmrun starts the command in C:\Windows\System32,
-    # and the terminator MCP server never becomes healthy when spawned with
-    # that as its working directory — claude then hangs before its first tool
-    # call, with no output at all.
-    # The prompt goes in on stdin, not as an argument. Windows PowerShell 5.1
-    # mangles a native-command argument containing double quotes: it strips
-    # them, and once they are unbalanced the rest of the argument is lost. A
-    # 2557-character prompt arrived as 1687 characters, cut mid-sentence at
-    # `("Settings" and "Show` — and the agent, given four of seven steps, did
-    # those four and stopped without a verdict. It read as the app failing.
-    #
-    # $OutputEncoding is what PowerShell encodes a pipe to a native command
-    # with; left at the console default it turns every non-ASCII character
-    # into "?". Both together make what the agent reads byte-identical to the
-    # scenario file.
-    $command = @"
-`$env:CLAUDE_CODE_OAUTH_TOKEN = [Environment]::GetEnvironmentVariable('CLAUDE_CODE_OAUTH_TOKEN','User')
-`$env:Path = `$env:Path + ';' + `$env:APPDATA + '\npm'
-Set-Location `$env:USERPROFILE
-`$OutputEncoding = New-Object System.Text.UTF8Encoding `$false
-`$prompt = @'
-$prompt
-'@
-`$prompt | claude -p --dangerously-skip-permissions
-"@
-
-    # The entry script reports through Write-Host, so the guest's output only
-    # reaches the pipeline with the information stream redirected (6>&1).
-    $output = & $EntryScript -ConfigPath $script:vmConfigPath -Command $command `
-        -TimeoutMin $Minutes 6>&1 2>&1 | ForEach-Object {
-        Write-Host $_
-        $_
-    }
-    # A timeout or a failed launch is a failed scenario whatever the text
-    # says; the entry script reports that through its exit code.
-    if ($LASTEXITCODE -ne 0) { return "ERROR" }
-
-    # Read the verdict from the guest's own log rather than from the streamed
-    # copy above: the entry script stops streaming the moment it sees the
-    # completion marker, which can cut off the very last lines — the verdict
-    # among them. The file on the guest is always complete by then.
-    $log = Join-Path $env:TEMP "winremap-ui-verdict.log"
-    Remove-Item $log -Force -ErrorAction SilentlyContinue
-    Invoke-Vmrun copyFileFromGuestToHost $script:vm.VmxPath "C:\Setup\run-output.log" $log | Out-Null
-    $lines = if (Test-Path $log) { Get-Content $log -Encoding UTF8 } else { $output }
-
-    # Only a line that is nothing but the verdict counts: the agent is asked to
-    # end with one, and its own report quotes the instruction ("print exactly
-    # PASS"). -cmatch keeps prose like "passed" out of it, and ** ** allows the
-    # markdown emphasis the agent sometimes adds.
-    $verdict = "NO VERDICT"
-    foreach ($line in $lines) {
-        if ("$line" -cmatch '^\s*(?:\|\s*)?\**(PASS|FAIL)\**[.\s]*$') { $verdict = $Matches[1] }
-    }
-    return $verdict
-}
-
 # ---------------------------------------------------------------------------
 
 $script:vmrun = Resolve-Vmrun
@@ -423,11 +354,11 @@ if ($DumpUia) {
     exit $(if ($verdict -eq "PASS") { 0 } else { 1 })
 }
 
-# A harness check named on its own runs alone; `all` runs them before the
-# scenarios (below).
-function Invoke-HarnessCheck {
+# One check, from a clean guest: build what it asks for, revert, copy, promote
+# the tray icon if it needs one, run it, read its verdict.
+function Invoke-Check {
     param([string]$Name)
-    $check = $harnessChecks[$Name]
+    $check = $checks[$Name]
     Write-Host "`n=== $Name ===" -ForegroundColor Cyan
     # .Contains, not .Key: StrictMode makes reading an absent key an error, so
     # every optional field has to be asked for before it is read.
@@ -440,84 +371,23 @@ function Invoke-HarnessCheck {
     return Invoke-GuestCheck -ScriptName $check.Script -ResultName $check.Result -Verbose $false -Files $files
 }
 
-$requestedHarness = @($Scenario -split '[,\s]+' | Where-Object { $harnessChecks.Contains($_.Trim()) })
-if ($requestedHarness.Count -gt 0 -and $Scenario -ne "all") {
-    $results = [ordered]@{}
-    foreach ($name in $requestedHarness) { $results[$name] = Invoke-HarnessCheck -Name $name.Trim() }
-    Write-Host "`n=== summary ===" -ForegroundColor Cyan
-    foreach ($name in $results.Keys) {
-        $color = if ($results[$name] -eq "PASS") { "Green" } else { "Red" }
-        Write-Host ("  {0,-24} {1}" -f $name, $results[$name]) -ForegroundColor $color
-    }
-    exit $(if ($results.Values | Where-Object { $_ -ne "PASS" }) { 1 } else { 0 })
-}
-
-# The @() must wrap the whole statement: assigning from an if unwraps a
-# single match back to a scalar, and .Count then fails under StrictMode.
-$files = @(
-    if ($Scenario -eq "all") {
-        # _-prefixed files are diagnostics of the harness itself, run by name.
-        Get-ChildItem (Join-Path $scenarioDir "*.txt") |
-            Where-Object { $_.Name -notlike "_*" } | Sort-Object Name
-    }
-    else {
-        # Comma-separated names run a subset, e.g. -Scenario 02-...,03-...
-        # Split on whitespace too: PowerShell binds a comma-separated argument
-        # as an array and joins it with spaces on the way into [string], so
-        # splitting on commas alone looked for one file with a very long name.
-        foreach ($name in $Scenario -split '[,\s]+') {
-            Get-ChildItem (Join-Path $scenarioDir "$($name.Trim()).txt")
-        }
-    }
+# Split on whitespace as well as commas: PowerShell binds a comma-separated
+# argument as an array and joins it with spaces on the way into [string], so
+# splitting on commas alone looked for one check with a very long name.
+$requested = @(
+    if ($Check -eq "all") { $checks.Keys }
+    else { $Check -split '[,\s]+' | Where-Object { $_.Trim() } | ForEach-Object { $_.Trim() } }
 )
-if ($files.Count -eq 0) { throw "no scenario matched '$Scenario' in $scenarioDir" }
-
-$needsTray = @{}
-foreach ($file in $files) {
-    $needsTray[$file.BaseName] = (Get-Content $file.FullName -Raw) -match '(?m)^#\s*needs:\s*tray\s*$'
+$unknown = @($requested | Where-Object { -not $checks.Contains($_) })
+if ($unknown.Count) {
+    throw "no such check: $($unknown -join ', ')  (known: $($checks.Keys -join ', '))"
 }
 
 $results = [ordered]@{}
-
-# Part of a full run, not separate commands to remember: the scenarios check
-# what the windows expose, these check that pressing what they expose works and
-# that the v0.1〜v0.3 regression items still hold.
-if ($Scenario -eq "all") {
-    foreach ($name in $harnessChecks.Keys) { $results[$name] = Invoke-HarnessCheck -Name $name }
-}
-
-foreach ($file in $files) {
-    $name = $file.BaseName
-    Write-Host "`n=== $name ===" -ForegroundColor Cyan
-    # The flag only exists in a test-inject build, so the prompt naming it
-    # decides which binary this scenario needs (ADR 0053).
-    $needsInject = (Get-Content $file.FullName -Raw) -match '--accept-injected'
-    $exe = Build-Binary -TestInject $needsInject
-    if (-not $NoRevert) { Reset-Guest }
-    Copy-Payload -Exe $exe
-    # A scenario asks for the tray with a `# needs: tray` directive line.
-    # Sniffing the prompt wording for it was silently wrong the moment a
-    # scenario was reworded — scenario 02 then looked for an icon nothing had
-    # promoted, and blamed the app.
-    # A scenario that works the tray menu is far slower than one that does not,
-    # because the popup is exposed to UI Automation only sometimes and the
-    # agent falls back to raw keystrokes. Rather than give every scenario the
-    # slowest one's budget — which would let a genuine hang burn it too — a
-    # scenario asks for its own with `# timeout: <minutes>`.
-    $minutes = if ((Get-Content $file.FullName -Raw) -match '(?m)^#\s*timeout:\s*(\d+)\s*$') {
-        [int]$Matches[1]
-    }
-    else { $TimeoutMin }
-    if ($minutes -ne $TimeoutMin) { Write-Host "  timeout: $minutes min" -ForegroundColor Gray }
-
-    $ready = if ($needsTray[$name]) { Set-TrayIconPromoted } else { $true }
-    $verdict = if ($ready) {
-        Invoke-Scenario -File $file -Minutes $minutes
-    }
-    else {
-        Write-Host "  skipped: the tray icon was not promoted" -ForegroundColor Red
-        "SETUP FAILED"
-    }
+foreach ($name in $requested) {
+    $verdict = Invoke-Check -Name $name
+    # A check that fails or hangs leaves nothing behind once the guest is
+    # reverted. Grab the screen and the guest-side log while they still exist.
     if ($verdict -ne "PASS") { Save-Diagnostics -Name $name }
     $results[$name] = $verdict
 }
