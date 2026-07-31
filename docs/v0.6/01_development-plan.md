@@ -366,11 +366,58 @@ P-1〜P-2（新規導入）と P-3（移行）は**事前状態が逆**である
 6. winget マニフェストを 0.6.0 に更新して提出する（**チャネルが 2 つになった**）
 7. 認定通過後、**「認定通過後に公開されます」の但し書きを 6 か所から消す**（§4.3 に一覧。URL 自体は既に実 URL である）
 
-### 7.3 完了条件
+### 7.2.1 実施記録（2026-07-29 / 07-30）— 手順 1〜6
 
-- v0.6.0 が GitHub Releases に出ている
-- Microsoft Store の認定を通過し、`https://apps.microsoft.com/detail/9N6TQDXRX5WV` から導入できる
-- **Store からインストールした場合に SmartScreen の警告が出ないことを実機で確認した**（本バージョンの目的そのもの）
+| 手順 | 状態 |
+|---|---|
+| 1. `release/0.6.0` を切る | ✅ `Cargo.toml` は `0.6.0`。上げ直しは不要だった |
+| 2. 受け入れ | ✅ 自動側全件緑、H-1〜H-9・P-1〜P-7 通過。**P-8 のみ未実施**（[受け入れ記録](03_acceptance-checklist.md) §5） |
+| 3. `main` マージ → `v0.6.0` タグ → ドラフト本文 | ✅ `164881d`。[リリースノート](notes/20260729_release-notes-0.6.0.md)（日英 5,692 文字）を投入 |
+| — オーナーが Publish | ✅ 2026-07-29 07:53 UTC |
+| 4. **Pages の発行確認** | ✅ `privacy.html`・`ja/privacy.html`・`install.html`・`ja/install.html` と README 用画像がすべて **200**。**順序制約を満たした** |
+| — 公開後の検証（§2 手順 8） | ✅ `SHA256SUMS` と実ファイルのハッシュ一致、`gh attestation verify` が両バイナリとも成功 |
+| — winget 提出前チェック（§3 手順 0） | ✅ 公開した `winremap.exe` に `vcruntime` / `msvcp` / `api-ms-win-crt` の参照なし |
+| 5a. `.msix` の作成 | ✅ `packaging\msix\out\winremap-0.6.0.msix`（4.3 MB・**未署名**）。バージョン `0.6.0.0`、Publisher は Partner Center 発行値 |
+| 5b. **Partner Center へ提出** | ✅ 2026-07-30 オーナーが提出。認定待ち |
+| 6. **winget を 0.6.0 に更新** | ✅ 2026-07-30 [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) を 0.6.0 に差し替え（[03_release-operations.md §3](../03_release-operations.md)） |
+| — **認定通過・ストア公開** | ✅ 2026-07-31。`https://apps.microsoft.com/detail/9N6TQDXRX5WV` が 200 |
+| — **P-8**（Store からの導入確認） | ✅ 2026-07-31 オーナー確認。**警告が出ないことを実機で確認した**。[受け入れ](03_acceptance-checklist.md) §5 |
+| 7. 但し書きの削除（6 か所） | ✅ 2026-07-31 |
+
+`.msix` を作る前に、**作業ツリーが `v0.6.0` タグと一致していること**を確認した（`git diff v0.6.0 HEAD` が空）。パッケージは開発機の `cargo build --release` で作るため、GitHub Actions が作った Releases のバイナリとはバイト一致しない。**同じソース・同じタグから作った同じビルド**という約束（SECURITY.md・リリースノート）は保つ必要があるので、ここでの確認はソースツリーに対して行う。
+
+手順 6 は [03_release-operations.md §3](../03_release-operations.md) の「やり方」どおりに実施した。差分は**ディレクトリのリネームと 6 行だけ**に収まっている（`git diff -M` がリネームとして認識する）。`ReleaseDate` は 0.5.0 の提出日と v0.6.0 の公開日が同じ 2026-07-29 なので変更なし。`ProductCode` も Inno の `AppId` は変えていないので据え置き（`installer/winremap.iss`）。scoop の `winremap.json` は提出保留のまま（[ADR 0048](../v0.3/decisions/0048-scoop-defer-extras.md)）で、0.4.0・0.5.0 と同じく手を付けていない。
+
+### 7.3 完了条件 — **全項目達成（2026-07-31）**
+
+- ✅ v0.6.0 が GitHub Releases に出ている（2026-07-29 公開）
+- ✅ Microsoft Store の認定を通過し、`https://apps.microsoft.com/detail/9N6TQDXRX5WV` から導入できる（2026-07-31）
+- ✅ **Store からインストールした場合に SmartScreen の警告が出ないことを実機で確認した**（2026-07-31 オーナー確認。本バージョンの目的そのもの）
+
+### 7.4 但し書きの削除（2026-07-31）
+
+認定通過をもって、§4.3 に挙げた **6 か所**の「認定通過後に公開されます」を削除した。URL 自体は最初から正しいものを書いてあったので、消したのは但し書きだけである。
+
+| ファイル | 消したもの |
+|---|---|
+| `SECURITY.md` | 引用ブロック 1 件 |
+| `README.md` / `README.ja.md` | 引用行の括弧書き 各 1 件 |
+| `site/install.html` / `site/ja/install.html` | Store ボタン直下の `small` 1 件 |
+| `site/index.html` / `site/ja/index.html` | ヒーローの `small` 1 件 |
+
+削除前に `https://apps.microsoft.com/detail/9N6TQDXRX5WV` が **200 を返すこと**を確認している。**先に文書を直してからストアが開けない、という順序にはしない。** 併せて `README` / `SECURITY.md` / `site/` 全体を「認定」「certification」で走査し、他に古い記述が残っていないことを確認した。
+
+**この変更は `main` に届かないと意味がない。** README は GitHub のトップページに出るものであり、`site/` は `main` からのみ Pages に発行されるためである（[03_release-operations.md §4.1](../03_release-operations.md)）。ブランチ運用上の扱いは §7.5 に記録する。
+
+### 7.5 リリース後のドキュメント修正を `main` に入れる経路
+
+[04_git-branching.md §2.5](../04_git-branching.md) は「`main` へのマージは `release/*` と `hotfix/*` のみ」と書いている。今回はどちらでもない。**exe は 1 バイトも変わっていないので `hotfix/*` を切って版番号を上げるのは事実に反する**（Store は自動更新されるため、中身の同じ 0.6.1 を全利用者に配ることになる）。
+
+`develop` に入れて v0.7.0 まで待つ案も採らなかった。**それまでの数か月、トップページと配布ページが「まだ公開されていません」と嘘をつき続ける**ためである。
+
+採ったのは `develop` を `main` にマージする経路で、**このプロジェクトには既に前例がある** — `71c9b20`（winget/scoop のパッケージングとインストール手順）と `3ae537f`（scoop 保留の反映）はどちらもリリース間のドキュメント・サイト変更で、git-flow を採用した `ce6b778` より**後**に行われている。
+
+つまり**規約の条文と実際の運用が食い違っている**。条文は「トピックブランチを直接 `main` に入れない」ことを守らせるためのもので、`develop` 経由のドキュメント公開まで禁じる意図だったとは考えにくい。ただしこれは推測なので、**条文を書き換えるかどうかはオーナーの判断**として残す（[04_git-branching.md](../04_git-branching.md) §2.5 に例外を明記するか、前例のほうを誤りとして今後は禁じるか）。
 
 ---
 

@@ -40,9 +40,6 @@ and update, not of trust — see the
 [install guide](https://daikisuganuma.github.io/winremap/install.html) for
 the practical differences, including where each one keeps your config file.
 
-> The Store listing goes live when certification completes for v0.6.0; until
-> then the link above will not resolve.
-
 ### Verifying a GitHub Releases download
 
 Each release includes `SHA256SUMS` and a GitHub build-provenance
