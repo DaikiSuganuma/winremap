@@ -141,7 +141,12 @@ impl Tray {
         // switch the active file, and a copy here would keep reloading the
         // old one (ADR 0050).
         let config_path = crate::gui::active_config_path();
-        match config::load(&config_path) {
+        // Re-read the keyboard, not just the file: a reload is also how a
+        // user who swapped keyboards gets `;` pointing at the right key
+        // again, without restarting (ADR 0063). This runs on the message
+        // loop's thread, the same one that read it at startup.
+        let keyboard = crate::layout::refresh();
+        match config::load(&config_path, &keyboard) {
             Ok(table) => {
                 let count = table.keymaps.len();
                 crate::sender::set_macro_delay(

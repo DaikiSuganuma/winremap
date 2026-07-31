@@ -23,7 +23,7 @@ use crate::ime_indicator_settings::{
     MIN_INDICATOR_SIZE,
 };
 use crate::keymap::{
-    KeyCombo, Keymap, MAX_MACRO_DELAY_MS, RemapTable, is_modifier_vk, parse_key_combo,
+    KeyCombo, Keymap, Layout, MAX_MACRO_DELAY_MS, RemapTable, is_modifier_vk, parse_key_combo,
 };
 use crate::recorder::RecordKeys;
 use compile::{KeymapCompiler, compile_app_filter, issue_at_offset};
@@ -68,9 +68,13 @@ fn format_issues(issues: &[Issue]) -> String {
 }
 
 /// Reads and compiles a config file.
-pub fn load(path: &Path) -> Result<RemapTable, ConfigError> {
+///
+/// `layout` is what the attached keyboard prints on its symbol keys; the
+/// binary reads it from Windows just before calling this, so a keyboard
+/// swapped since the last load is picked up by a reload (ADR 0063).
+pub fn load(path: &Path, layout: &Layout) -> Result<RemapTable, ConfigError> {
     let source = std::fs::read_to_string(path)?;
-    parse_str(&source)
+    parse_str(&source, layout)
 }
 
 /// The config written on first run when the user has none.
@@ -95,15 +99,16 @@ pub fn create_default(path: &Path) -> std::io::Result<()> {
 }
 
 /// Parses and validates TOML source into a [`RemapTable`].
-pub fn parse_str(source: &str) -> Result<RemapTable, ConfigError> {
+pub fn parse_str(source: &str, layout: &Layout) -> Result<RemapTable, ConfigError> {
     let raw: RawConfig = toml::from_str(source)?;
 
     let mut issues = Vec::new();
 
     let macro_delay_ms = compile_macro_delay(&raw, source, &mut issues);
-    let macro_record = compile_macro_record(raw.macro_section.as_ref(), source, &mut issues);
+    let macro_record =
+        compile_macro_record(raw.macro_section.as_ref(), source, layout, &mut issues);
 
-    let ime_indicator = compile_ime_indicator(raw.ime_indicator, source, &mut issues);
+    let ime_indicator = compile_ime_indicator(raw.ime_indicator, source, layout, &mut issues);
 
     let mut keymaps = Vec::new();
     for (index, raw_keymap) in raw.keymap.into_iter().enumerate() {
@@ -120,7 +125,7 @@ pub fn parse_str(source: &str) -> Result<RemapTable, ConfigError> {
             &mut issues,
         );
 
-        let mut compiler = KeymapCompiler::new(&name, source, &mut issues);
+        let mut compiler = KeymapCompiler::new(&name, source, layout, &mut issues);
         for (lhs, rhs) in &raw_keymap.remap {
             compiler.add_rule(lhs, rhs);
         }
@@ -164,6 +169,7 @@ struct CompiledRecordKeys {
 fn compile_macro_record(
     raw: Option<&RawMacro>,
     source: &str,
+    layout: &Layout,
     issues: &mut Vec<Issue>,
 ) -> Option<CompiledRecordKeys> {
     let raw = raw?;
@@ -173,7 +179,7 @@ fn compile_macro_record(
 
     let mut parse_field = |field: Option<&toml::Spanned<String>>, name: &str| match field {
         None => None,
-        Some(spanned) => match parse_key_combo(spanned.get_ref()) {
+        Some(spanned) => match parse_key_combo(spanned.get_ref(), layout) {
             // A modifier key never reaches this check in the hook — the
             // callback consumes modifiers for chord state before any lookup —
             // so reject it here instead of leaving a key that never fires.
@@ -327,6 +333,7 @@ fn compile_macro_delay(raw: &RawConfig, source: &str, issues: &mut Vec<Issue>) -
 fn compile_ime_indicator(
     raw: Option<RawImeIndicator>,
     source: &str,
+    layout: &Layout,
     issues: &mut Vec<Issue>,
 ) -> IndicatorSettings {
     let defaults = IndicatorSettings::default();
@@ -366,7 +373,7 @@ fn compile_ime_indicator(
     let opacity = ranged(raw.opacity, "opacity", 0, 255, defaults.opacity.into());
     let mut trigger_keys = Vec::new();
     for item in raw.trigger_keys.into_iter().flatten() {
-        match parse_key_combo(item.get_ref()) {
+        match parse_key_combo(item.get_ref(), layout) {
             // Modifier keys never reach the indicator's key check (the hook
             // consumes them for chord state first), so reject them here
             // instead of silently never firing.

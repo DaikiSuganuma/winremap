@@ -1,8 +1,20 @@
 use super::*;
+use crate::keymap::tests::us_101;
 use crate::keymap::{KeyCombo, Output, Resolution, parse_key_combo};
 
+/// Every case here compiles against the same reference US keyboard, so a
+/// rule's meaning is fixed no matter what is plugged into the machine running
+/// the tests. The cases that are *about* the keyboard say which one they mean.
+fn parse_str(source: &str) -> Result<RemapTable, ConfigError> {
+    super::parse_str(source, &us_101())
+}
+
+fn load(path: &Path) -> Result<RemapTable, ConfigError> {
+    super::load(path, &us_101())
+}
+
 fn combo(spec: &str) -> KeyCombo {
-    parse_key_combo(spec).unwrap()
+    parse_key_combo(spec, &us_101()).unwrap()
 }
 
 fn issues(source: &str) -> Vec<Issue> {
@@ -287,9 +299,9 @@ fn rejects_rules_that_normalize_to_the_same_combo() {
 #[test]
 fn personal_example_uses_the_macro_table() {
     let source = include_str!("../../examples/personal-ja.toml");
-    let table = crate::config::parse_str(source).expect("example config must be valid");
+    let table = parse_str(source).expect("example config must be valid");
     assert_eq!(table.macro_delay_ms, 8);
-    let comments = crate::config::comments::parse(source);
+    let comments = crate::config::comments::parse(source, &us_101());
     assert!(comments.general("macro.delay_ms").is_some());
     let first = comments.keymap(0).expect("first keymap");
     assert_eq!(first.exclude("photoshop.exe"), Some("アドビフォトショップ"));

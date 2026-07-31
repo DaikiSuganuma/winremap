@@ -8,14 +8,17 @@ use toml::Spanned;
 use super::Issue;
 use super::raw::RawTarget;
 use crate::keymap::{
-    AppFilter, InputPattern, KeyCombo, MAX_MACRO_LEN, Output, is_modifier_vk, parse_input_pattern,
-    parse_key_combo,
+    AppFilter, InputPattern, KeyCombo, Layout, MAX_MACRO_LEN, Output, is_modifier_vk,
+    parse_input_pattern, parse_key_combo,
 };
 
 /// Accumulates one keymap's rules, pushing positioned issues as it goes.
 pub(super) struct KeymapCompiler<'a> {
     name: &'a str,
     source: &'a str,
+    /// The attached keyboard, which is what says who `;` is (ADR 0063).
+    /// Resolved here, once per load, rather than on the hook's path.
+    layout: &'a Layout,
     issues: &'a mut Vec<Issue>,
     pub(super) exact: HashMap<KeyCombo, Output>,
     pub(super) bare: HashMap<u16, u16>,
@@ -23,10 +26,16 @@ pub(super) struct KeymapCompiler<'a> {
 }
 
 impl<'a> KeymapCompiler<'a> {
-    pub(super) fn new(name: &'a str, source: &'a str, issues: &'a mut Vec<Issue>) -> Self {
+    pub(super) fn new(
+        name: &'a str,
+        source: &'a str,
+        layout: &'a Layout,
+        issues: &'a mut Vec<Issue>,
+    ) -> Self {
         Self {
             name,
             source,
+            layout,
             issues,
             exact: HashMap::new(),
             bare: HashMap::new(),
@@ -40,7 +49,7 @@ impl<'a> KeymapCompiler<'a> {
     }
 
     pub(super) fn add_rule(&mut self, lhs: &Spanned<String>, rhs: &Spanned<RawTarget>) {
-        let pattern = match parse_input_pattern(lhs.get_ref()) {
+        let pattern = match parse_input_pattern(lhs.get_ref(), self.layout) {
             Ok(p) => p,
             Err(e) => {
                 self.issue(lhs.span().start, &e.to_string());
@@ -146,7 +155,7 @@ impl<'a> KeymapCompiler<'a> {
     fn compile_target(&mut self, rhs: &Spanned<RawTarget>) -> Option<Output> {
         let offset = rhs.span().start;
         match rhs.get_ref() {
-            RawTarget::Single(spec) => match parse_key_combo(spec) {
+            RawTarget::Single(spec) => match parse_key_combo(spec, self.layout) {
                 Ok(combo) => Some(Output::Chord(combo)),
                 Err(e) => {
                     self.issue(offset, &e.to_string());
@@ -167,7 +176,7 @@ impl<'a> KeymapCompiler<'a> {
                 }
                 let mut seq = Vec::with_capacity(specs.len());
                 for spec in specs {
-                    match parse_key_combo(spec) {
+                    match parse_key_combo(spec, self.layout) {
                         Ok(combo) => seq.push(combo),
                         Err(e) => {
                             self.issue(offset, &format!("in macro element `{spec}`: {e}"));

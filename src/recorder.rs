@@ -173,9 +173,10 @@ impl Recorder {
 mod tests {
     use super::*;
     use crate::keymap::parse_key_combo;
+    use crate::keymap::tests::us_101;
 
     fn combo(spec: &str) -> KeyCombo {
-        parse_key_combo(spec).unwrap()
+        parse_key_combo(spec, &us_101()).unwrap()
     }
 
     /// The default shape: one key toggles recording, another replays.

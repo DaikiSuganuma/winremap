@@ -17,6 +17,7 @@ mod hook;
 mod i18n;
 mod ime_indicator;
 mod keyname;
+mod layout;
 mod macro_record;
 mod notify;
 mod package;
@@ -92,9 +93,14 @@ fn run() -> anyhow::Result<()> {
     // and before the load, which is what needs the file to be there.
     ensure_config(&config_path, cli.config_is_default)?;
 
+    // Which key `;` is depends on the keyboard, so the config cannot be
+    // compiled until Windows has been asked (ADR 0063). On the main thread on
+    // purpose: the answer is per-thread.
+    let keyboard = layout::refresh();
+
     // A startup config error aborts: better to not run at all than to sit in
     // the tray silently doing nothing the user asked for (config-spec §4).
-    let table = config::load(&config_path)
+    let table = config::load(&config_path, &keyboard)
         .with_context(|| format!("failed to load {}", config_path.display()))?;
     let keymap_count = table.keymaps.len();
     gui::log::emit(&i18n::startup_loaded(keymap_count, &config_path));

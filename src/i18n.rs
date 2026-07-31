@@ -11,7 +11,7 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use winremap::keymap::{InputPattern, KeyCombo, Mods, vk_display_name};
+use winremap::keymap::{InputPattern, KeyCombo, Mods, key_name, vk_display_name};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Lang {
@@ -84,6 +84,13 @@ pub struct Texts {
     pub config_keys_function: &'static str,
     pub config_keys_function_list: &'static str,
     pub config_keys_special: &'static str,
+    /// The symbol-key row. Its contents are read off the attached keyboard
+    /// rather than translated, so only the label and the footnote are here
+    /// (ADR 0063).
+    pub config_keys_symbols: &'static str,
+    pub config_keys_symbols_note: &'static str,
+    /// Shown in place of the row when the keyboard could not be read.
+    pub config_keys_symbols_unknown: &'static str,
     /// Tooltip on the ● change mark: the file differs from what is loaded.
     pub config_file_changed: &'static str,
     /// The breadcrumb's first segment (v0.4 screen design §4.1).
@@ -221,6 +228,9 @@ static EN: Texts = Texts {
     config_keys_function: "Function",
     config_keys_function_list: "F1–F24",
     config_keys_special: "Special",
+    config_keys_symbols: "Symbols",
+    config_keys_symbols_note: "Symbols are the ones on your keyboard. A character that needs Shift is written with it: S-2, not @. Oem1-Oem102 name these keys on any keyboard.",
+    config_keys_symbols_unknown: "keyboard not read",
     config_file_changed: "Changed on disk — not loaded yet",
     config_breadcrumb_root: "Settings",
     status_loaded: "Config loaded.",
@@ -337,6 +347,9 @@ static JA: Texts = Texts {
     config_keys_function: "ファンクション",
     config_keys_function_list: "F1〜F24",
     config_keys_special: "特殊",
+    config_keys_symbols: "記号",
+    config_keys_symbols_note: "記号はお使いのキーボードの刻印どおりに書きます。Shift が要る文字は Shift ごと書きます（@ ではなく S-2）。Oem1〜Oem102 はどのキーボードでも同じキーを指します。",
+    config_keys_symbols_unknown: "キーボードを読み取れていません",
     config_file_changed: "ディスク上で変更されています（未読み込み）",
     config_breadcrumb_root: "設定",
     status_loaded: "読み込み完了しました",
@@ -487,7 +500,12 @@ pub fn combo_human(combo: &KeyCombo) -> String {
             parts.push(name.to_owned());
         }
     }
-    parts.push(vk_display_name(combo.vk));
+    // The engraved character where the keyboard has one: this reading sits
+    // under the box the user is typing into, and `Ctrl + Oem1` would not tell
+    // them they had hit the right key (ADR 0063).
+    parts.push(
+        key_name(combo.vk, &crate::layout::current()).unwrap_or_else(|| vk_display_name(combo.vk)),
+    );
     parts.join(" + ")
 }
 
@@ -1173,23 +1191,29 @@ pub fn macro_record_banner_replaying(app: &str, commands: &[KeyCombo]) -> String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use winremap::keymap::{parse_input_pattern, parse_key_combo};
+    use winremap::keymap::{Layout, parse_input_pattern, parse_key_combo};
+
+    /// None of these read a symbol key, so no keyboard is needed to say what
+    /// they mean.
+    fn no_keyboard() -> Layout {
+        Layout::empty()
+    }
 
     // LANG is never initialized under test, so everything renders English.
     #[test]
     fn renders_notation_in_human_words() {
-        let combo = parse_key_combo("C-S-h").expect("parses");
+        let combo = parse_key_combo("C-S-h", &no_keyboard()).expect("parses");
         assert_eq!(combo_human(&combo), "Ctrl + Shift + h");
 
-        let sequence = parse_input_pattern("A-x h").expect("parses");
+        let sequence = parse_input_pattern("A-x h", &no_keyboard()).expect("parses");
         assert_eq!(input_human(&sequence), "Alt + x, then h (two strokes)");
 
-        let single = parse_input_pattern("C-h").expect("parses");
+        let single = parse_input_pattern("C-h", &no_keyboard()).expect("parses");
         assert_eq!(input_human(&single), "Ctrl + h");
 
         let steps = [
-            parse_key_combo("C-Right").expect("parses"),
-            parse_key_combo("C-Left").expect("parses"),
+            parse_key_combo("C-Right", &no_keyboard()).expect("parses"),
+            parse_key_combo("C-Left", &no_keyboard()).expect("parses"),
         ];
         assert_eq!(output_human(&steps), "Ctrl + Right → Ctrl + Left (macro)");
         assert_eq!(output_human(&steps[..1]), "Ctrl + Right");
