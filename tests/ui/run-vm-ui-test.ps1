@@ -221,6 +221,7 @@ function Copy-Payload {
             @{ Local = (Join-Path $PSScriptRoot "guest\winapp-config-display.ps1"); Guest = "$guestDir\winapp-config-display.ps1" },
             @{ Local = (Join-Path $PSScriptRoot "guest\winapp-tray-actions.ps1"); Guest = "$guestDir\winapp-tray-actions.ps1" },
             @{ Local = (Join-Path $PSScriptRoot "guest\winapp-log-window.ps1"); Guest = "$guestDir\winapp-log-window.ps1" },
+            @{ Local = (Join-Path $PSScriptRoot "guest\winapp-remap-notepad.ps1"); Guest = "$guestDir\winapp-remap-notepad.ps1" },
             @{ Local = (Join-Path $PSScriptRoot "guest\log-view.ps1"); Guest = "$guestDir\log-view.ps1" }
         )) {
         Invoke-Vmrun copyFileFromHostToGuest $script:vm.VmxPath $pair.Local $pair.Guest | Out-Null
@@ -307,6 +308,11 @@ $harnessChecks = [ordered]@{
     "02-config-winapp"   = @{ Script = "winapp-config-display.ps1"; Result = "winapp-config-display.txt"; NeedsTray = $true }
     "03-tray-winapp"     = @{ Script = "winapp-tray-actions.ps1"; Result = "winapp-tray-actions.txt"; NeedsTray = $true }
     "04-log-winapp"      = @{ Script = "winapp-log-window.ps1"; Result = "winapp-log-window.txt"; NeedsTray = $true }
+    # Scenario 05 ported. The only one that needs the test-inject build: it
+    # presses a real chord, and every way of pressing one from a script is an
+    # injection, which a shipped build passes through untouched (ADR 0053).
+    # No tray - it never opens WinRemap's own windows.
+    "05-remap-winapp"    = @{ Script = "winapp-remap-notepad.ps1"; Result = "winapp-remap-notepad.txt"; NeedsTray = $false; NeedsInject = $true }
 }
 
 function Invoke-GuestCheck {
