@@ -308,6 +308,15 @@ $checks = [ordered]@{
     # shipped build passes through untouched (ADR 0053). No tray — it never
     # opens WinRemap's own windows.
     "05-remap-notepad"   = @{ Script = "05-remap-notepad.ps1"; Result = "05-remap-notepad.txt"; NeedsTray = $false; NeedsInject = $true }
+    # v0.7 (plan section 3.5): settles the v0.5 carry-over — whether the app
+    # switched to reaches the foreground line while the log window is open, and
+    # whether a rule scoped to that app is still chosen. The second half is why
+    # this one needs the test-inject build: it presses a chord.
+    "06-foreground-line" = @{ Script = "06-foreground-line.ps1"; Result = "06-foreground-line.txt"; NeedsTray = $true; NeedsInject = $true
+        # The pixels behind the verdict: what the window was showing while the
+        # tree said nothing had arrived.
+        Files = @("foreground-line-switched.png", "foreground-line-back.png")
+    }
 }
 
 function Invoke-GuestCheck {
