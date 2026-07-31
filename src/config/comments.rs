@@ -16,7 +16,7 @@ use std::path::Path;
 
 use toml_edit::{DocumentMut, Item, Table};
 
-use crate::keymap::{InputPattern, parse_input_pattern};
+use crate::keymap::{InputPattern, Layout, combo_notation, parse_input_pattern};
 
 /// Comments belonging to one `[[keymap]]` section, in file order.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -77,13 +77,13 @@ impl KeymapComments {
 
 /// Reads a config file for its comments. Any failure yields no comments:
 /// the settings window still works, it just shows none.
-pub fn read(path: &Path) -> ConfigComments {
+pub fn read(path: &Path, layout: &Layout) -> ConfigComments {
     std::fs::read_to_string(path)
-        .map(|source| parse(&source))
+        .map(|source| parse(&source, layout))
         .unwrap_or_default()
 }
 
-pub fn parse(source: &str) -> ConfigComments {
+pub fn parse(source: &str, layout: &Layout) -> ConfigComments {
     let Ok(doc) = source.parse::<DocumentMut>() else {
         return ConfigComments::default();
     };
@@ -111,13 +111,13 @@ pub fn parse(source: &str) -> ConfigComments {
 
     if let Some(keymaps) = doc.get("keymap").and_then(Item::as_array_of_tables) {
         for table in keymaps.iter() {
-            comments.keymaps.push(keymap_comments(table));
+            comments.keymaps.push(keymap_comments(table, layout));
         }
     }
     comments
 }
 
-fn keymap_comments(table: &Table) -> KeymapComments {
+fn keymap_comments(table: &Table, layout: &Layout) -> KeymapComments {
     let mut comments = KeymapComments::default();
     for key in ["name", "application", "exclude"] {
         if let Some(text) = trailing_comment(table.get(key)) {
@@ -131,7 +131,7 @@ fn keymap_comments(table: &Table) -> KeymapComments {
             let Some(text) = trailing_comment(Some(item)) else {
                 continue;
             };
-            if let Some(canonical) = canonical_input(key) {
+            if let Some(canonical) = canonical_input(key, layout) {
                 comments.rules.insert(canonical, text);
             }
         }
@@ -169,10 +169,14 @@ fn array_comments(item: Option<&Item>) -> HashMap<String, String> {
 /// looked up by what is on screen rather than by what was typed. Public for
 /// the edit mode, which holds raw spellings (ADR 0049) but still wants to
 /// show the comments written next to them.
-pub fn canonical_input(written: &str) -> Option<String> {
-    match parse_input_pattern(written).ok()? {
-        InputPattern::Single(combo) => Some(combo.to_string()),
-        InputPattern::Sequence(first, second) => Some(format!("{first} {second}")),
+pub fn canonical_input(written: &str, layout: &Layout) -> Option<String> {
+    match parse_input_pattern(written, layout).ok()? {
+        InputPattern::Single(combo) => Some(combo_notation(&combo, layout)),
+        InputPattern::Sequence(first, second) => Some(format!(
+            "{} {}",
+            combo_notation(&first, layout),
+            combo_notation(&second, layout)
+        )),
     }
 }
 
@@ -197,6 +201,13 @@ fn comment_in(decor: Option<&toml_edit::RawString>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::keymap::tests::us_101;
+
+    /// Comments are keyed by the canonical rule spelling, which for a symbol
+    /// key depends on the keyboard — so the cases fix one.
+    fn parse(source: &str) -> ConfigComments {
+        super::parse(source, &us_101())
+    }
 
     const SOURCE: &str = r#"
 [macro]

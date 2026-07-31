@@ -2,15 +2,22 @@
 //! and resolve exactly as the docs promise (project brief §9, config-spec §3).
 
 use winremap::config;
-use winremap::keymap::{KeyCombo, Output, RemapTable, Resolution, parse_key_combo};
+use winremap::keymap::{KeyCombo, Layout, Output, RemapTable, Resolution, parse_key_combo};
+
+/// No keyboard: nothing here writes a symbol key, and the shipped examples
+/// must compile on any keyboard — including one whose layout could not be
+/// read at all. That is exactly what an empty snapshot stands for (ADR 0063).
+fn no_keyboard() -> Layout {
+    Layout::empty()
+}
 
 fn combo(spec: &str) -> KeyCombo {
-    parse_key_combo(spec).unwrap()
+    parse_key_combo(spec, &no_keyboard()).unwrap()
 }
 
 fn load_example(name: &str) -> RemapTable {
     let path = format!("{}/examples/{name}", env!("CARGO_MANIFEST_DIR"));
-    config::parse_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+    config::parse_str(&std::fs::read_to_string(path).unwrap(), &no_keyboard()).unwrap()
 }
 
 /// The chord a plain exact rule resolves to, or a panic with context.
@@ -49,6 +56,7 @@ application = ["phpstorm64.exe"]
 [keymap.remap]
 "C-h" = "Back"
 "#,
+        &no_keyboard(),
     )
     .unwrap();
 
@@ -153,6 +161,7 @@ application = ["notepad.exe"]
 [keymap.remap]
 "C-h" = "Back"
 "#,
+        &no_keyboard(),
     )
     .unwrap();
 
@@ -178,6 +187,7 @@ application = ["*"]
 [keymap.remap]
 "C-h" = "Delete"
 "#,
+        &no_keyboard(),
     )
     .unwrap();
 
@@ -195,6 +205,7 @@ application = ["*"]
 "h" = "j"
 "C-h" = "Back"
 "#,
+        &no_keyboard(),
     )
     .unwrap();
 
