@@ -53,7 +53,6 @@ flowchart TD
    更新も自動で届きます:
 
    > [apps.microsoft.com/detail/9N6TQDXRX5WV](https://apps.microsoft.com/detail/9N6TQDXRX5WV)
-   > （v0.6.0 の認定通過後に公開）
 
    **GitHub Releases** — [Releases](https://github.com/DaikiSuganuma/winremap/releases)
    から `winremap-setup.exe` をダウンロードして実行します。インストーラーは

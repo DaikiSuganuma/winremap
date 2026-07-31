@@ -82,7 +82,6 @@ flowchart TD
    a SmartScreen warning, and it updates itself:
 
    > [apps.microsoft.com/detail/9N6TQDXRX5WV](https://apps.microsoft.com/detail/9N6TQDXRX5WV)
-   > (live once v0.6.0 passes certification)
 
    **GitHub Releases** — download `winremap-setup.exe` from
    [Releases](https://github.com/DaikiSuganuma/winremap/releases) and run it.
