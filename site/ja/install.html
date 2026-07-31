@@ -58,7 +58,7 @@
         <li class="nav-item"><a class="nav-link" href="config.html">設定</a></li>
         <li class="nav-item"><a class="nav-link" href="macro.html">マクロ記憶</a></li>
         <li class="nav-item"><a class="nav-link" href="ime.html">IME 表示</a></li>
-        <li class="nav-item"><a class="nav-link" href="index.html#faq">FAQ</a></li>
+        <li class="nav-item"><a class="nav-link" href="faq.html">FAQ</a></li>
       </ul>
       <ul class="navbar-nav">
         <li class="nav-item"><a class="nav-link" href="../install.html" lang="en">English</a></li>
@@ -85,7 +85,7 @@
   GitHub Releases を選んでください。</p>
 
   <div class="table-responsive my-3">
-    <table class="table align-middle">
+    <table class="table table-bordered align-middle">
       <thead>
         <tr><th scope="col"></th><th scope="col">Microsoft Store</th><th scope="col">GitHub Releases</th></tr>
       </thead>
@@ -106,26 +106,31 @@
     </table>
   </div>
 
-  <h3 class="h5 mt-4">Microsoft Store から入れる</h3>
-  <p>ストアのページで［入手］を押すだけです。スタートメニューに WinRemap が追加され、
-  起動するとタスクトレイにキーボードのアイコンが現れます。Windows の起動時に
+  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>Microsoft Store から入れる</h3>
+  <p>ストアのページで［入手］を押すだけです。
+  スタートメニューに WinRemap が追加され、
+  起動するとタスクトレイにキーボードのアイコンが現れます。
+  Windows の起動時に
   自動で立ち上げたい場合は<em>設定 → アプリ → スタートアップ</em>でオンにしてください。</p>
 
   <div class="d-flex mt-3 mb-2">
     <a class="btn btn-primary btn-lg" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Microsoft Store アプリで開く</a>
   </div>
   <p class="text-body-secondary small"><strong>Windows 専用です。</strong>このボタンは Store アプリに
-  引き渡すため、macOS・Linux・スマートフォンでは何も起きません。初回はブラウザーが確認を求めます。
+  引き渡すため、macOS・Linux・スマートフォンでは何も起きません。
+  初回はブラウザーが確認を求めます。
   開けない場合は下のストアのページをお使いください。</p>
   <div class="d-flex flex-wrap gap-2 mb-3">
     <a class="btn btn-outline-secondary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-box-arrow-up-right me-1"></i>ブラウザーでストアのページ</a>
   </div>
 
-  <h3 class="h5 mt-4">GitHub Releases から入れる</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>GitHub Releases から入れる</h3>
   <ol>
     <li><a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><code>winremap-setup.exe</code></a>
-      をダウンロードして実行します。ユーザー単位のインストールなので<strong>管理者権限は不要</strong>です。</li>
-    <li><strong>サインイン時に自動起動</strong>するかを選びます(常用するなら推奨。後から変更できます)。</li>
+      をダウンロードして実行します。
+      ユーザー単位のインストールなので<strong>管理者権限は不要</strong>です。</li>
+    <li><strong>サインイン時に自動起動</strong>するかを選びます(常用するなら推奨。
+    後から変更できます)。</li>
     <li>ウィザードを完了すると WinRemap が起動し、タスクトレイにキーボードのアイコンが現れます。</li>
   </ol>
 
@@ -141,35 +146,43 @@
     これは GitHub からダウンロードしたファイルの話で、Store 版には出ません。
     GitHub 版のバイナリはコード署名されていないため(無料ツールには署名証明書の費用負担が大きいため)、
     ダウンロード直後は
-    この警告が表示されることがあります。<em>詳細情報</em> → <em>実行</em> で起動できます。
+    この警告が表示されることがあります。
+    <em>詳細情報</em> → <em>実行</em> で起動できます。
     やみくもに信用する代わりに、ダウンロードの検証を推奨します: 各リリースには
     <code>SHA256SUMS</code> と、このリポジトリの公開ソースからビルドされたことを証明する
-    GitHub の attestation(ビルド来歴証明)が付属します。手順は
+    GitHub の attestation(ビルド来歴証明)が付属します。
+    手順は
     <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a> を参照してください。
     Store から入れれば、この警告自体が出ません。</div>
   </div>
 
-  <h3 class="h5 mt-4">パッケージマネージャーから入れる</h3>
-  <p>マニフェストの受理後、winget からも導入できます。GitHub Releases の同じ公式
+  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>パッケージマネージャーから入れる</h3>
+  <p>マニフェストの受理後、winget からも導入できます。
+  GitHub Releases の同じ公式
   バイナリを取得します:</p>
 <pre class="bg-body-tertiary border rounded p-3"><code>winget install winremap</code></pre>
 
-  <h3 class="h5 mt-4">ポータブル利用(インストーラーなし)</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>ポータブル利用(インストーラーなし)</h3>
   <p>1 ファイルで使いたい場合は
   <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><code>winremap.exe</code></a>
-  をダウンロードして好きな場所から実行してください。設定は同じ
+  をダウンロードして好きな場所から実行してください。
+  設定は同じ
   <code>%APPDATA%\winremap\config.toml</code>、または
   <code>--config パス\ファイル.toml</code> で指定したファイルを読みます。
   ほかのファイルやレジストリ項目は作りません。</p>
 
-  <h3 class="h5 mt-4">設定ファイルの置き場所</h3>
+  <h3 class="h5 mt-4"><i class="bi bi-chevron-right text-primary me-2"></i>設定ファイルの置き場所</h3>
   <p>設定ファイルがまだ無い場合、WinRemap は初回起動時に初期設定を作成します。
   既存の設定には一切触れず、アンインストールしても設定は残ります。</p>
-  <p class="mb-0">場所はインストール経路で変わります。インストーラー版とポータブル版は
-  <code>%APPDATA%\winremap\config.toml</code> です。Windows はパッケージアプリに
+  <p class="mb-0">場所はインストール経路で変わります。
+  インストーラー版とポータブル版は
+  <code>%APPDATA%\winremap\config.toml</code> です。
+  Windows はパッケージアプリに
   <code>%APPDATA%</code> の専用コピーを与えるため、Store から新規に入れた場合は
   <code>%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\</code>
-  に置かれます。これを打ち込む必要はありません。設定ウィンドウが<strong>実際に使っている
+  に置かれます。
+  これを打ち込む必要はありません。
+  設定ウィンドウが<strong>実際に使っている
   フォルダーを表示し</strong>、エクスプローラーで開くこともできます。
   インストーラー版で作った設定が既にある場合、Store 版はそちらを引き続き使うので、
   <strong>経路を乗り換えても設定は失われません</strong>。</p>
@@ -177,7 +190,8 @@
 
 <section id="quickstart" class="container py-4">
   <h2 class="mb-3"><i class="bi bi-rocket-takeoff text-primary me-2"></i>クイックスタート</h2>
-  <p>WinRemap はタスクトレイに常駐します。操作はすべてトレイメニューから:</p>
+  <p>WinRemap はタスクトレイに常駐します。
+  操作はすべてトレイメニューから:</p>
   <ul>
     <li><strong>有効</strong> — リマップ全体の一時 ON/OFF(終了せずに切替)</li>
     <li><strong>設定</strong> — 今効いている設定を確認する(<code>config.toml</code> をテキストエディタで開くこともできます)</li>
@@ -195,7 +209,8 @@ application = ["notepad.exe"]
 "C-h" = "Back"
 </code></pre>
   <p>保存してトレイの<em>設定をリロード</em>を選び、メモ帳で
-  <kbd>Ctrl</kbd>+<kbd>H</kbd> を押すと 1 文字削除になります。他のアプリには
+  <kbd>Ctrl</kbd>+<kbd>H</kbd> を押すと 1 文字削除になります。
+  他のアプリには
   通常の Ctrl+H がそのまま届きます。</p>
 
   <div class="alert alert-info d-flex gap-2" role="alert">
@@ -222,15 +237,15 @@ application = ["notepad.exe"]
 </main>
 
 <footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
-  <div class="container small d-grid gap-2">
-    <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
-    <span><a href="https://getbootstrap.com/">Bootstrap</a> と
-      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>（MIT）で構築しています。</span>
-    <span><a href="index.html">ヘルプ</a> ·
+  <div class="container">
+  <p class="text-center mb-3 lh-lg"><a href="index.html">ヘルプ</a> ·
       <a href="privacy.html">プライバシー</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap">ソース</a> ·
       <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
-      <a href="../install.html" lang="en">English</a></span>
+      <a href="../install.html" lang="en">English</a></p>
+  <p class="text-center small mb-1">WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</p>
+  <p class="text-center small mb-0"><a href="https://getbootstrap.com/">Bootstrap</a> と
+      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>（MIT）で構築しています。</p>
   </div>
 </footer>
 
