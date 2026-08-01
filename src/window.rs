@@ -16,7 +16,8 @@ use windows::Win32::System::Threading::{
 };
 use windows::Win32::UI::Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent};
 use windows::Win32::UI::WindowsAndMessaging::{
-    EVENT_SYSTEM_FOREGROUND, GetForegroundWindow, GetWindowThreadProcessId, WINEVENT_OUTOFCONTEXT,
+    CHILDID_SELF, EVENT_SYSTEM_FOREGROUND, GetForegroundWindow, GetWindowThreadProcessId,
+    OBJID_WINDOW, WINEVENT_OUTOFCONTEXT,
 };
 use windows::core::PWSTR;
 
@@ -32,13 +33,42 @@ pub fn with_foreground_exe<R>(f: impl FnOnce(&str) -> R) -> R {
     FOREGROUND_EXE.with(|cache| f(cache.borrow().as_str()))
 }
 
-/// Re-queries the foreground process and updates the cache. Called at startup
-/// and from the WinEvent callback — never from the keyboard hook, so the
-/// allocation and (in debug mode) console output here are fine.
+/// Asks Windows which window is in front and updates the cache from it.
+///
+/// **Startup only.** At startup there is no event to learn the window from, so
+/// asking is the only option. Everywhere else the answer arrives with the
+/// event and must be used instead — see [`on_foreground_changed`], which
+/// documents what asking again costs.
 pub fn refresh_foreground_cache() {
     // SAFETY: GetForegroundWindow has no preconditions; a null HWND (no
     // foreground window, e.g. during a UAC prompt) is handled below.
     let hwnd = unsafe { GetForegroundWindow() };
+    set_foreground_cache(hwnd);
+}
+
+/// The foreground application's exe name right now, without touching any
+/// cache.
+///
+/// For the settings window's "capture the foreground app" (B4), which runs on
+/// the GUI thread: the cache is a `thread_local`, so refreshing it from there
+/// would write a copy the keyboard hook never reads — code that looks like it
+/// keeps the hook current and does not. Asking directly is both correct for
+/// this caller and honest about what it does; the user has just spent three
+/// seconds pointing at a window, so there is no switch in flight to race.
+pub fn query_foreground_exe() -> String {
+    // SAFETY: GetForegroundWindow has no preconditions; a null HWND is handled
+    // by query_exe_path.
+    let hwnd = unsafe { GetForegroundWindow() };
+    query_exe_path(hwnd)
+        .as_deref()
+        .map(exe_basename)
+        .unwrap_or_default()
+}
+
+/// Updates the cache to name `hwnd`'s process. Runs on the main thread — from
+/// startup or from the WinEvent callback, never from the keyboard hook — so
+/// the allocation and (in debug mode) console output here are fine.
+fn set_foreground_cache(hwnd: HWND) {
     let full_path = query_exe_path(hwnd);
     let basename = full_path.as_deref().map(exe_basename).unwrap_or_default();
     FOREGROUND_EXE.with(|cache| {
@@ -144,19 +174,43 @@ pub fn uninstall_foreground_watch(hook: HWINEVENTHOOK) {
     let _ = unsafe { UnhookWinEvent(hook) };
 }
 
+/// The window that came to the foreground, as the event reports it.
+///
+/// This used to ask `GetForegroundWindow()` instead, on the theory that events
+/// can arrive out of order and the current state is what the next key event
+/// will be delivered to. **Measured, that theory cost us one switch in five**
+/// (ADR 0065): the callback runs while the switch is still settling — 11–18 ms
+/// before an independent client watching the same event saw it — and the
+/// answer is then the window being *left*. The cache is written with that
+/// wrong name, no further event arrives to correct it, and every keystroke
+/// until the next switch resolves against the wrong application.
+///
+/// `hwnd` carries the window the event is about, so there is nothing to race
+/// with. Out-of-context events are delivered in order, which is what makes
+/// "the last event's window" the current one.
 unsafe extern "system" fn on_foreground_changed(
     _hook: HWINEVENTHOOK,
     _event: u32,
-    _hwnd: HWND,
-    _id_object: i32,
-    _id_child: i32,
+    hwnd: HWND,
+    id_object: i32,
+    id_child: i32,
     _id_event_thread: u32,
     _time: u32,
 ) {
-    // Query the current foreground window instead of trusting the event's
-    // HWND: events can arrive out of order and the latest state is what the
-    // next key event will actually be delivered to.
-    refresh_foreground_cache();
+    // The window itself, not one of its children: EVENT_SYSTEM_FOREGROUND is
+    // documented for OBJID_WINDOW/CHILDID_SELF, and anything else arriving
+    // here is not a foreground change.
+    if id_object != OBJID_WINDOW.0 || id_child != CHILDID_SELF as i32 {
+        return;
+    }
+    if hwnd.is_invalid() {
+        // No window in the event (it can be null while the desktop itself has
+        // focus). Asking is all that is left, and there is no switch in
+        // progress to be wrong about.
+        refresh_foreground_cache();
+    } else {
+        set_foreground_cache(hwnd);
+    }
     // IME indicator touch point: show the panel when focus lands on a window
     // whose IME is on (ADR 0020). No-op unless the feature is enabled.
     crate::ime_indicator::notify_foreground_changed();
