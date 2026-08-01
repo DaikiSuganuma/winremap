@@ -317,6 +317,14 @@ $checks = [ordered]@{
         # tree said nothing had arrived.
         Files = @("foreground-line-switched.png", "foreground-line-back.png")
     }
+    # Diagnostic, not part of the suite: it narrows down where the defect
+    # 06-foreground-line found actually lives, by making the same switch under
+    # four conditions with an independent EVENT_SYSTEM_FOREGROUND client
+    # watching from another process. Run it by name.
+    "90-probe-foreground" = @{ Script = "probe-foreground-watch.ps1"; Result = "90-probe-foreground.txt"; NeedsTray = $true; NeedsInject = $true
+        Diagnostic = $true
+        Files      = @("watch-listener.txt", "watch-debug.txt")
+    }
 }
 
 function Invoke-GuestCheck {
@@ -383,8 +391,12 @@ function Invoke-Check {
 # Split on whitespace as well as commas: PowerShell binds a comma-separated
 # argument as an array and joins it with spaces on the way into [string], so
 # splitting on commas alone looked for one check with a very long name.
+# "all" means the suite, not everything in the table: a check marked Diagnostic
+# investigates a known defect rather than guarding against a new one, so it is
+# run by name. Left in $checks so it keeps working — a probe kept outside the
+# runner rots, and this one is the record of how the defect was cornered.
 $requested = @(
-    if ($Check -eq "all") { $checks.Keys }
+    if ($Check -eq "all") { $checks.Keys | Where-Object { -not ($checks[$_].Contains("Diagnostic") -and $checks[$_].Diagnostic) } }
     else { $Check -split '[,\s]+' | Where-Object { $_.Trim() } | ForEach-Object { $_.Trim() } }
 )
 $unknown = @($requested | Where-Object { -not $checks.Contains($_) })
