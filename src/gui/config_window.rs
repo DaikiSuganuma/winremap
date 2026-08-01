@@ -1220,12 +1220,13 @@ fn capture_button(
         Some(pending) if pending.keymap == index && pending.target == target => {
             let now = Instant::now();
             if pending.deadline <= now {
-                // The exe cache is thread-local and this is the GUI thread,
-                // so refresh here rather than trusting the message loop's
-                // copy. Both calls are the safe public surface of `window`
-                // — no unsafe enters the GUI (invariant 3).
-                crate::window::refresh_foreground_cache();
-                let exe = crate::window::with_foreground_exe(|exe| exe.to_owned());
+                // Asked directly rather than read from the hook's cache: that
+                // cache is a thread_local belonging to the message loop, and
+                // this is the GUI thread. Refreshing it from here wrote a
+                // copy nothing else reads (ADR 0065). The call is the safe
+                // public surface of `window` — no unsafe enters the GUI
+                // (invariant 3).
+                let exe = crate::window::query_foreground_exe();
                 if !exe.is_empty() && !list.iter().any(|app| app.eq_ignore_ascii_case(&exe)) {
                     list.push(exe);
                 }

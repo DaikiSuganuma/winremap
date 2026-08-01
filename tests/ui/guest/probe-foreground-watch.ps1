@@ -58,6 +58,15 @@ Say ("started " + (Get-Date -Format "yyyy-MM-dd HH:mm:ss"))
 
 # --- the three records ----------------------------------------------------
 
+# ALWAYS assign the result (`$x = Read-Utf8 ...`); never wrap the call in @().
+# The leading comma is what stops PowerShell 5.1 from unwrapping a one-element
+# array, and an assignment undoes exactly that one wrap. @() collects pipeline
+# output instead, and the pipeline emits the inner array as a single object -
+# so @(Read-Utf8 $f).Count is 1 no matter how long the file is, and
+# `Select-Object -Skip 1` on it yields nothing at all. That turned a whole run
+# of this probe into 24 switches of "NO RECORD" while the app was working
+# normally. Third time this trap has been sprung in this suite (see
+# 06-foreground-line.ps1 and the $lines/$Lines shadowing before it).
 function Read-Utf8([string]$path) {
     if (-not (Test-Path $path)) { return , @() }
     try { return , @(Get-Content $path -Encoding UTF8 -ErrorAction Stop) } catch { return , @() }
@@ -100,6 +109,96 @@ function Wait-PadText([string]$Pattern, [int]$TimeoutMs = 4000) {
     return $t
 }
 
+# --- the measurement that matters -----------------------------------------
+#
+# One switch is a coin toss: the first version of this probe made four of them
+# and read the pattern of heads and tails as a pattern of causes. So the real
+# measurement repeats the switch and counts how often the two records
+# DISAGREE about which application came to the front.
+#
+# The comparison is the point. The listener uses the hwnd the event carries;
+# WinRemap re-queries GetForegroundWindow(). Everything else about the two is
+# the same, so a disagreement is that one difference showing.
+
+function App-FromListener([string]$line) {
+    if ($line -match '^\S+\s+(\S+\.exe)') { return $matches[1].ToLower() }
+    return ""
+}
+function App-FromDebug([string]$line) {
+    if ($line -match 'application = "([^"]+)"') { return $matches[1].ToLower() }
+    return ""
+}
+
+# The newest line each record carries, as a string. Compared before and after
+# a switch: if the string changed, that switch produced a record, and the new
+# string IS the record.
+#
+# Deliberately not "count the lines, then skip that many". That version read
+# nothing at all for 24 switches straight while both files were being written
+# normally, and the same slicing works when tried on its own - so rather than
+# keep hunting a difference that only appears in the running guest, this asks
+# the question in the form that is already known to work here (Count-Listener
+# has used this exact pipeline shape all along).
+function Last-Listener {
+    $all = Read-Utf8 $listenerOut
+    $hits = @($all | Where-Object { $_ -match '^\S+\s+\S+\.exe' })
+    if ($hits.Count) { return [string]$hits[$hits.Count - 1] }
+    return ""
+}
+function Last-Report {
+    $all = Read-Utf8 $debugOut
+    $hits = @($all | Where-Object { $_ -match 'application = "' })
+    if ($hits.Count) { return [string]$hits[$hits.Count - 1] }
+    return ""
+}
+
+# Alternates between two third-party applications $Times times and reports,
+# per switch, what each record says came forward.
+function Measure-Switches([string]$Name, [string]$State, [int]$Times) {
+    Say ""
+    Say ("=== " + $Name + ": " + $State + " (" + $Times + " switches) ===")
+    $mismatch = 0
+    $missing = 0
+    $rows = @()
+    for ($i = 0; $i -lt $Times; $i++) {
+        # Alternate, because focusing the window that is already in front
+        # changes nothing and fires nothing.
+        $target = if ($i % 2 -eq 0) { Find-Notepad } else { Find-Explorer }
+        $want = if ($i % 2 -eq 0) { "notepad.exe" } else { "explorer.exe" }
+        $lBefore = Last-Listener
+        $dBefore = Last-Report
+        if (-not ($target -and (Focus-Window $target))) {
+            Say ("  " + $i + ": could not put " + $want + " in front - skipped")
+            continue
+        }
+        Start-Sleep -Milliseconds 900
+
+        $lAfter = Last-Listener
+        $dAfter = Last-Report
+        # A record that did not move produced nothing for this switch. The
+        # newest line is the one that settled, which is what matters when a
+        # switch raises more than one event.
+        $h = if ($lAfter -ne $lBefore) { App-FromListener $lAfter } else { "" }
+        $s = if ($dAfter -ne $dBefore) { App-FromDebug $dAfter } else { "" }
+        $verdict =
+        if (-not $h -or -not $s) { $missing++; "NO RECORD" }
+        elseif ($h -ne $s) { $mismatch++; "MISMATCH" }
+        else { "ok" }
+        Say ("  {0,2}: wanted {1,-14} listener={2,-14} winremap={3,-14} {4}" -f $i, $want, $h, $s, $verdict)
+        # The first switch of each run prints what it actually read, so a
+        # "NO RECORD" can be told apart from a reading that came back empty.
+        if ($i -eq 0) {
+            Say ("      listener before: '" + $lBefore + "'")
+            Say ("      listener after:  '" + $lAfter + "'")
+            Say ("      winremap before: '" + $dBefore + "'")
+            Say ("      winremap after:  '" + $dAfter + "'")
+        }
+        $rows += $verdict
+    }
+    Say ("  -> " + $mismatch + " mismatch(es) and " + $missing + " missing out of " + $rows.Count + " switches")
+    return [pscustomobject]@{ Stage = $Name; State = $State; Switches = $rows.Count; Mismatch = $mismatch; Missing = $missing }
+}
+
 # One stage: leave Notepad, come back to it, then ask all three records what
 # they saw. The trip through Explorer is what makes the return a change -
 # focusing a window that is already in front fires nothing.
@@ -113,8 +212,10 @@ function Measure-Stage([string]$Name, [string]$State) {
     # and left the raw records to the end - and then died before reaching
     # them, which is how a run that measured everything came back saying
     # nothing.
-    $listener0 = @(Read-Utf8 $listenerOut).Count
-    $debug0 = @(Read-Utf8 $debugOut).Count
+    $lStart = Read-Utf8 $listenerOut
+    $dStart = Read-Utf8 $debugOut
+    $listener0 = $lStart.Count
+    $debug0 = $dStart.Count
 
     $ex = Find-Explorer
     $exOk = ([bool]$ex -and (Focus-Window $ex))
@@ -154,9 +255,9 @@ function Measure-Stage([string]$Name, [string]$State) {
     # The raw records for this stage only. What WinRemap logged while the keys
     # were arriving is the difference between "the hook never saw the key" and
     # "the hook saw it and found no rule", which no count can carry.
-    $ls = @(Read-Utf8 $listenerOut)
+    $ls = Read-Utf8 $listenerOut
     foreach ($l in @($ls | Select-Object -Skip $listener0)) { Say ("  L| " + $l) }
-    $ds = @(Read-Utf8 $debugOut)
+    $ds = Read-Utf8 $debugOut
     foreach ($l in @($ds | Select-Object -Skip $debug0)) { Say ("  D| " + $l) }
     return $row
 }
@@ -198,21 +299,32 @@ Start-Process notepad.exe
 Start-Sleep -Seconds 5
 Check "both-apps-are-up" ([bool](Find-Explorer) -and [bool](Find-Notepad)) "an Explorer window and a Notepad window to switch between"
 
-# --- the four stages ------------------------------------------------------
+# --- the rate, with and without a window ----------------------------------
+#
+# Two runs of the same measurement. Both are here because the first version of
+# this probe read four single switches as four conditions and concluded the
+# window was the cause; keeping the window axis makes the answer to that
+# explicit rather than assumed.
 
-$rows = @()
-$rows += Measure-Stage "S0" "no WinRemap window (control)"
+$SWITCHES = 12
+$rates = @()
+$rates += Measure-Switches "A" "no WinRemap window" $SWITCHES
 
 Check "log-opens" (Open-Log) "tray menu -> invoke 1004 (Show log)"
+$rates += Measure-Switches "B" "the log window is open" $SWITCHES
+
+# --- the consequence, spot-checked ----------------------------------------
+#
+# A mismatch is only worth fixing because of what it does to the keys, so the
+# stage that presses them is kept - one per window state.
+
+$rows = @()
 $rows += Measure-Stage "S1" "the log window is open"
 
 Close-WindowLike "*log*" | Out-Null
 Start-Sleep -Seconds 2
 Say ("log window still listed: " + [bool](Get-WindowLike "*log*"))
 $rows += Measure-Stage "S2" "the log window was opened and closed"
-
-Check "settings-opens" (Open-Settings) "tray menu -> invoke 1003 (Settings)"
-$rows += Measure-Stage "S3" "the settings window is open"
 
 # --- what the three records say -------------------------------------------
 
@@ -221,25 +333,35 @@ Say "=== summary ==="
 # `{2,8}` right-aligns in .NET; `{2,>8}` is not a format specifier and throws
 # at the point of use - which killed the first run of this probe after every
 # measurement had been taken and before any of them was printed.
-Say ("{0,-4} {1,-32} {2,8} {3,8}  {4}" -f "", "state", "listener", "winremap", "remapped")
+Say ("{0,-4} {1,-26} {2,9} {3,10} {4,9}" -f "", "state", "switches", "mismatch", "missing")
+foreach ($r in $rates) {
+    Say ("{0,-4} {1,-26} {2,9} {3,10} {4,9}" -f $r.Stage, $r.State, $r.Switches, $r.Mismatch, $r.Missing)
+}
+$totalSwitches = ($rates | Measure-Object -Property Switches -Sum).Sum
+$totalMismatch = ($rates | Measure-Object -Property Mismatch -Sum).Sum
+Say ("     overall: " + $totalMismatch + " of " + $totalSwitches + " switches named the wrong application")
+Say ""
 foreach ($r in $rows) {
-    Say ("{0,-4} {1,-32} {2,8} {3,8}  {4}" -f $r.Stage, $r.State, $r.Listener, $r.Reported, $r.Remapped)
+    Say ("{0,-4} {1,-36} remapped={2}" -f $r.Stage, $r.State, $r.Remapped)
 }
 
-# The two questions the table answers, as assertions so a re-run says whether
-# the picture changed. They are written the way the *fixed* app would behave,
-# so today they are expected to fail - a probe whose checks all pass on a
-# broken app would be recording the breakage as correct.
+# Written the way the FIXED app behaves, so on the unfixed one they are
+# expected to fail: a probe whose checks pass on a broken app records the
+# breakage as correct. The mismatch counts are the before/after number.
+$a = @($rates | Where-Object { $_.Stage -eq "A" })[0]
+$b = @($rates | Where-Object { $_.Stage -eq "B" })[0]
 $s1 = @($rows | Where-Object { $_.Stage -eq "S1" })[0]
-$s3 = @($rows | Where-Object { $_.Stage -eq "S3" })[0]
-Check "the-event-reaches-another-client" ($s1.Listener -ge 1) `
-    "with the log window open, an independent hook in another process is told about the switch"
-Check "winremap-acts-on-it-with-a-window-open" ($s1.Reported -ge 1) `
-    "with the log window open, WinRemap reports the same switch"
+$s2 = @($rows | Where-Object { $_.Stage -eq "S2" })[0]
+Check "the-event-reaches-another-client" (($a.Switches - $a.Missing) -ge 1) `
+    "an independent hook in another process is told about these switches at all"
+Check "no-mismatch-without-a-window" ($a.Mismatch -eq 0) `
+    ("$($a.Mismatch) of $($a.Switches) switches named the application being left instead of the one entered")
+Check "no-mismatch-with-a-window-open" ($b.Mismatch -eq 0) `
+    ("$($b.Mismatch) of $($b.Switches) switches did, with the log window open")
 Check "the-keymap-applies-with-a-window-open" ([bool]$s1.Remapped) `
     "with the log window open, the rule scoped to Notepad still applies"
-Check "the-settings-window-behaves-the-same-way" ([bool]$s3.Remapped) `
-    "the settings window is not special: whatever holds for the log window holds here"
+Check "the-keymap-applies-after-the-window-closes" ([bool]$s2.Remapped) `
+    "and after it is closed again"
 
 # --- the raw records ------------------------------------------------------
 
