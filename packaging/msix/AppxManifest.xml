@@ -24,7 +24,7 @@
   <Identity
     Name="SUGANUMADaiki.WinRemap"
     Publisher="CN=38CDEE8D-0FAC-4CBA-A3DA-17BBDD107F55"
-    Version="0.6.0.0"
+    Version="0.7.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
