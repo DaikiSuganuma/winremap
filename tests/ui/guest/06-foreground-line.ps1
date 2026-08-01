@@ -14,6 +14,15 @@
 # thing a human is bad at settling and a check is good at, so v0.7 turns the
 # observation into an assertion (v0.7 plan section 3.5).
 #
+# WHAT THIS CHECK NOW KNOWS THAT ITS FIRST VERSION DID NOT: the failure is a
+# race, not a state. The foreground callback discards the event's own hwnd and
+# re-queries GetForegroundWindow(), which can still answer with the window
+# being left; it did so on 4 of 18 switches, including switches made with no
+# WinRemap window open (docs/v0.7/notes/20260801_foreground-race.md). So this
+# check samples a 22% event with one switch per state: a red here is real, but
+# A GREEN HERE DOES NOT MEAN FIXED. Rewriting it to repeat the switch N times
+# and count mismatches is the outstanding work.
+#
 # The check answers it in two halves, because "the app never reported it" and
 # "the app reported it but the window did not show it" look identical from
 # outside and have different owners:
@@ -341,18 +350,27 @@ Start-Sleep -Seconds 2
 # was asked in v0.5.
 Say ""
 Say "=== the v0.5 carry-over ==="
+#
+# The wording deliberately does not name the log window as the cause. It was
+# named that way for two days, on three runs that all had a window open, and
+# it was wrong: 90-probe-foreground showed the same failure with no window at
+# all. The cause is a race in which the foreground callback re-queries
+# GetForegroundWindow() and can read the window being left rather than the one
+# being entered - it misfired on 4 of 18 switches (docs/v0.7/notes/
+# 20260801_foreground-race.md). This check sees one switch, so it is a sample
+# of a 22% event, not a state: GREEN HERE DOES NOT MEAN FIXED.
 $verdict =
 if ($script:withWindow -and $script:withoutWindow) {
-    "REPORTED IN BOTH - the v0.5 observation does not reproduce on this guest"
+    "REPORTED BOTH TIMES - this run did not catch the race (it misfires about 1 switch in 5)"
 }
 elseif (-not $script:withWindow -and $script:withoutWindow) {
-    "ONLY WITHOUT A WINDOW - reproduces: the log window's presence is what stops the report"
+    "MISSED WITH A WINDOW OPEN - caught the race on this switch; the window is not the cause"
 }
 elseif ($script:withWindow -and -not $script:withoutWindow) {
-    "ONLY WITH THE WINDOW - the opposite of the v0.5 observation; suspect the control, not the app"
+    "MISSED WITHOUT A WINDOW - caught the race on the control switch instead"
 }
 else {
-    "REPORTED IN NEITHER - the foreground report is not working at all here"
+    "MISSED BOTH TIMES - either the race caught both, or the foreground report is not working at all"
 }
 Say ("VERDICT: " + $verdict)
 
