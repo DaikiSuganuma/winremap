@@ -196,7 +196,7 @@ opacity = 200         # パネル全体の不透明度
 | `trigger_keys` | 文字列配列 | キー記法（§2） | `[]` | 組み込みのトグル候補キー（変換・無変換・かな・半角/全角・IME On/Off）に**追加**する切替検知キー（[ADR 0021](./decisions/0021-ime-indicator-trigger-keys.md)）。例: Windows 11 IME の Ctrl+Space 切替を使う場合は `["C-Space"]`。修飾キー込みの完全一致で判定。修飾キー単体は設定エラー |
 | `show_app_name` | 真偽値 | — | `false` | パネルの下に対象アプリの exe 名（例 `chrome.exe`）を表示する（[ADR 0024](./decisions/0024-ime-indicator-app-name.md)）。ウィンドウタイトルは表示しない。名前の幅に応じてパネル幅が広がり、上限を超える分は省略記号になる |
 | `change_cursor_color` | 真偽値 | — | `false` | **IME がオンの間、マウスカーソルに色を付ける**（[ADR 0067](../v0.8/decisions/0067-ime-cursor-color.md)）。矢印とテキストの I ビームの 2 つが対象。`enabled` とは独立で、パネルを出さずにカーソルだけ使える |
-| `cursor_color` | 文字列 | `#rrggbb` | `#e05a2b` | 上の色。カーソルの形はそのままに**明るさに応じて着色**するので、黒い輪郭は黒のまま、白い部分がこの色になる |
+| `cursor_color` | 文字列 | `#rrggbb` | `#0078d4` | 上の色（既定は WinRemap のアイコンの青）。カーソルの形はそのままに**明るさに応じて着色**するので、黒い輪郭は黒のまま、白い部分がこの色になる |
 
 - `change_cursor_color` は**セッション全体のカーソルを置き換える**（`SetSystemCursor`）。WinRemap の中だけの変更ではない
   - **色が付いた状態で WinRemap が異常終了すると、カーソルは色が付いたまま残る。** これは仕様である — 色が付くのは IME がオンのときだけなので、**「色が付いているのにトレイに WinRemap が居ない」＝異常終了**と読める（[ADR 0067](../v0.8/decisions/0067-ime-cursor-color.md)）

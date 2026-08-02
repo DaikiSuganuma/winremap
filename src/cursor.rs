@@ -203,21 +203,16 @@ fn tinted(name: PCWSTR, color: (u8, u8, u8)) -> Option<HCURSOR> {
         from_color(color_bmp.0, mask.0, color)?
     };
 
-    // Transparency rides in the alpha channel, so the AND mask says "take the
-    // colour bitmap" everywhere: all zeros. Passed explicitly — CreateBitmap
-    // leaves the contents *undefined* when given no bits, and an undefined
-    // AND mask is a cursor with holes in it wherever the memory happened to
-    // be set.
-    let blank = vec![0u8; (((width + 15) / 16) * 2 * height) as usize];
-    // SAFETY: a 1bpp monochrome bitmap; `blank` is sized to its stride
-    // (rows padded to a 16-bit boundary) times its height.
-    let empty_mask = Bitmap(unsafe {
+    let bits = and_mask(width, height, &pixels);
+    // SAFETY: a 1bpp monochrome bitmap; `bits` is sized to its stride (rows
+    // padded to a 16-bit boundary) times its height.
+    let shape = Bitmap(unsafe {
         CreateBitmap(
             width,
             height,
             1,
             1,
-            Some(blank.as_ptr() as *const core::ffi::c_void),
+            Some(bits.as_ptr() as *const core::ffi::c_void),
         )
     });
     let colored = Bitmap(dib_section(width, height, &pixels)?);
@@ -225,13 +220,41 @@ fn tinted(name: PCWSTR, color: (u8, u8, u8)) -> Option<HCURSOR> {
         fIcon: false.into(),
         xHotspot: info.xHotspot,
         yHotspot: info.yHotspot,
-        hbmMask: empty_mask.0,
+        hbmMask: shape.0,
         hbmColor: colored.0,
     };
     // SAFETY: both bitmaps are live and of the same size; fIcon = false asks
     // for a cursor, which is what the hotspots are for.
     let icon = unsafe { CreateIconIndirect(&icon_info) }.ok()?;
     Some(HCURSOR(icon.0))
+}
+
+/// The 1-bit AND mask that says where the screen shows through: 1 for the
+/// pixels whose alpha is zero, 0 for the rest.
+///
+/// **Not redundant with the alpha channel — it is the fallback for whoever
+/// ignores it.** Windows has more than one path for putting a cursor on the
+/// screen, and a 32-bit colour bitmap with an all-zero mask is only right on
+/// the paths that read alpha; the others take the mask at its word and draw a
+/// **solid rectangle**. Zed showed exactly that (owner report, 2026-08-02),
+/// and the earlier "the alpha was uniformly zero" bug was the same failure
+/// from the other end. Filling the mask in means the shape survives either
+/// way — the alpha path additionally keeps the anti-aliased edge.
+///
+/// Rows are padded to a 16-bit boundary and the leftmost pixel is the high
+/// bit of the first byte, which is what `CreateBitmap` expects of a
+/// monochrome bitmap.
+fn and_mask(width: i32, height: i32, pixels: &[u32]) -> Vec<u8> {
+    let stride = (((width + 15) / 16) * 2) as usize;
+    let mut bits = vec![0u8; stride * height as usize];
+    for y in 0..height as usize {
+        for x in 0..width as usize {
+            if pixels[y * width as usize + x] >> 24 == 0 {
+                bits[y * stride + x / 8] |= 0x80 >> (x % 8);
+            }
+        }
+    }
+    bits
 }
 
 /// Copies 32-bit BGRA pixels into a bitmap a cursor can be built from.

@@ -53,9 +53,11 @@ impl Default for IndicatorSettings {
             trigger_keys: Vec::new(),
             show_app_name: false,
             change_cursor_color: false,
-            // A warm orange: distinct from the black-and-white the cursors
-            // start as, and readable on both light and dark backgrounds.
-            cursor_color: (0xE0, 0x5A, 0x2B),
+            // WinRemap's own blue, the one in the application icon: distinct
+            // from the black-and-white the cursors start as, readable on both
+            // light and dark backgrounds, and legible as "this is WinRemap"
+            // rather than as an arbitrary colour.
+            cursor_color: (0x00, 0x78, 0xD4),
         }
     }
 }
