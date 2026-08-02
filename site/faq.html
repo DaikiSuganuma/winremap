@@ -124,7 +124,7 @@
   <div class="faq-a">
     <span class="faq-mark" aria-hidden="true">A</span>
     <div class="faq-body">
-    <p class="mb-0">Right-click the tray icon and pick <em>Show log</em>. It names the config file
+    <p>Right-click the tray icon and pick <em>Show log</em>. It names the config file
             it loaded, shows the exact <code>application</code> value for each foreground window,
             and gives one stamped line per key saying what WinRemap did with it
             (pass-through / remap / macro / prefix) — <code>C-h (BS 0x08) → remapped to Back
@@ -133,6 +133,14 @@
             WinRemap with <code>winremap.exe --debug</code> and the same lines go there instead;
             without that flag it prints nothing. Debug output never includes typed text and is
             never written to disk.</p>
+    <p>One thing to know about <code>--debug</code>: WinRemap opens no console of its
+            own, so your shell does not wait for it. The prompt comes straight back and then
+            repaints itself on top of the log, and the two overwrite each other. Keep the shell out
+            of the way by making it wait:</p>
+<pre class="bg-body-tertiary border rounded p-3"><code>Start-Process winremap.exe -ArgumentList '--debug' -NoNewWindow -Wait</code></pre>
+    <p class="mb-0">Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd> or from the tray. The log window never
+            has this problem, and it does not need <code>--debug</code> — opening it turns the log
+            on by itself.</p>
     </div>
   </div>
 </section>

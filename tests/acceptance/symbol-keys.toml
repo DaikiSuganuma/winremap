@@ -1,0 +1,28 @@
+# 受け入れ用の設定（記号キー S-1〜S-6）。実運用の設定ではない。
+#
+# 手順は docs/v0.7/03_acceptance-checklist.md §2 にある。使う前に実運用の
+# 設定を退避すること:
+#
+#   Move-Item $env:APPDATA\winremap\config.toml $env:APPDATA\winremap\config.toml.bak
+#   Copy-Item tests\acceptance\symbol-keys.toml $env:APPDATA\winremap\config.toml
+#
+# `;` と `-` は自分のキーボードの刻印で読み替える。読み替えが要ること自体が
+# 仕様である（docs/v0.7/decisions/0063-symbol-keys.md）。
+
+[[keymap]]
+name = "accept"
+application = ["notepad.exe"]
+
+[keymap.remap]
+"C-;" = "Back"          # S-1: 刻印どおりに書く
+"C-OemMinus" = "Down"   # S-2: 配列非依存の別名（どちらの配列でも「-」のキー）
+
+# S-2 の後半は、上の行を "C--" = "Down" に書き換えてトレイ →「再読み込み」。
+# 同じキーを指していることを見る。**両方を同時に書かないこと**（同じキーを
+# 2 通りに綴っているだけで、設定として矛盾する）。
+#
+# S-3 は、自分の機械で Shift を押さないと打てない記号を 1 つ選んで
+# "C-@" = "Back" のように書き、エラーと案内される綴りを見る。
+#
+# 2026-08-02 の受け入れでは、上の S-2 の行を "C-." = "Down"（Ctrl と
+# ピリオドのキー）でも試している。
