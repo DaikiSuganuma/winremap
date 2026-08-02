@@ -15,8 +15,9 @@
 #   "C-t" = ["C-Right", "C-Left"]  # macro: the chords are sent in this order
 #
 # Modifier prefixes are C- Ctrl, A- Alt, S- Shift, W- Win, and key names are
-# the Windows ones (Back, Delete, Enter, Home, F1 …). Settings that are not
-# about one application live in [macro] and [ime_indicator].
+# the Windows ones (Back, Delete, Enter, Home, F1 …). A symbol key is written
+# as the character printed on it (C-; C-/ C--). Settings that are not about
+# one application live in [macro] and [ime_indicator].
 # Every option: https://daikisuganuma.github.io/winremap/config.html
 
 # --- This file -------------------------------------------------------------
@@ -60,6 +61,18 @@ application = ["notepad.exe"] # add your applications here
 # --- Misc ---
 "C-s" = "C-f" # isearch-forward -> the application's own find
 "C-g" = "Esc" # keyboard-quit   -> escape
+
+# --- A symbol key ---
+# Emacs has undo on C-/ as well as C-x u. Symbol keys are written as the
+# character *printed on your keyboard*, and WinRemap asks Windows which key
+# that is when it loads this file. `/` is in the same place on a US and a
+# Japanese layout, so this line works on both — but a rule written for a key
+# your keyboard does not print is an error, not a silent no-op.
+#
+# If you would rather not depend on the layout at all, `Oem2` names this key
+# on every keyboard. The aliases run Oem1-Oem8, Oem102, OemPlus, OemComma,
+# OemMinus and OemPeriod.
+"C-/" = "C-z" # undo
 
 # --- The C-x prefix (two-stroke sequences) ---
 # C-x on its own does nothing: it is held, and the next keystroke decides.

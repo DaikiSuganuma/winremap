@@ -47,22 +47,35 @@
     <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#top">
       <img src="assets/kbd-enabled-32.png" alt="" width="24" height="24">WinRemap
     </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-            data-bs-target="#nav" aria-controls="nav" aria-expanded="false"
-            aria-label="Toggle navigation">
+    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
+            data-bs-target="#nav" aria-controls="nav" aria-label="Open the menu">
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="collapse navbar-collapse" id="nav">
-      <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link" href="install.html">Install</a></li>
-        <li class="nav-item"><a class="nav-link" href="config.html">Configuration</a></li>
-        <li class="nav-item"><a class="nav-link" href="macro.html">Macro recording</a></li>
-        <li class="nav-item"><a class="nav-link" href="ime.html">IME indicator</a></li>
-        <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
-      </ul>
-      <ul class="navbar-nav">
-        <li class="nav-item"><a class="nav-link" href="ja/" lang="ja">日本語</a></li>
-      </ul>
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="nav" aria-labelledby="navLabel">
+      <div class="offcanvas-header border-bottom">
+        <h2 class="offcanvas-title h6 mb-0" id="navLabel">Menu</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="install.html"><i class="bi bi-box-arrow-in-down me-2"></i>Install</a></li>
+          <li class="nav-item"><a class="nav-link" href="config.html"><i class="bi bi-gear me-2"></i>Configuration</a></li>
+          <li class="nav-item"><a class="nav-link" href="macro.html"><i class="bi bi-record-circle me-2"></i>Macro recording</a></li>
+          <li class="nav-item"><a class="nav-link" href="ime.html"><i class="bi bi-translate me-2"></i>IME indicator</a></li>
+        </ul>
+        <!-- The FAQ and the language switch are not part of the guide, so they
+             are set apart from it: a rule and a gap on a phone, extra margin on
+             a wide screen. -->
+        <hr class="d-lg-none my-2">
+        <ul class="navbar-nav ms-lg-3">
+          <li class="nav-item"><a class="nav-link" href="faq.html"><i class="bi bi-question-circle me-2"></i>FAQ</a></li>
+        </ul>
+        <hr class="d-lg-none my-2">
+        <ul class="navbar-nav ms-lg-3">
+          <li class="nav-item"><a class="nav-link" href="ja/" lang="ja"><i class="bi bi-globe2 me-2"></i>日本語</a></li>
+          <li class="nav-item"><a class="nav-link" href="https://github.com/DaikiSuganuma/winremap" aria-label="GitHub"><i class="bi bi-github me-2"></i><span class="d-lg-none">GitHub</span></a></li>
+        </ul>
+      </div>
     </div>
   </div>
 </nav>
@@ -73,17 +86,16 @@
     <h1 class="display-5 fw-bold">WinRemap</h1>
     <p class="lead text-body-secondary">A per-application key remapper for Windows, written in Rust.
     Remap keys only in the apps you choose — declared in one simple TOML file.</p>
-    <div class="d-flex justify-content-center mt-4 mb-2">
-      <a class="btn btn-primary btn-lg" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Open in the Microsoft Store app</a>
+    <div class="d-flex justify-content-center mt-5 mb-3">
+      <a class="btn btn-primary btn-lg px-3" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-2"></i>Open in the Microsoft Store app</a>
     </div>
     <p class="small text-body-secondary mb-3"><strong>Windows only.</strong> This button hands off to the
     Store app, so it does nothing on macOS, Linux or a phone — open
     <a href="https://apps.microsoft.com/detail/9N6TQDXRX5WV">the Store page in your browser</a> instead.</p>
-    <div class="d-flex flex-wrap gap-2 justify-content-center mb-4">
+    <div class="btn-group flex-wrap mt-5 mb-4" role="group" aria-label="Other download routes">
       <a class="btn btn-outline-secondary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-box-arrow-up-right me-1"></i>Store page</a>
       <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>Download installer</a>
       <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>Portable exe</a>
-      <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap"><i class="bi bi-github me-1"></i>GitHub</a>
     </div>
     <p class="small text-body-secondary mb-1"><strong>The Store is the recommended route</strong> — no
     SmartScreen warning, and updates arrive on their own. Both routes are official and install the same
@@ -96,12 +108,12 @@
 <main>
 
 <section id="docs" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-compass text-primary me-2"></i>Where to go</h2>
+  <h2 class="mb-3"><i class="bi bi-compass me-2"></i>Where to go</h2>
   <div class="row row-cols-1 row-cols-md-2 g-3">
     <div class="col">
       <div class="card h-100">
         <div class="card-body">
-          <h3 class="h5 card-title"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>Install &amp; quick start</h3>
+          <h3 class="h5 card-title"><i class="bi bi-box-arrow-in-down me-2"></i>Install &amp; quick start</h3>
           <p class="card-text text-body-secondary">Download, run, and make your first per-application remap.</p>
           <a href="install.html" class="stretched-link">Get started<i class="bi bi-arrow-right ms-1"></i></a>
         </div>
@@ -110,7 +122,7 @@
     <div class="col">
       <div class="card h-100">
         <div class="card-body">
-          <h3 class="h5 card-title"><i class="bi bi-gear text-primary me-2"></i>Configuration guide</h3>
+          <h3 class="h5 card-title"><i class="bi bi-gear me-2"></i>Configuration guide</h3>
           <p class="card-text text-body-secondary">Every option in <code>config.toml</code>, the key-notation table, and worked examples.</p>
           <a href="config.html" class="stretched-link">Read the guide<i class="bi bi-arrow-right ms-1"></i></a>
         </div>
@@ -119,7 +131,7 @@
     <div class="col">
       <div class="card h-100">
         <div class="card-body">
-          <h3 class="h5 card-title"><i class="bi bi-record-circle text-primary me-2"></i>Macro recording</h3>
+          <h3 class="h5 card-title"><i class="bi bi-record-circle me-2"></i>Macro recording</h3>
           <p class="card-text text-body-secondary">Record what you do and play it back, for one-off repetitive edits.</p>
           <a href="macro.html" class="stretched-link">How it works<i class="bi bi-arrow-right ms-1"></i></a>
         </div>
@@ -128,17 +140,26 @@
     <div class="col">
       <div class="card h-100">
         <div class="card-body">
-          <h3 class="h5 card-title"><i class="bi bi-translate text-primary me-2"></i>IME status indicator</h3>
+          <h3 class="h5 card-title"><i class="bi bi-translate me-2"></i>IME status indicator</h3>
           <p class="card-text text-body-secondary">Flash an 「あ」 panel when the IME turns on, so you know your input mode.</p>
           <a href="ime.html" class="stretched-link">See the option<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-question-circle me-2"></i>FAQ &amp; troubleshooting</h3>
+          <p class="card-text text-body-secondary">Elevated windows, debugging a rule, Store versus GitHub, symbol keys.</p>
+          <a href="faq.html" class="stretched-link">Read the answers<i class="bi bi-arrow-right ms-1"></i></a>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<section id="about" class="container py-4 border-bottom">
-  <h2 class="mb-3"><i class="bi bi-shield-check text-primary me-2"></i>Security &amp; scope</h2>
+<section id="about" class="container py-4">
+  <h2 class="mb-3"><i class="bi bi-shield-check me-2"></i>Security &amp; scope</h2>
   <ul>
     <li>WinRemap <strong>never logs or stores keystrokes</strong> — enforced as repository
       policy, not just good intentions.</li>
@@ -150,178 +171,24 @@
   </ul>
 </section>
 
-<section id="faq" class="container py-4">
-  <h2 class="mb-3"><i class="bi bi-question-circle text-primary me-2"></i>FAQ &amp; troubleshooting</h2>
-
-  <div class="accordion" id="faqAccordion">
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">Remapping doesn't work in one specific window</button>
-      </h3>
-      <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">If that window runs <strong>as administrator</strong>, Windows blocks input from
-        non-elevated programs (UIPI). Run WinRemap elevated too if you really need remapping
-        there. Games with anti-cheat and some virtualization software also ignore injected input.</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">How do I check what is actually in effect?</button>
-      </h3>
-      <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">
-          <p>Right-click the tray icon and pick <em>Settings</em>. It shows the config WinRemap
-          is resolving against right now — every keymap, its target apps and exclusions, and its
-          rules, each with the comment you wrote beside it in the file. Where the same input is
-          bound in more than one keymap, a column names the others, since only one of them can
-          win.</p>
-          <p class="mb-0">Press <em>Edit</em> and the same window becomes an editor for the file:
-          rules are checked as you type, saving validates the whole config before it writes a
-          byte, and everything you did not touch — comments, blank lines, ordering, spellings —
-          comes back unchanged. Remapping keeps running the whole time.</p>
-        </div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">My rule doesn't match — how do I debug it?</button>
-      </h3>
-      <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">Right-click the tray icon and pick <em>Show log</em>. It names the config file
-        it loaded, shows the exact <code>application</code> value for each foreground window,
-        and gives one stamped line per key saying what WinRemap did with it
-        (pass-through / remap / macro / prefix) — <code>C-h (BS 0x08) → remapped to Back
-        (BS 0x08)</code>. Tick <em>Every event</em> to see the whole stream instead: every
-        press and release, and everything WinRemap sent in reply. Prefer a terminal? Start
-        WinRemap with <code>winremap.exe --debug</code> and the same lines go there instead;
-        without that flag it prints nothing. Debug output never includes typed text and is
-        never written to disk.</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">Can I use it together with Keyhac / AutoHotkey?</button>
-      </h3>
-      <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">Not recommended for the same keys: stacked low-level keyboard hooks have undefined
-        ordering, so behavior becomes unpredictable. Disable one while testing the other.</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">Where did the console window go?</button>
-      </h3>
-      <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">WinRemap no longer opens one: launching it from Explorer, the Start menu or at
-        sign-in is silent, and anything you must see (a startup error, a failed reload)
-        appears as a dialog. Started from a terminal it is just as quiet — add
-        <code>--debug</code> to have the log printed there, though the prompt returns
-        immediately so output arrives interleaved with it. A <code>--debug</code> session
-        also ends when you close that terminal, because it keeps printing to it; without
-        the flag WinRemap lets the terminal go once it is up and keeps running. For a
-        readable running log, use <em>Show log</em> in the tray.</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq6">How do I turn autostart on or off after installing?</button>
-      </h3>
-      <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">Press <kbd>Win</kbd>+<kbd>R</kbd>, run <code>shell:startup</code>, and add or remove
-        the <em>WinRemap</em> shortcut there. (Re-running the installer also lets you re-choose
-        the option.)</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq7">A macro types too fast for the target app</button>
-      </h3>
-      <div id="faq7" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">Set <code>delay_ms = 8</code> under <code>[macro]</code> (0–15) — some apps sample input
-        asynchronously and drop burst-injected strokes.</div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq8">Where does WinRemap store things?</button>
-      </h3>
-      <div id="faq8" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">
-          <p>Program: <code>%LOCALAPPDATA%\Programs\WinRemap</code> (installer) or wherever you
-          put the portable exe. Config: <code>%APPDATA%\winremap\config.toml</code>. That's all —
-          no services, no drivers, no registry settings.</p>
-          <p class="mb-0">The <strong>Store version</strong> lives where Windows puts packaged
-          apps, and gets a private copy of <code>%APPDATA%</code> with it — so a fresh Store
-          install keeps the config under
-          <code>%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\</code>.
-          You don't have to remember that: the settings window names the folder it is actually
-          using and opens it in Explorer for you.</p>
-        </div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq9">How do I verify my download is genuine?</button>
-      </h3>
-      <div id="faq9" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">
-          <p>Compare the SHA-256 hash against <code>SHA256SUMS</code> from the release, and check
-          the build-provenance attestation with the GitHub CLI:</p>
-<pre class="bg-body-tertiary border rounded p-3 mb-2"><code>(Get-FileHash .\winremap-setup.exe -Algorithm SHA256).Hash.ToLower()
-gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
-</code></pre>
-          <p class="mb-0">Details in <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>.
-          The Store version needs none of this — Microsoft signs it, and the Store page names
-          the publisher. Binaries from anywhere other than these two channels are unofficial.</p>
-        </div>
-      </div>
-    </div>
-    <div class="accordion-item">
-      <h3 class="accordion-header">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq10">Microsoft Store or GitHub — what's the difference?</button>
-      </h3>
-      <div id="faq10" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-        <div class="accordion-body">
-          <p>Same build, same source, same version. Three practical differences:</p>
-          <ul>
-            <li><strong>No SmartScreen warning</strong> from the Store — Microsoft signs the
-            package. The GitHub binaries are unsigned, so Windows may warn about a new
-            download.</li>
-            <li><strong>Updates arrive on their own</strong> from the Store. With GitHub you
-            download the new version yourself.</li>
-            <li><strong>The config file sits somewhere else.</strong> Windows gives packaged
-            apps a private copy of <code>%APPDATA%</code>, so a fresh Store install keeps
-            <code>config.toml</code> under its own package folder rather than
-            <code>%APPDATA%\winremap\</code>. The settings window shows you the folder it is
-            using either way.</li>
-          </ul>
-          <p class="mb-0">Switching is safe: if you already have
-          <code>%APPDATA%\winremap\config.toml</code> from the installer, the Store version keeps
-          using that file, so your rules come with you. Only the GitHub route offers a portable
-          single exe. See the <a href="install.html">install guide</a>.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
 </main>
 
 <footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
-  <div class="container small d-grid gap-2">
-    <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
-    <span>Tray menu icons from <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a> (MIT) —
+  <div class="container">
+  <p class="text-center mb-4 lh-lg"><a href="privacy.html">Privacy</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap">Source</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap/issues">Report an issue</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.md">README</a>
+      |
+      <a href="ja/" lang="ja">日本語版ヘルプ</a></p>
+  <p class="text-center small mb-1">WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</p>
+  <p class="text-center small mb-0">Tray menu icons from <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a> (MIT) —
       <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">notices</a>.
-      This site is built with <a href="https://getbootstrap.com/">Bootstrap</a> (MIT).</span>
-    <span>Inspired by <a href="https://github.com/xremap/xremap">xremap</a> and
-      <a href="https://sites.google.com/site/craftware/keyhac-ja">Keyhac</a> /
-      <a href="https://github.com/smzht/fakeymacs">fakeymacs</a> — an independent project,
-      not a fork of or affiliated with any of them.</span>
-    <span><a href="privacy.html">Privacy</a> ·
-      <a href="https://github.com/DaikiSuganuma/winremap">Source</a> ·
-      <a href="https://github.com/DaikiSuganuma/winremap/issues">Report an issue</a> ·
-      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.md">README</a> ·
-      <a href="ja/" lang="ja">日本語版ヘルプ</a></span>
+      This site is built with <a href="https://getbootstrap.com/">Bootstrap</a> (MIT).</p>
   </div>
 </footer>
 

@@ -32,7 +32,8 @@ use winremap::ime_indicator_settings::{
 };
 use winremap::keymap::{
     AppFilter, KeyCombo, KeyParseError, Keymap, MAX_MACRO_DELAY_MS, Output, RemapTable,
-    SPECIAL_KEY_NAMES, parse_input_pattern, parse_key_combo, suggest_key_name, vk_display_name,
+    SPECIAL_KEY_NAMES, combo_notation, key_name, parse_input_pattern, parse_key_combo,
+    suggest_key_name, vk_display_name,
 };
 
 /// Which entry the left list has selected.
@@ -476,7 +477,7 @@ impl ConfigWindow {
                 return;
             }
         };
-        match winremap::config::parse_str(&text) {
+        match winremap::config::parse_str(&text, &crate::layout::current()) {
             Ok(_) => {}
             Err(winremap::config::ConfigError::Invalid(issues)) => {
                 edit.issues = issues;
@@ -634,7 +635,7 @@ impl ConfigWindow {
             return;
         }
         self.comments_for = current;
-        self.comments = winremap::config::comments::read(path);
+        self.comments = winremap::config::comments::read(path, &crate::layout::current());
     }
 
     /// The navigation tree (v0.4 screen design §3): icons, an indent for the
@@ -1058,9 +1059,14 @@ fn check_notation(kind: Notation, text: &str) -> Option<NotationCheck> {
         // A row still being typed; the save-time validation still gates.
         return None;
     }
+    // The same keyboard the config is compiled against, so the box turns red
+    // for exactly the rules a save would reject (ADR 0063).
+    let layout = crate::layout::current();
     let rendered = match kind {
-        Notation::Input => parse_input_pattern(trimmed).map(|pattern| i18n::input_human(&pattern)),
-        Notation::Chord => parse_key_combo(trimmed).map(|combo| i18n::combo_human(&combo)),
+        Notation::Input => {
+            parse_input_pattern(trimmed, &layout).map(|pattern| i18n::input_human(&pattern))
+        }
+        Notation::Chord => parse_key_combo(trimmed, &layout).map(|combo| i18n::combo_human(&combo)),
         Notation::Output => parse_combo_list(trimmed).map(|combos| i18n::output_human(&combos)),
         Notation::ChordList => parse_combo_list(trimmed).map(|combos| {
             combos
@@ -1077,10 +1083,11 @@ fn check_notation(kind: Notation, text: &str) -> Option<NotationCheck> {
 }
 
 fn parse_combo_list(text: &str) -> Result<Vec<KeyCombo>, KeyParseError> {
+    let layout = crate::layout::current();
     text.split(',')
         .map(str::trim)
         .filter(|part| !part.is_empty())
-        .map(parse_key_combo)
+        .map(|part| parse_key_combo(part, &layout))
         .collect()
 }
 
@@ -1171,7 +1178,29 @@ fn key_names_help(ui: &mut egui::Ui, salt: &str) {
                         .wrap(),
                     );
                     ui.end_row();
+                    // Read off the keyboard rather than listed: `;` and `:`
+                    // are on different keys depending on the layout, so a
+                    // fixed list would be wrong for half the readers
+                    // (ADR 0063).
+                    ui.label(texts.config_keys_symbols);
+                    let symbols = crate::layout::current().symbol_keys();
+                    let listed = if symbols.is_empty() {
+                        texts.config_keys_symbols_unknown.to_owned()
+                    } else {
+                        symbols
+                            .iter()
+                            .map(|(face, _)| face.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    };
+                    ui.add(egui::Label::new(egui::RichText::new(listed).monospace()).wrap());
+                    ui.end_row();
                 });
+            ui.add_space(f32::from(CELL_PAD));
+            ui.add(
+                egui::Label::new(egui::RichText::new(texts.config_keys_symbols_note).small())
+                    .wrap(),
+            );
         });
 }
 
@@ -1191,12 +1220,13 @@ fn capture_button(
         Some(pending) if pending.keymap == index && pending.target == target => {
             let now = Instant::now();
             if pending.deadline <= now {
-                // The exe cache is thread-local and this is the GUI thread,
-                // so refresh here rather than trusting the message loop's
-                // copy. Both calls are the safe public surface of `window`
-                // — no unsafe enters the GUI (invariant 3).
-                crate::window::refresh_foreground_cache();
-                let exe = crate::window::with_foreground_exe(|exe| exe.to_owned());
+                // Asked directly rather than read from the hook's cache: that
+                // cache is a thread_local belonging to the message loop, and
+                // this is the GUI thread. Refreshing it from here wrote a
+                // copy nothing else reads (ADR 0065). The call is the safe
+                // public surface of `window` — no unsafe enters the GUI
+                // (invariant 3).
+                let exe = crate::window::query_foreground_exe();
                 if !exe.is_empty() && !list.iter().any(|app| app.eq_ignore_ascii_case(&exe)) {
                     list.push(exe);
                 }
@@ -1271,9 +1301,10 @@ fn edit_rules_table(
             notation_cell(ui, Notation::Output, &mut rule.output, 220.0);
             // Comments are keyed by the canonical form; an input mid-typing
             // simply finds none and the cell stays empty until it parses.
-            let comment = winremap::config::comments::canonical_input(&rule.input)
-                .and_then(|canonical| comments.and_then(|c| c.rule(&canonical)))
-                .unwrap_or_default();
+            let comment =
+                winremap::config::comments::canonical_input(&rule.input, &crate::layout::current())
+                    .and_then(|canonical| comments.and_then(|c| c.rule(&canonical)))
+                    .unwrap_or_default();
             comment_cell(ui, comment);
             if icons::icon_button(ui, Icon::Close).clicked() {
                 remove = Some(index);
@@ -1617,16 +1648,24 @@ fn own_note(ui: &mut egui::Ui, text: &str) {
 /// from reshuffling between frames. Sharing this with the duplicate scan is
 /// what makes the two agree on what "the same input" means.
 fn rule_rows(keymap: &Keymap) -> Vec<(String, String)> {
+    // The keyboard's own spelling, so this table, the comments keyed off it,
+    // and the file all say `C-;` for the same rule (ADR 0063).
+    let layout = crate::layout::current();
+    let notation = |combo: &KeyCombo| combo_notation(combo, &layout);
+    let key = |vk: u16| key_name(vk, &layout).unwrap_or_else(|| vk_display_name(vk));
     let mut rules: Vec<(String, String)> = Vec::new();
     for (input, output) in &keymap.exact {
-        rules.push((input.to_string(), render_output(output)));
+        rules.push((notation(input), render_output(output)));
     }
     for (input_vk, output_vk) in &keymap.bare {
-        rules.push((vk_display_name(*input_vk), vk_display_name(*output_vk)));
+        rules.push((key(*input_vk), key(*output_vk)));
     }
     for (first, seconds) in &keymap.seqs {
         for (second, output) in seconds {
-            rules.push((format!("{first} {second}"), render_output(output)));
+            rules.push((
+                format!("{} {}", notation(first), notation(second)),
+                render_output(output),
+            ));
         }
     }
     rules.sort();

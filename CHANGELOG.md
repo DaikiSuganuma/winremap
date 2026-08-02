@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-08-02
+
+### Added
+
+- **Punctuation and symbol keys can be used in rules** (ADR 0063). `"C-;"`,
+  `"C-/"` and the rest now work, written the way your keyboard is engraved —
+  WinRemap asks Windows what each key prints rather than carrying a table,
+  because `0xC0` is `@` on a Japanese 106 keyboard and `` ` `` on a US 101.
+  The fixed names `Oem1`–`Oem102` name the same keys on any layout, for the
+  two cases a character cannot reach: a key that prints nothing, and the two
+  different keys that both print `\`. A character that needs Shift on your
+  keyboard is refused with the spelling to use instead — `` `@` needs Shift
+  on this keyboard; write `S-2` instead `` — rather than being silently
+  rewritten, because a rule that means two different chords on two machines
+  is worse than an error. Keys are resolved once when the config is compiled,
+  so **swapping keyboards means reloading the config**.
+- The settings window's key-name popup lists the symbols **this** keyboard
+  prints, read from the keyboard rather than from a list.
+- `C--` — the minus key with Ctrl — can be written at all. The parser read it
+  as an empty modifier name and rejected it, which predates symbol keys.
+
+### Fixed
+
+- **The app you switch to is the one your rules apply to** (ADR 0065). The
+  foreground watcher asked Windows which window was in front instead of using
+  the one the event named, and that answer can still be the window you just
+  left: about one switch in five resolved keys against the previous
+  application until you switched again. Application-scoped keymaps silently
+  did nothing, and the log's foreground line named the wrong app. The event
+  carries the right window, so nothing has to be asked.
+- The log no longer prints a raw code beside a symbol key (`/ (0xBF)`). The
+  parentheses meant "this key cannot be written in the config yet", which is
+  no longer true — what the log shows can now be pasted straight into a rule.
+  Keys that still cannot be written keep the code.
+
 ## [0.6.0] - 2026-07-29
 
 ### Added

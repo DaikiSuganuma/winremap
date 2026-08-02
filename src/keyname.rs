@@ -8,25 +8,31 @@
 //!
 //! So this module answers the *log's* question instead, in three steps:
 //!
-//! 1. the config name, when the key has one — `a`, `Down`, `LCtrl`;
+//! 1. the name the config uses, when the key has one — `a`, `Down`, `LCtrl`,
+//!    and since v0.7 the symbol keys, spelled as this keyboard engraves them
+//!    (`;`, `@`) because that is what the config now accepts;
 //! 2. a fixed name, for keys whose meaning does not depend on the keyboard
 //!    layout (the numpad, the lock keys, the IME keys, media keys);
 //! 3. otherwise the character *this* keyboard produces, which only Windows
-//!    knows — `0xC0` is `@` on a JP layout and `` ` `` on a US one, so a table
-//!    here would be wrong for half its readers.
+//!    knows.
 //!
-//! The raw code stays in parentheses for 2 and 3. It is what a bug report
-//! needs, and it is the honest signal that the key has no name to put in the
-//! config yet — a bare `/` would read as an invitation to write `"/" = ...`,
-//! which the parser rejects (the OEM keys are still deferred, see the TODO in
-//! `keymap/parse.rs`).
+//! **The parentheses mean something.** ADR 0058 put the raw code in them for
+//! two reasons: a bug report needs it, and it was the honest signal that the
+//! key had no name to put in the config — a bare `/` would have read as an
+//! invitation to write `"/" = ...`, which the parser then rejected.
+//!
+//! Half of that is no longer true. The symbol keys *are* writable now (ADR
+//! 0063), so case 1 prints them bare: a line of the log can be copied
+//! straight into the config file. Cases 2 and 3 keep their parentheses, and
+//! keep meaning exactly what they meant — this key still has no name you can
+//! write.
 //!
 //! Nothing here runs on the hook's path: the hook queues raw codes and the
 //! message loop formats them (ADR 0016).
 
 use windows::Win32::UI::Input::KeyboardAndMouse::{MAPVK_VK_TO_CHAR, MapVirtualKeyW};
 
-use winremap::keymap::{KeyCombo, Mods, control_code, vk_config_name};
+use winremap::keymap::{KeyCombo, Layout, Mods, control_code, key_name};
 
 /// One key, as a reader of the log would name it — with the control code it
 /// carries, when it carries one (ADR 0056).
@@ -35,13 +41,15 @@ pub fn key(vk: u16) -> String {
         mods: Mods::NONE,
         vk,
     };
-    format!("{}{}", name(vk), code_suffix(combo))
+    let layout = crate::layout::current();
+    format!("{}{}", name(vk, &layout), code_suffix(combo, &layout))
 }
 
 /// A chord in the config's own notation (`C-S-h`), with [`key`] naming the
 /// key itself. The prefixes match `KeyCombo`'s `Display` on purpose: the log
 /// and the config file should spell a chord the same way.
 pub fn combo(combo: &KeyCombo) -> String {
+    let layout = crate::layout::current();
     let mut text = String::new();
     for (flag, prefix) in [
         (Mods::CTRL, "C-"),
@@ -53,16 +61,16 @@ pub fn combo(combo: &KeyCombo) -> String {
             text.push_str(prefix);
         }
     }
-    text.push_str(&name(combo.vk));
+    text.push_str(&name(combo.vk, &layout));
     // Read from the whole chord rather than the key: Ctrl is what turns `h`
     // into BS, and it is the modifier that carries the answer.
-    text.push_str(&code_suffix(*combo));
+    text.push_str(&code_suffix(*combo, &layout));
     text
 }
 
 /// The key's name alone — the three steps above, without the control code.
-fn name(vk: u16) -> String {
-    if let Some(name) = vk_config_name(vk) {
+fn name(vk: u16, layout: &Layout) -> String {
+    if let Some(name) = key_name(vk, layout) {
         return name;
     }
     if let Some(name) = fixed_name(vk) {
@@ -82,8 +90,8 @@ fn name(vk: u16) -> String {
 /// they paste into a report. A key with no control code gets no suffix, which
 /// is what keeps the log from becoming a transcript of the text typed
 /// (invariant 6, ADR 0056) — and what keeps ordinary typing quiet.
-fn code_suffix(combo: KeyCombo) -> String {
-    match control_code(combo) {
+fn code_suffix(combo: KeyCombo, layout: &Layout) -> String {
+    match control_code(combo, layout) {
         Some(code) => format!(" ({} 0x{:02X})", code.name, code.byte),
         None => String::new(),
     }
@@ -174,6 +182,19 @@ fn layout_char(vk: u16) -> Option<char> {
 mod tests {
     use super::*;
 
+    /// The process-wide snapshot is never filled in under test, so `key` and
+    /// `combo` see a keyboard with no symbol keys — which is the right
+    /// default for the cases that are not about symbols.
+    fn no_keyboard() -> Layout {
+        Layout::empty()
+    }
+
+    /// The two symbol keys the assertions below turn on, as a US keyboard has
+    /// them.
+    fn us() -> Layout {
+        Layout::new(vec![(0xBF, '/'), (0xBA, ';')], vec![('?', 0xBF)])
+    }
+
     /// A key the config can name is named the way the config names it —
     /// otherwise the log would teach a spelling the file rejects.
     #[test]
@@ -184,23 +205,29 @@ mod tests {
         assert_eq!(key(0x71), "F2");
     }
 
-    /// The two cases from the owner's report. Neither has a config name, so
-    /// both keep their code — but a reader can now tell what was pressed.
+    /// The case from the owner's report that is still unwritable: the numpad
+    /// has no config name, so it keeps its code — and a reader can still tell
+    /// what was pressed.
     #[test]
     fn keys_without_a_config_name_still_say_what_they_are() {
         assert_eq!(key(0x61), "Num1 (0x61)");
-        // 0xBF is VK_OEM_2, `/` on both the US and the JP layout — the only
-        // layout-dependent step, so this asserts the shape and not the face.
-        let oem = key(0xBF);
-        assert!(
-            oem.ends_with(" (0xBF)") || oem == "0xBF",
-            "unexpected rendering: {oem}"
-        );
+    }
+
+    /// The parentheses mean "you cannot write this". A symbol key can be
+    /// written now, so it loses them — and what it prints is the character
+    /// this keyboard engraves, which is what the config would accept
+    /// (ADR 0063 revising ADR 0058).
+    #[test]
+    fn a_symbol_key_reads_as_the_config_would_take_it() {
+        assert_eq!(name(0xBF, &us()), "/");
+        assert_eq!(name(0xBA, &us()), ";");
+        // With no keyboard to ask, the alias is still writable, so still bare.
+        assert_eq!(name(0xBF, &no_keyboard()), "Oem2");
     }
 
     #[test]
     fn a_chord_reads_as_the_config_spells_it() {
-        let combo = winremap::keymap::parse_key_combo("A-x").expect("parses");
+        let combo = winremap::keymap::parse_key_combo("A-x", &no_keyboard()).expect("parses");
         assert_eq!(super::combo(&combo), "A-x");
     }
 
@@ -208,7 +235,7 @@ mod tests {
     /// key it is remapped to both say BS (ADR 0056).
     #[test]
     fn a_control_chord_says_what_it_sends() {
-        let chord = winremap::keymap::parse_key_combo("C-h").expect("parses");
+        let chord = winremap::keymap::parse_key_combo("C-h", &no_keyboard()).expect("parses");
         assert_eq!(super::combo(&chord), "C-h (BS 0x08)");
         assert_eq!(key(0x08), "Back (BS 0x08)");
     }
@@ -218,7 +245,7 @@ mod tests {
     #[test]
     fn ordinary_keys_stay_as_they_were() {
         assert_eq!(key(0x41), "a");
-        let shifted = winremap::keymap::parse_key_combo("S-a").expect("parses");
+        let shifted = winremap::keymap::parse_key_combo("S-a", &no_keyboard()).expect("parses");
         assert_eq!(super::combo(&shifted), "S-a");
     }
 }

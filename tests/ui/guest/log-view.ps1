@@ -122,10 +122,10 @@ Start-Sleep -Seconds 1
 Start-Sleep -Milliseconds 500
 [Nat]::Chord(0x11, 0x4E)
 Start-Sleep -Milliseconds 500
-# Two keys the config notation cannot name yet, which used to print as bare
-# hex - the numpad's 1 and VK_OEM_2 (ADR 0058). The numpad is the same on
-# every keyboard, so its name is asserted; the OEM key's face depends on the
-# layout, so only the shape is.
+# Two keys that used to print as bare hex - the numpad's 1 and VK_OEM_2
+# (ADR 0058). They are no longer the same case: v0.7 made OEM keys writable in
+# the config, so 0xBF is now named like any other key it can name, while the
+# numpad's 1 still carries its code. See the two checks below.
 [Nat]::Key(0x61)
 Start-Sleep -Milliseconds 500
 [Nat]::Key(0xBF)
@@ -152,11 +152,22 @@ Check "every-line-carries-a-time" ($simple -match "^\d\d:\d\d:\d\d\.\d\d\d$") `
     "the stamp is its own column, to the millisecond, which is what tells two moments apart"
 Check "the-numpad-key-is-named" (@($simple | Where-Object { $_ -like "Num1 (0x61)*" }).Count -ge 1) `
     "a key the config cannot name yet still says what it is, not just 0x61 (ADR 0058)"
-# Something has to precede the code: the name is what the check is about, and
-# what it is depends on the keyboard layout (@ on JP, ` on US).
+# This one turned over in v0.7. ADR 0058 printed an OEM key as "/ (0xBF)", and
+# the parentheses were partly an honest signal: "you cannot write this one in
+# the config yet". ADR 0063 section 5 removed that meaning by making the key
+# writable, and a signal that is no longer true has to go - so the assertion is
+# now that the key is named and the raw code is *gone*.
+#
+# What the face is depends on the keyboard (/ here, : on a JP 106), so the
+# check does not name it: it asserts that a third pass-through line exists
+# besides the two keys sent before it, and that no 0xBF survives anywhere.
+$oemLines = @($simple | Where-Object {
+        $_ -like "*passed through" -and $_ -notlike "a *" -and $_ -notlike "Num1*"
+    })
+foreach ($l in $oemLines) { Say ("  O| " + $l) }
 Check "the-oem-key-is-named" `
-(@($simple | Where-Object { $_ -like "*(0xBF)*" -and $_ -notlike "0xBF*" }).Count -ge 1) `
-    "an OEM key is named by what this keyboard prints on it, with the raw code kept"
+(($oemLines.Count -ge 1) -and (@($simple | Where-Object { $_ -like "*0xBF*" }).Count -eq 0)) `
+    "an OEM key is named by what this keyboard prints on it, with no code now that the config can name it (ADR 0063 section 5)"
 # What the report has to carry: the value to write in a keymap's application
 # list, and which of the configured keymaps that value reaches. Which app it
 # names is the operating system's business, not this feature's - see the

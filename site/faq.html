@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<!-- Created: 2026-07-31 by Claude Code (model: claude-opus-5[1m]). English is the
+     primary version; keep the other language in sync (AGENTS.md workflow 7). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WinRemap — FAQ & troubleshooting</title>
+<meta name="description" content="WinRemap FAQ: elevated windows, checking what is in effect, debugging a rule, the Store versus GitHub, symbol keys and more.">
+<meta name="color-scheme" content="light dark">
+<!-- Bootstrap 5.3.8 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous">
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+"
+      crossorigin="anonymous">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/kbd-enabled-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/kbd-enabled-16.png">
+<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/">
+<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/">
+<!-- Follow the OS light/dark setting (Bootstrap 5.3 switches on data-bs-theme).
+     Inline and self-contained — the site loads no third-party scripts. -->
+<script>
+  (function () {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function apply() {
+      var dark = mq.matches;
+      document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+      // The footer runs the opposite theme, so it reads as a distinct band.
+      var footer = document.getElementById('site-footer');
+      if (footer) footer.setAttribute('data-bs-theme', dark ? 'light' : 'dark');
+    }
+    apply();
+    mq.addEventListener('change', apply);
+    document.addEventListener('DOMContentLoaded', apply);
+  })();
+</script>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-body-tertiary sticky-top border-bottom">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="index.html">
+      <img src="assets/kbd-enabled-32.png" alt="" width="24" height="24">WinRemap
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
+            data-bs-target="#nav" aria-controls="nav" aria-label="Open the menu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="nav" aria-labelledby="navLabel">
+      <div class="offcanvas-header border-bottom">
+        <h2 class="offcanvas-title h6 mb-0" id="navLabel">Menu</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="install.html"><i class="bi bi-box-arrow-in-down me-2"></i>Install</a></li>
+          <li class="nav-item"><a class="nav-link" href="config.html"><i class="bi bi-gear me-2"></i>Configuration</a></li>
+          <li class="nav-item"><a class="nav-link" href="macro.html"><i class="bi bi-record-circle me-2"></i>Macro recording</a></li>
+          <li class="nav-item"><a class="nav-link" href="ime.html"><i class="bi bi-translate me-2"></i>IME indicator</a></li>
+        </ul>
+        <!-- The FAQ and the language switch are not part of the guide, so they
+             are set apart from it: a rule and a gap on a phone, extra margin on
+             a wide screen. -->
+        <hr class="d-lg-none my-2">
+        <ul class="navbar-nav ms-lg-3">
+          <li class="nav-item"><a class="nav-link" href="faq.html"><i class="bi bi-question-circle me-2"></i>FAQ</a></li>
+        </ul>
+        <hr class="d-lg-none my-2">
+        <ul class="navbar-nav ms-lg-3">
+          <li class="nav-item"><a class="nav-link" href="ja/" lang="ja"><i class="bi bi-globe2 me-2"></i>日本語</a></li>
+          <li class="nav-item"><a class="nav-link" href="https://github.com/DaikiSuganuma/winremap" aria-label="GitHub"><i class="bi bi-github me-2"></i><span class="d-lg-none">GitHub</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<header class="hero py-5" id="top">
+  <div class="container">
+    <h1 class="display-6 fw-bold">FAQ &amp; troubleshooting</h1>
+    <p class="lead text-body-secondary mb-0">Short answers to what comes up most. Everything here is on one page — use your browser&rsquo;s find.</p>
+  </div>
+</header>
+
+<main class="container py-4">
+
+<section id="faq1" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>Remapping doesn't work in one specific window</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p class="mb-0">If that window runs <strong>as administrator</strong>, Windows blocks input from
+            non-elevated programs (UIPI). Run WinRemap elevated too if you really need remapping
+            there. Games with anti-cheat and some virtualization software also ignore injected input.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq2" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>How do I check what is actually in effect?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>Right-click the tray icon and pick <em>Settings</em>. It shows the config WinRemap
+              is resolving against right now — every keymap, its target apps and exclusions, and its
+              rules, each with the comment you wrote beside it in the file. Where the same input is
+              bound in more than one keymap, a column names the others, since only one of them can
+              win.</p>
+              <p class="mb-0">Press <em>Edit</em> and the same window becomes an editor for the file:
+              rules are checked as you type, saving validates the whole config before it writes a
+              byte, and everything you did not touch — comments, blank lines, ordering, spellings —
+              comes back unchanged. Remapping keeps running the whole time.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq3" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>My rule doesn't match — how do I debug it?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>Right-click the tray icon and pick <em>Show log</em>. It names the config file
+            it loaded, shows the exact <code>application</code> value for each foreground window,
+            and gives one stamped line per key saying what WinRemap did with it
+            (pass-through / remap / macro / prefix) — <code>C-h (BS 0x08) → remapped to Back
+            (BS 0x08)</code>. Tick <em>Every event</em> to see the whole stream instead: every
+            press and release, and everything WinRemap sent in reply. Prefer a terminal? Start
+            WinRemap with <code>winremap.exe --debug</code> and the same lines go there instead;
+            without that flag it prints nothing. Debug output never includes typed text and is
+            never written to disk.</p>
+    <p>One thing to know about <code>--debug</code>: WinRemap opens no console of its
+            own, so your shell does not wait for it. The prompt comes straight back and then
+            repaints itself on top of the log, and the two overwrite each other. Keep the shell out
+            of the way by making it wait:</p>
+<pre class="bg-body-tertiary border rounded p-3"><code>Start-Process winremap.exe -ArgumentList '--debug' -NoNewWindow -Wait</code></pre>
+    <p class="mb-0">Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd> or from the tray. The log window never
+            has this problem, and it does not need <code>--debug</code> — opening it turns the log
+            on by itself.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq4" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>Can I use it together with Keyhac / AutoHotkey?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p class="mb-0">Not recommended for the same keys: stacked low-level keyboard hooks have undefined
+            ordering, so behavior becomes unpredictable. Disable one while testing the other.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq6" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>How do I turn autostart on or off after installing?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p class="mb-0">Press <kbd>Win</kbd>+<kbd>R</kbd>, run <code>shell:startup</code>, and add or remove
+            the <em>WinRemap</em> shortcut there. (Re-running the installer also lets you re-choose
+            the option.)</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq7" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>A macro types too fast for the target app</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p class="mb-0">Set <code>delay_ms = 8</code> under <code>[macro]</code> (0–15) — some apps sample input
+            asynchronously and drop burst-injected strokes.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq8" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>Where does WinRemap store things?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>Program: <code>%LOCALAPPDATA%\Programs\WinRemap</code> (installer) or wherever you
+              put the portable exe. Config: <code>%APPDATA%\winremap\config.toml</code>. That's all —
+              no services, no drivers, no registry settings.</p>
+              <p class="mb-0">The <strong>Store version</strong> lives where Windows puts packaged
+              apps, and gets a private copy of <code>%APPDATA%</code> with it — so a fresh Store
+              install keeps the config under
+              <code>%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\</code>.
+              You don't have to remember that: the settings window names the folder it is actually
+              using and opens it in Explorer for you.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq9" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>How do I verify my download is genuine?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>Compare the SHA-256 hash against <code>SHA256SUMS</code> from the release, and check
+              the build-provenance attestation with the GitHub CLI:</p>
+    <pre class="bg-body-tertiary border rounded p-3 mb-2"><code>(Get-FileHash .\winremap-setup.exe -Algorithm SHA256).Hash.ToLower()
+    gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
+    </code></pre>
+              <p class="mb-0">Details in <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>.
+              The Store version needs none of this — Microsoft signs it, and the Store page names
+              the publisher. Binaries from anywhere other than these two channels are unofficial.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq10" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>Microsoft Store or GitHub — what's the difference?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>Same build, same source, same version. Three practical differences:</p>
+              <ul>
+                <li><strong>No SmartScreen warning</strong> from the Store — Microsoft signs the
+                package. The GitHub binaries are unsigned, so Windows may warn about a new
+                download.</li>
+                <li><strong>Updates arrive on their own</strong> from the Store. With GitHub you
+                download the new version yourself.</li>
+                <li><strong>The config file sits somewhere else.</strong> Windows gives packaged
+                apps a private copy of <code>%APPDATA%</code>, so a fresh Store install keeps
+                <code>config.toml</code> under its own package folder rather than
+                <code>%APPDATA%\winremap\</code>. The settings window shows you the folder it is
+                using either way.</li>
+              </ul>
+              <p class="mb-0">Switching is safe: if you already have
+              <code>%APPDATA%\winremap\config.toml</code> from the installer, the Store version keeps
+              using that file, so your rules come with you. Only the GitHub route offers a portable
+              single exe. See the <a href="install.html">install guide</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq11" class="faq-item">
+  <h2 class="h5 faq-q"><span class="faq-mark" aria-hidden="true">Q</span>I wrote <code class="text-reset">"C-@"</code> and got an error. Why?</h2>
+  <div class="faq-a">
+    <span class="faq-mark" aria-hidden="true">A</span>
+    <div class="faq-body">
+    <p>Because on your keyboard <code>@</code> is not a key — it is
+              <kbd>Shift</kbd>+<kbd>2</kbd>. Write the Shift into the rule:</p>
+    <pre class="bg-body-tertiary border rounded p-3 mb-2"><code>"C-S-2" = "Esc"</code></pre>
+              <p>WinRemap tells you this, with the spelling to use, rather than adding the Shift
+              behind your back — otherwise <code>C-@</code> and <code>C-S-2</code> would be the
+              same rule on your machine and different rules on someone else's.</p>
+              <p class="mb-0">On a Japanese keyboard <code>@</code> <em>is</em> a key of its own,
+              and <code>"C-@"</code> works there. Symbol keys are written the way they are
+              engraved, and which key that is depends on the keyboard —
+              <a href="config.html#keys">the configuration guide explains it</a>.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
+  <div class="container">
+  <p class="text-center mb-4 lh-lg"><a href="privacy.html">Privacy</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap">Source</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap/issues">Report an issue</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.md">README</a>
+      |
+      <a href="ja/" lang="ja">日本語版ヘルプ</a></p>
+  <p class="text-center small mb-1">WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</p>
+  <p class="text-center small mb-0">Tray menu icons from <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a> (MIT) —
+      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">notices</a>.
+      This site is built with <a href="https://getbootstrap.com/">Bootstrap</a> (MIT).</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
+</body>
+</html>

@@ -6,7 +6,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WinRemap — IME 状態インジケーター</title>
-<meta name="description" content="IME がオンになった瞬間に「あ」パネルを表示。入力を始める前にモードが分かります。">
+<meta name="description" content="IME がオンになった瞬間に「あ」パネルを表示。 入力を始める前にモードが分かります。">
 <meta name="color-scheme" content="light dark">
 <!-- Bootstrap 5.3.8 + Bootstrap Icons, pinned and integrity-checked (ADR 0047). -->
 <link rel="stylesheet"
@@ -47,22 +47,35 @@
     <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="index.html">
       <img src="../assets/kbd-enabled-32.png" alt="" width="24" height="24">WinRemap
     </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-            data-bs-target="#nav" aria-controls="nav" aria-expanded="false"
-            aria-label="ナビゲーション切り替え">
+    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
+            data-bs-target="#nav" aria-controls="nav" aria-label="メニューを開く">
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="collapse navbar-collapse" id="nav">
-      <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link" href="install.html">インストール</a></li>
-        <li class="nav-item"><a class="nav-link" href="config.html">設定</a></li>
-        <li class="nav-item"><a class="nav-link" href="macro.html">マクロ記憶</a></li>
-        <li class="nav-item"><a class="nav-link active" aria-current="page" href="ime.html">IME 表示</a></li>
-        <li class="nav-item"><a class="nav-link" href="index.html#faq">FAQ</a></li>
-      </ul>
-      <ul class="navbar-nav">
-        <li class="nav-item"><a class="nav-link" href="../ime.html" lang="en">English</a></li>
-      </ul>
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="nav" aria-labelledby="navLabel">
+      <div class="offcanvas-header border-bottom">
+        <h2 class="offcanvas-title h6 mb-0" id="navLabel">メニュー</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="閉じる"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="install.html"><i class="bi bi-box-arrow-in-down me-2"></i>インストール</a></li>
+          <li class="nav-item"><a class="nav-link" href="config.html"><i class="bi bi-gear me-2"></i>設定</a></li>
+          <li class="nav-item"><a class="nav-link" href="macro.html"><i class="bi bi-record-circle me-2"></i>マクロ記憶</a></li>
+          <li class="nav-item"><a class="nav-link" href="ime.html"><i class="bi bi-translate me-2"></i>IME 表示</a></li>
+        </ul>
+        <!-- The FAQ and the language switch are not part of the guide, so they
+             are set apart from it: a rule and a gap on a phone, extra margin on
+             a wide screen. -->
+        <hr class="d-lg-none my-2">
+        <ul class="navbar-nav ms-lg-3">
+          <li class="nav-item"><a class="nav-link" href="faq.html"><i class="bi bi-question-circle me-2"></i>FAQ</a></li>
+        </ul>
+        <hr class="d-lg-none my-2">
+        <ul class="navbar-nav ms-lg-3">
+          <li class="nav-item"><a class="nav-link" href="../" lang="en"><i class="bi bi-globe2 me-2"></i>English</a></li>
+          <li class="nav-item"><a class="nav-link" href="https://github.com/DaikiSuganuma/winremap" aria-label="GitHub"><i class="bi bi-github me-2"></i><span class="d-lg-none">GitHub</span></a></li>
+        </ul>
+      </div>
     </div>
   </div>
 </nav>
@@ -70,7 +83,8 @@
 <header class="hero text-center py-5" id="top">
   <div class="container">
     <h1 class="display-5 fw-bold">IME 状態インジケーター <span class="badge text-bg-secondary align-middle fs-6">任意</span></h1>
-    <p class="lead text-body-secondary mb-0">入力を始める前にモードが分かります。<a href="index.html">ヘルプ目次</a>へ戻る。</p>
+    <p class="lead text-body-secondary mb-0">入力を始める前にモードが分かります。<br>
+    <a href="index.html">ヘルプ目次</a>へ戻る。</p>
   </div>
 </header>
 
@@ -79,7 +93,8 @@
 <section id="ime" class="container py-4">
   <p>リマップとは独立した機能として、IME がオンになった瞬間 — または IME オンの
   ウィンドウにフォーカスが移った瞬間 — に、アクティブウィンドウの中央へ半透明の
-  <strong>「あ」</strong>パネルを一瞬表示できます。入力を始める前にモードが分かります。
+  <strong>「あ」</strong>パネルを一瞬表示できます。<br>
+  入力を始める前にモードが分かります。<br>
   表示のみで、WinRemap が IME を切り替えることはありません。</p>
 <pre class="bg-body-tertiary border rounded p-3"><code>[ime_indicator]
 enabled = true                # 既定: false
@@ -89,24 +104,29 @@ enabled = true                # 既定: false
 # opacity = 200               # 0〜255
 # show_app_name = true        # 「あ」の下に exe 名を表示
 </code></pre>
-  <p>変換/無変換・半角/全角・かな・IME On/Off などの標準キーは設定なしで検知されます。
+  <p>変換/無変換・半角/全角・かな・IME On/Off などの標準キーは設定なしで検知されます。<br>
   Windows 11 IME の「Ctrl + Space で IME をオン/オフ」のような割り当てを使っている場合は
-  <code>trigger_keys</code> を追加してください。パネルはフォーカスや入力を一切奪わず、
+  <code>trigger_keys</code> を追加してください。<br>
+  パネルはフォーカスや入力を一切奪わず、
   インジケーター側の問題がリマップ動作に影響することはありません。</p>
 </section>
 
 </main>
 
 <footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
-  <div class="container small d-grid gap-2">
-    <span>WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</span>
-    <span><a href="https://getbootstrap.com/">Bootstrap</a> と
-      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>（MIT）で構築しています。</span>
-    <span><a href="index.html">ヘルプ</a> ·
-      <a href="privacy.html">プライバシー</a> ·
-      <a href="https://github.com/DaikiSuganuma/winremap">ソース</a> ·
-      <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a> ·
-      <a href="../ime.html" lang="en">English</a></span>
+  <div class="container">
+  <p class="text-center mb-4 lh-lg"><a href="index.html">ヘルプ</a>
+      |
+      <a href="privacy.html">プライバシー</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap">ソース</a>
+      |
+      <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a>
+      |
+      <a href="../ime.html" lang="en">English</a></p>
+  <p class="text-center small mb-1">WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</p>
+  <p class="text-center small mb-0"><a href="https://getbootstrap.com/">Bootstrap</a> と
+      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>（MIT）で構築しています。</p>
   </div>
 </footer>
 

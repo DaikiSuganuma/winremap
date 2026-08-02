@@ -1,5 +1,6 @@
-//! Key notation parsing: `"C-h"`, `"A-x h"`, key names → VK codes.
+//! Key notation parsing: `"C-h"`, `"A-x h"`, `"C-;"`, key names → VK codes.
 
+use super::layout::{Layout, OEM_ALIASES, oem_alias, vk_for_alias};
 use super::{KeyCombo, Mods};
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
@@ -14,6 +15,12 @@ pub enum KeyParseError {
     DuplicateModifier(String),
     #[error("unknown key name `{0}`")]
     UnknownKey(String),
+    /// The character exists on this keyboard but only on a key's shifted
+    /// face. Writing it plainly would have to mean "and hold Shift", which
+    /// would make `C-@` and `C-S-2` the same rule on one keyboard and
+    /// different rules on another (ADR 0063).
+    #[error("`{character}` needs Shift on this keyboard; write `{write}` instead")]
+    NeedsShift { character: char, write: String },
     #[error("too many strokes (at most 2, e.g. `A-x h`)")]
     TooManyStrokes,
     #[error("the first stroke of a sequence must include a modifier")]
@@ -29,12 +36,16 @@ pub enum InputPattern {
 
 /// Parses a remap LHS: `"C-h"` or a whitespace-separated two-stroke
 /// sequence like `"A-x h"` (config-spec §3.3, ADR 0013).
-pub fn parse_input_pattern(input: &str) -> Result<InputPattern, KeyParseError> {
+///
+/// `layout` answers what the attached keyboard prints on its symbol keys; use
+/// [`Layout::empty`] where none is available, and symbol characters are then
+/// unknown key names.
+pub fn parse_input_pattern(input: &str, layout: &Layout) -> Result<InputPattern, KeyParseError> {
     let mut strokes = input.split_whitespace();
     let Some(first) = strokes.next() else {
         return Err(KeyParseError::Empty);
     };
-    let first = parse_key_combo(first)?;
+    let first = parse_key_combo(first, layout)?;
     match strokes.next() {
         None => Ok(InputPattern::Single(first)),
         Some(second) => {
@@ -46,14 +57,17 @@ pub fn parse_input_pattern(input: &str) -> Result<InputPattern, KeyParseError> {
             if first.mods.is_empty() {
                 return Err(KeyParseError::UnmodifiedPrefix);
             }
-            Ok(InputPattern::Sequence(first, parse_key_combo(second)?))
+            Ok(InputPattern::Sequence(
+                first,
+                parse_key_combo(second, layout)?,
+            ))
         }
     }
 }
 
-/// Parses notation like `"C-h"`, `"C-S-Enter"`, or `"Back"` (config-spec §2).
-/// Prefixes and key names are case-insensitive.
-pub fn parse_key_combo(input: &str) -> Result<KeyCombo, KeyParseError> {
+/// Parses notation like `"C-h"`, `"C-S-Enter"`, `"C-;"`, or `"Back"`
+/// (config-spec §2). Prefixes and key names are case-insensitive.
+pub fn parse_key_combo(input: &str, layout: &Layout) -> Result<KeyCombo, KeyParseError> {
     let input = input.trim();
     if input.is_empty() {
         return Err(KeyParseError::Empty);
@@ -64,7 +78,16 @@ pub fn parse_key_combo(input: &str) -> Result<KeyCombo, KeyParseError> {
     // Consume modifier prefixes left to right; whatever remains is the key
     // name. Splitting on every `-` instead would break if a future version
     // adds key names containing dashes.
-    while let Some((head, tail)) = rest.split_once('-') {
+    loop {
+        // A lone `-` is the key itself, not a prefix with nothing after it:
+        // `C--` is Ctrl plus the minus key on layouts that have one. Stopping
+        // at one character is what lets the dash be both.
+        if rest.chars().count() <= 1 {
+            break;
+        }
+        let Some((head, tail)) = rest.split_once('-') else {
+            break;
+        };
         let flag = if head.eq_ignore_ascii_case("c") {
             Mods::CTRL
         } else if head.eq_ignore_ascii_case("a") {
@@ -86,13 +109,53 @@ pub fn parse_key_combo(input: &str) -> Result<KeyCombo, KeyParseError> {
     if rest.is_empty() {
         return Err(KeyParseError::MissingKey);
     }
-    let vk = key_name_to_vk(rest).ok_or_else(|| KeyParseError::UnknownKey(rest.to_string()))?;
+    let vk = resolve_key_name(rest, layout)?;
     Ok(KeyCombo { mods, vk })
 }
 
-/// Win32 virtual-key code for a key name (config-spec §2), or `None` if the
-/// name is not supported.
-pub fn key_name_to_vk(name: &str) -> Option<u16> {
+/// Win32 virtual-key code for a key name (config-spec §2), or `None` if this
+/// keyboard has no such key.
+#[must_use]
+pub fn key_name_to_vk(name: &str, layout: &Layout) -> Option<u16> {
+    resolve_key_name(name, layout).ok()
+}
+
+/// The key a name refers to, or why it refers to none.
+///
+/// Order matters: the layout is consulted last, so a keyboard that prints an
+/// `f` or a digit on some exotic key can never shadow `F1` or `1`.
+fn resolve_key_name(name: &str, layout: &Layout) -> Result<u16, KeyParseError> {
+    if let Some(vk) = fixed_key_name_to_vk(name) {
+        return Ok(vk);
+    }
+    // A single character that is not a letter or a digit is a symbol key, and
+    // only the attached keyboard knows which one (ADR 0063).
+    let mut chars = name.chars();
+    if let (Some(character), None) = (chars.next(), chars.next()) {
+        if let Some(vk) = layout.key_printing(character) {
+            return Ok(vk);
+        }
+        if let Some(vk) = layout.shifted_key_printing(character) {
+            return Err(KeyParseError::NeedsShift {
+                character,
+                write: format!("S-{}", shift_target_name(vk, layout)),
+            });
+        }
+    }
+    Err(KeyParseError::UnknownKey(name.to_string()))
+}
+
+/// How to spell the key that carries a shifted character, for the message
+/// that tells the user what to write instead.
+fn shift_target_name(vk: u16, layout: &Layout) -> String {
+    // The engraved character, not the alias: the reader is being told which
+    // key to press, and `S-;` points at it where `S-Oem1` sends them looking
+    // it up.
+    key_name(vk, layout).unwrap_or_else(|| format!("0x{vk:02X}"))
+}
+
+/// The part of the notation that means the same key on every keyboard.
+fn fixed_key_name_to_vk(name: &str) -> Option<u16> {
     let lower = name.to_ascii_lowercase();
 
     if lower.len() == 1 {
@@ -110,6 +173,11 @@ pub fn key_name_to_vk(name: &str) -> Option<u16> {
         && (1..=24).contains(&num)
     {
         return Some(0x70 + u16::from(num) - 1); // VK_F1..VK_F24
+    }
+
+    // `Oem1`, `OemMinus`, … — the layout-independent way to name a symbol key.
+    if let Some(vk) = vk_for_alias(&lower) {
+        return Some(vk);
     }
 
     let vk: u16 = match lower.as_str() {
@@ -138,8 +206,6 @@ pub fn key_name_to_vk(name: &str) -> Option<u16> {
         "rctrl" | "rcontrol" => 0xA3,
         "lalt" => 0xA4,
         "ralt" => 0xA5,
-        // TODO: OEM/punctuation keys — VK codes are layout-dependent (JP
-        // keyboards differ), deferred with its own ADR.
         _ => return None,
     };
     Some(vk)
@@ -187,9 +253,31 @@ pub fn vk_config_name(vk: u16) -> Option<String> {
         0xA3 => "RCtrl".to_string(),
         0xA4 => "LAlt".to_string(),
         0xA5 => "RAlt".to_string(),
-        _ => return None,
+        // A symbol key always has *a* name now, even without a layout: the
+        // alias. Its character face is better where one is known, which is
+        // why `Layout`-aware callers ask `key_name` instead (ADR 0063).
+        _ => return oem_alias(vk).map(str::to_string),
     };
     Some(name)
+}
+
+/// The name to show for a key on *this* keyboard: the character the layout
+/// prints on it, when it prints one, and the layout-independent name
+/// otherwise.
+///
+/// This is what the log and the settings window use. The plain
+/// [`vk_config_name`] cannot answer it — it has no keyboard to ask, so it
+/// falls back to `Oem1` where the reader wants to see `;`.
+#[must_use]
+pub fn key_name(vk: u16, layout: &Layout) -> Option<String> {
+    // Only the symbol keys are the layout's business. Asking it about `a`
+    // would let a malformed snapshot rename the keys that never move.
+    if oem_alias(vk).is_some()
+        && let Some(face) = layout.face(vk)
+    {
+        return Some(face.to_string());
+    }
+    vk_config_name(vk)
 }
 
 /// Every canonical special-key name, in the order `vk_display_name` spells
@@ -207,9 +295,19 @@ pub const SPECIAL_KEY_NAMES: &[&str] = &[
 /// be a plausible slip (edit distance ≤ 2): `"Bak"` → `"Back"`. `None` for
 /// something too far from every name — a wild guess helps nobody.
 pub fn suggest_key_name(unknown: &str) -> Option<&'static str> {
+    // A single symbol is never a misspelling of a word: it is a key this
+    // keyboard does not have. Without this, `;` is two edits from `Up` and
+    // the reader is told to press an arrow key (ADR 0063).
+    let mut chars = unknown.chars();
+    if let (Some(character), None) = (chars.next(), chars.next())
+        && !character.is_alphanumeric()
+    {
+        return None;
+    }
     let lower = unknown.to_ascii_lowercase();
     SPECIAL_KEY_NAMES
         .iter()
+        .chain(OEM_ALIASES.iter().map(|(_, alias)| alias))
         .map(|name| (edit_distance(&lower, &name.to_ascii_lowercase()), *name))
         .filter(|(distance, _)| *distance <= 2)
         .min_by_key(|(distance, _)| *distance)

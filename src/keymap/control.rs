@@ -19,11 +19,16 @@
 //! - `ToUnicode` mutates the calling thread's dead-key state, which is a
 //!   documented way to corrupt the next keystroke the user types — too high a
 //!   price for a log line;
-//! - for the set below the answer is layout-independent. Ctrl+letter is the
-//!   letter's low five bits on every layout. The layout-dependent controls
-//!   (Ctrl+`[`, Ctrl+`\`) are left out, and those keys have no config name
-//!   yet anyway.
+//! - for the letters and the named keys the answer is layout-independent.
+//!   Ctrl+letter is the letter's low five bits on every layout.
+//!
+//! The remaining six — Ctrl+`@`, `[`, `\`, `]`, `^`, `_` — *are* layout
+//! dependent, and ADR 0056 left them out because "those keys have no config
+//! name yet anyway". They have one now (ADR 0063), so they are answered here
+//! by asking the layout what the key prints. That is the only part of this
+//! module that depends on the attached keyboard.
 
+use super::layout::Layout;
 use super::{KeyCombo, Mods};
 
 /// A control code and the mnemonic it is known by.
@@ -40,7 +45,7 @@ pub struct ControlCode {
 /// `None` covers printable keys (`a`, `1`), keys that produce no character
 /// (`F1`, `Home`), and every combination involving Alt or Win — those reach
 /// an application as a command, not as a character.
-pub fn control_code(combo: KeyCombo) -> Option<ControlCode> {
+pub fn control_code(combo: KeyCombo, layout: &Layout) -> Option<ControlCode> {
     // Alt and Win turn a key into an accelerator; nothing is sent as text,
     // so there is no code to report.
     if combo.mods.contains(Mods::ALT) || combo.mods.contains(Mods::WIN) {
@@ -60,12 +65,41 @@ pub fn control_code(combo: KeyCombo) -> Option<ControlCode> {
         (_, 0x09) => 0x09,
         (_, 0x0D) => 0x0D,
         (_, 0x1B) => 0x1B,
+        (true, vk) => symbol_control_byte(combo, vk, layout)?,
         _ => return None,
     };
     Some(ControlCode {
         byte,
         name: control_name(byte)?,
     })
+}
+
+/// The C0 code for Ctrl plus one of the six symbol keys that carry one.
+///
+/// Unlike the letters, *which* key this is differs by keyboard: `Ctrl+[` is
+/// ESC on a US layout, and the key that prints `[` is a different one on a JP
+/// layout. So the character is asked for rather than assumed.
+///
+/// Shift is consulted here — and only here — because on many layouts the
+/// character that carries the code is on the shifted face: `^` is Shift+6 on
+/// a US keyboard, and `C-S-6` really does send RS.
+fn symbol_control_byte(combo: KeyCombo, vk: u16, layout: &Layout) -> Option<u8> {
+    let face = if combo.mods.contains(Mods::SHIFT) {
+        layout.shifted_face(vk).or_else(|| layout.face(vk))?
+    } else {
+        layout.face(vk)?
+    };
+    // The C0 block continues past Z with exactly these six, in ASCII order:
+    // @ = NUL, [ = ESC, \ = FS, ] = GS, ^ = RS, _ = US.
+    match face {
+        '@' => Some(0x00),
+        '[' => Some(0x1B),
+        '\\' => Some(0x1C),
+        ']' => Some(0x1D),
+        '^' => Some(0x1E),
+        '_' => Some(0x1F),
+        _ => None,
+    }
 }
 
 /// The C0 mnemonic for a byte, or `None` if it is not a control code.
@@ -87,9 +121,15 @@ const C0_NAMES: [&str; 32] = [
 mod tests {
     use super::*;
     use crate::keymap::parse_key_combo;
+    use crate::keymap::tests::{jp_106, us_101};
 
     fn code(notation: &str) -> Option<ControlCode> {
-        control_code(parse_key_combo(notation).expect("parses"))
+        let layout = us_101();
+        control_code(parse_key_combo(notation, &layout).expect("parses"), &layout)
+    }
+
+    fn code_on(notation: &str, layout: &Layout) -> Option<ControlCode> {
+        control_code(parse_key_combo(notation, layout).expect("parses"), layout)
     }
 
     /// The pair this project exists for: the chord and the key it is remapped
@@ -140,6 +180,65 @@ mod tests {
     #[test]
     fn accelerators_carry_nothing() {
         for notation in ["A-h", "W-h", "C-A-h", "A-Back"] {
+            assert_eq!(code(notation), None, "{notation} must report no code");
+        }
+    }
+
+    /// The six ADR 0056 left out. `Ctrl+[` is ESC — the reason a terminal
+    /// user reaches for it at all.
+    #[test]
+    fn symbol_keys_carry_the_rest_of_the_c0_block() {
+        assert_eq!(code("C-[").map(|c| (c.byte, c.name)), Some((0x1B, "ESC")));
+        assert_eq!(code("C-\\").map(|c| (c.byte, c.name)), Some((0x1C, "FS")));
+        assert_eq!(code("C-]").map(|c| (c.byte, c.name)), Some((0x1D, "GS")));
+    }
+
+    /// On a US keyboard three of the six are on shifted faces, and the chord
+    /// really does send the code — so Shift is read here, unlike for letters.
+    #[test]
+    fn shifted_faces_are_consulted_for_symbols() {
+        assert_eq!(code("C-S-2").map(|c| (c.byte, c.name)), Some((0x00, "NUL")));
+        assert_eq!(code("C-S-6").map(|c| (c.byte, c.name)), Some((0x1E, "RS")));
+        assert_eq!(
+            code("C-S-OemMinus").map(|c| (c.byte, c.name)),
+            Some((0x1F, "US"))
+        );
+    }
+
+    /// The same code, on a keyboard where it sits on a different key. This is
+    /// what a static table could not have got right (ADR 0063).
+    #[test]
+    fn the_same_code_follows_the_keyboard() {
+        let jp = jp_106();
+        // `[` is VK_OEM_4 on both layouts here, but `@` and `^` are not:
+        // unshifted OEM keys on JP, shifted digits on US.
+        assert_eq!(code_on("C-[", &jp).map(|c| c.byte), Some(0x1B));
+        assert_eq!(
+            code_on("C-@", &jp).map(|c| (c.byte, c.name)),
+            Some((0x00, "NUL"))
+        );
+        assert_eq!(
+            code_on("C-^", &jp).map(|c| (c.byte, c.name)),
+            Some((0x1E, "RS"))
+        );
+        // ...and the US spelling of the same two keys is not even parseable
+        // there, which is the notation being honest about the keyboard.
+        assert_eq!(code_on("C-Oem3", &jp).map(|c| c.byte), Some(0x00));
+    }
+
+    /// Ctrl plus a symbol that carries no code stays silent, so the log does
+    /// not sprout numbers for ordinary punctuation.
+    #[test]
+    fn other_symbols_carry_nothing() {
+        for notation in ["C-;", "C-,", "C-.", "C-/", "C-="] {
+            assert_eq!(code(notation), None, "{notation} must report no code");
+        }
+    }
+
+    /// Without Ctrl there is no control code, symbol key or not.
+    #[test]
+    fn a_symbol_alone_carries_nothing() {
+        for notation in ["[", "\\", "S-2"] {
             assert_eq!(code(notation), None, "{notation} must report no code");
         }
     }

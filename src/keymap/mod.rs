@@ -10,14 +10,18 @@
 //! primitive types live here.
 
 mod control;
+mod layout;
 mod parse;
 mod table;
+// Visible crate-wide: the reference US and JP keyboards it builds are what
+// let the config tests exercise both layouts too (ADR 0063).
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub use control::{ControlCode, control_code};
+pub use layout::{Layout, OEM_ALIASES, OEM_VKS, oem_alias};
 pub use parse::{
-    InputPattern, KeyParseError, SPECIAL_KEY_NAMES, is_modifier_vk, key_name_to_vk,
+    InputPattern, KeyParseError, SPECIAL_KEY_NAMES, is_modifier_vk, key_name, key_name_to_vk,
     parse_input_pattern, parse_key_combo, suggest_key_name, vk_config_name, vk_display_name,
 };
 pub use table::{AppFilter, Keymap, Output, RemapTable, Resolution};
@@ -65,20 +69,45 @@ pub struct KeyCombo {
 
 /// Renders in config notation (`C-S-h`) so debug output matches what the
 /// user would write in config.toml.
+///
+/// A symbol key comes out as its layout-independent alias (`C-Oem1`), since
+/// `Display` has no keyboard to ask. That spelling is always accepted by the
+/// parser, so the output is never something the config would reject — but
+/// where the keyboard *is* known, [`combo_notation`] says `C-;` instead, and
+/// that is what the user interface shows.
 impl std::fmt::Display for KeyCombo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.mods.contains(Mods::CTRL) {
-            f.write_str("C-")?;
-        }
-        if self.mods.contains(Mods::ALT) {
-            f.write_str("A-")?;
-        }
-        if self.mods.contains(Mods::SHIFT) {
-            f.write_str("S-")?;
-        }
-        if self.mods.contains(Mods::WIN) {
-            f.write_str("W-")?;
-        }
+        f.write_str(&modifier_prefixes(self.mods))?;
         f.write_str(&parse::vk_display_name(self.vk))
     }
+}
+
+/// A chord as this keyboard's owner would write it: `C-;` rather than
+/// `C-Oem1`.
+///
+/// Everything the settings window shows and matches on goes through here, so
+/// the rules table, the comment lookup and the file all spell a rule the same
+/// way (ADR 0063).
+#[must_use]
+pub fn combo_notation(combo: &KeyCombo, layout: &Layout) -> String {
+    format!(
+        "{}{}",
+        modifier_prefixes(combo.mods),
+        parse::key_name(combo.vk, layout).unwrap_or_else(|| parse::vk_display_name(combo.vk))
+    )
+}
+
+fn modifier_prefixes(mods: Mods) -> String {
+    let mut text = String::new();
+    for (flag, prefix) in [
+        (Mods::CTRL, "C-"),
+        (Mods::ALT, "A-"),
+        (Mods::SHIFT, "S-"),
+        (Mods::WIN, "W-"),
+    ] {
+        if mods.contains(flag) {
+            text.push_str(prefix);
+        }
+    }
+    text
 }
