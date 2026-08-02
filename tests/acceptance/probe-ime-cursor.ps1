@@ -55,6 +55,8 @@ Add-Type -Namespace Probe -Name Cur -MemberDefinition @'
 [DllImport("user32.dll", SetLastError=true)] public static extern IntPtr GetForegroundWindow();
 [DllImport("user32.dll", SetLastError=true)] public static extern bool BringWindowToTop(IntPtr h);
 [DllImport("user32.dll", SetLastError=true)] public static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
+[DllImport("user32.dll", SetLastError=true, EntryPoint="GetWindowThreadProcessId")] public static extern uint GetWindowPid(IntPtr h, out uint owner);
+[DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern int GetWindowTextW(IntPtr h, System.Text.StringBuilder text, int max);
 [DllImport("user32.dll", SetLastError=true)] public static extern bool AttachThreadInput(uint from, uint to, bool attach);
 [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
 [DllImport("imm32.dll", SetLastError=true)] public static extern IntPtr ImmGetDefaultIMEWnd(IntPtr h);
@@ -154,6 +156,30 @@ function Wait-Tint([scriptblock]$until, [int]$timeoutMs = 8000) {
     }
 }
 
+# The same wait, for the checks that would otherwise blame WinRemap for
+# somebody else's window.
+#
+# The tint follows whatever window is in front — that is the feature. So this
+# script owning the foreground is a precondition of every tint reading, not a
+# detail, and it does not own the machine it runs on: on 2026-08-03 two runs
+# recorded a product failure while the foreground had drifted away mid-wait
+# (one of them to the desktop itself, which the indicator deliberately skips,
+# ADR 0023). Set-Focus already fails loudly when the foreground cannot be
+# *taken*; nothing noticed when it was taken *back*.
+#
+# A reading that satisfies the condition needs no defending. One that does not
+# is worth recording only with the target still in front, so take it back and
+# read once more before believing it.
+function Wait-TintOwning([scriptblock]$until) {
+    foreach ($attempt in 1..2) {
+        $tint = Wait-Tint $until
+        if (& $until $tint) { return $tint }
+        if ([Probe.Cur]::GetForegroundWindow() -eq $script:target) { return $tint }
+        Set-Focus $script:target
+    }
+    throw "the foreground kept leaving the window under test (now $(Get-FrontName)); a tint read there is about that window, not about WinRemap"
+}
+
 # The two windows this drives. The IME's open state is **per window**, and
 # WinRemap reads whichever window is in front, so a probe that lets the
 # foreground drift is measuring an unrelated window's IME — two runs failed
@@ -170,6 +196,26 @@ function Get-ImeWnd {
 
 function Read-Ime([IntPtr]$ime) {
     return [int][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]5, [IntPtr]0)  # IMC_GETOPENSTATUS
+}
+
+# What is in front, in words, with the IME state that goes with it.
+#
+# This script does not own the machine it runs on. Set-Focus fails loudly when
+# it cannot *take* the foreground, but nothing noticed when the foreground was
+# taken *back* — and a tint check that fails with nothing but a pixel count
+# cannot tell "WinRemap is wrong" from "the desktop moved". That is not
+# hypothetical: startup-clears-any-leftover failed once on 2026-08-03, on the
+# first run after the VM suite, and left no record of what it had been looking
+# at; five consecutive runs afterwards passed and the cause is still unknown.
+function Get-FrontName {
+    $front = [Probe.Cur]::GetForegroundWindow()
+    $title = New-Object System.Text.StringBuilder 256
+    [void][Probe.Cur]::GetWindowTextW($front, $title, $title.Capacity)
+    $owner = 0
+    [void][Probe.Cur]::GetWindowPid($front, [ref]$owner)
+    $name = (Get-Process -Id $owner -ErrorAction SilentlyContinue).ProcessName
+    $ime = try { Read-Ime (Get-ImeWnd) } catch { '?' }
+    return "$name '$($title.ToString())' ime=$ime"
 }
 
 # Brings a window to the front, and **fails loudly if it cannot**.
@@ -207,8 +253,16 @@ function Set-Focus([IntPtr]$window) {
 # start, when there is no WinRemap running to notice.
 function Set-ImeDirect([int]$open) {
     Set-Focus $script:target
-    [void][Probe.Cur]::SendMessageW((Get-ImeWnd), 0x283, [IntPtr]6, [IntPtr]$open)
-    Start-Sleep -Milliseconds 200
+    $ime = Get-ImeWnd
+    [void][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]6, [IntPtr]$open)
+    # Read it back instead of sleeping on it. This was the last place the script
+    # arranged state without measuring the result, and an arrangement that
+    # quietly did not take makes the check after it a coin toss — the trap
+    # Set-Focus was hardened against on 2026-08-02, left standing here.
+    $deadline = (Get-Date).AddMilliseconds(2000)
+    while ((Read-Ime $ime) -ne $open -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 25 }
+    $got = Read-Ime $ime
+    if ($got -ne $open) { throw "the IME would not go to $open (reads $got); in front: $(Get-FrontName)" }
 }
 
 # Puts the target window's IME into a known state and gives WinRemap a reason
@@ -315,12 +369,14 @@ $other = Start-Process winver -PassThru
 $script:other = Wait-MainWindow $other 'winver'
 Set-ImeDirect 0
 
+$front = Get-FrontName
 $app = Start-WinRemap $config
-Check "startup-clears-any-leftover" ((Wait-Tint { param($t) $t -eq 0 }) -eq 0) "a tint from a previous run must not survive the next start"
+$leftover = Wait-TintOwning { param($t) $t -eq 0 }
+Check "startup-clears-any-leftover" ($leftover -eq 0) "blue-leaning pixels: $leftover; in front at the start: $front; after: $(Get-FrontName)"
 
 $state = Set-Ime 1
-$on = Wait-Tint { param($t) $t -gt 0 }
-Check "tints-while-the-ime-is-on" ($state -eq 1 -and $on -gt 0) "IME reports $state; blue-leaning pixels: $on"
+$on = Wait-TintOwning { param($t) $t -gt 0 }
+Check "tints-while-the-ime-is-on" ($state -eq 1 -and $on -gt 0) "IME reports $state; blue-leaning pixels: $on; in front: $(Get-FrontName)"
 
 # The I-beam is a mask-only cursor, and getting one wrong does not look like
 # a missing tint — it looks like a black square over the text (owner report,
@@ -349,8 +405,8 @@ $bordered = $arrow.White -gt 0 -and $beam.White -gt 0
 Check "there-is-a-white-border" $bordered "arrow $($arrow.White) white pixels, I-beam $($beam.White)"
 
 $state = Set-Ime 0
-$off = Wait-Tint { param($t) $t -eq 0 }
-Check "restores-when-the-ime-goes-off" ($state -eq 0 -and $off -eq 0) "IME reports $state; blue-leaning pixels: $off"
+$off = Wait-TintOwning { param($t) $t -eq 0 }
+Check "restores-when-the-ime-goes-off" ($state -eq 0 -and $off -eq 0) "IME reports $state; blue-leaning pixels: $off; in front: $(Get-FrontName)"
 
 # The design's headline claim: killed while tinted, the tint stays. That is
 # what makes "tinted, and no WinRemap in the tray" mean "it died" (ADR 0067).
@@ -366,9 +422,10 @@ Check "a-kill-leaves-the-tint-behind" ($beforeKill -gt 0 -and $afterKill -gt 0) 
 # running to notice, this is arranging the ground, not a thing being measured
 # — and it keeps "the colour went away" from meaning "the IME went off".
 Set-ImeDirect 0
+$front = Get-FrontName
 $app = Start-WinRemap $config
-$afterRestart = Wait-Tint { param($t) $t -eq 0 }
-Check "the-next-start-restores-it" ($afterRestart -eq 0) "blue-leaning pixels: $afterRestart"
+$afterRestart = Wait-TintOwning { param($t) $t -eq 0 }
+Check "the-next-start-restores-it" ($afterRestart -eq 0) "blue-leaning pixels: $afterRestart; in front at the start: $front; after: $(Get-FrontName)"
 
 Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
 Stop-Process -Id $notepad.Id, $other.Id -Force -ErrorAction SilentlyContinue
