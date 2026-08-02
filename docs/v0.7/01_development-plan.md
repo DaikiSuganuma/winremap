@@ -677,6 +677,8 @@ Phase A が終わると**記述が嘘になる箇所**がある。v0.4 の教訓
 
 winget の [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) は 2026-07-31 現在**まだマージされていない**（`Azure-Pipeline-Passed` / `Validation-Completed` 済みで、モデレーターのマージ待ち）。v0.7.0 のリリースまでにマージされなければ、**同じ PR を 0.7.0 に差し替える**（0.4.0 → 0.5.0 → 0.6.0 と同じ扱い）。
 
+**`--debug` の出力がプロンプトと重なる件**（オーナー報告 2026-08-02）も、この版では**本体に触らずに持ち込む**。[ADR 0029](../v0.2/decisions/0029-attach-console-and-tray-log-window.md) が既知の帰結として書いている事象で、v0.7 の変更とは無関係である。回避策（ログウィンドウ／`Start-Process -NoNewWindow -Wait`）をヘルプサイトの FAQ に足し、経緯を[受け入れチェックリスト §6.3](03_acceptance-checklist.md) に残した。**本体で扱うなら ADR 0029 を覆す新しい ADR が要る**ので v0.8 以降の課題とする。
+
 ---
 
 ## 7. フェーズ順序と依存関係
