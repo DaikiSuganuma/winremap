@@ -141,6 +141,33 @@ fn partial_ime_indicator_section_keeps_defaults() {
 }
 
 #[test]
+fn cursor_tint_is_opt_in_and_takes_a_hex_colour() {
+    let table = parse_str("[[keymap]]\napplication = [\"*\"]\n").unwrap();
+    assert!(
+        !table.ime_indicator.cursor,
+        "replacing the session's cursors must never happen unasked (ADR 0067)"
+    );
+    let table = parse_str(
+        "[ime_indicator]\ncursor = true\ncursor_color = \"#00a0ff\"\n\n[[keymap]]\napplication = [\"*\"]\n",
+    )
+    .unwrap();
+    assert!(table.ime_indicator.cursor);
+    assert_eq!(table.ime_indicator.cursor_color, (0x00, 0xA0, 0xFF));
+    // The panel and the cursor are independent displays of the same state.
+    assert!(!table.ime_indicator.enabled);
+}
+
+#[test]
+fn rejects_a_colour_that_is_not_rrggbb() {
+    let found =
+        issues("[ime_indicator]\ncursor_color = \"orange\"\n\n[[keymap]]\napplication = [\"*\"]\n");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(found[0].message.contains("ime_indicator.cursor_color"));
+    assert!(found[0].message.contains("#rrggbb"));
+    assert_eq!(found[0].line, 2);
+}
+
+#[test]
 fn rejects_out_of_range_ime_indicator_values() {
     let found = issues(
         "[ime_indicator]\nduration_ms = 50\nsize = 999\nopacity = 300\n\n[[keymap]]\napplication = [\"*\"]\n",

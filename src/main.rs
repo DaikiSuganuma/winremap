@@ -12,6 +12,7 @@
 #![windows_subsystem = "windows"]
 
 mod clock;
+mod cursor;
 mod gui;
 mod hook;
 mod i18n;
@@ -35,6 +36,10 @@ use winremap::config;
 fn main() {
     // Before any output, so even an early failure can reach the terminal.
     notify::attach_parent_console();
+    // Before anything can fail: the cursor tint is session-wide state, so
+    // the paths that still run code on the way down have to put it back
+    // (ADR 0067).
+    cursor::install_crash_restore();
     if let Err(e) = run() {
         // `{:#}` keeps anyhow's context chain, which is what makes a config
         // error actionable ("failed to load ...: line 12: ...").
@@ -121,6 +126,12 @@ fn run() -> anyhow::Result<()> {
     sender::set_macro_delay(cli.macro_delay_ms.unwrap_or(table.macro_delay_ms));
     hook::REMAP_TABLE.store(Some(Arc::new(table)));
     gui::mark_config_loaded();
+
+    // Unconditional, and before anything can tint again: a cursor left over
+    // from a run that was killed is the one thing this feature cannot clear
+    // by itself, and startup is when nothing can legitimately be tinted yet
+    // (ADR 0067 decision 5). Costs one call when the feature is off.
+    cursor::restore();
 
     sender::init_scan_codes();
     // Seed the cache before hooking so the first keystrokes resolve against

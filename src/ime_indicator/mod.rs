@@ -65,7 +65,14 @@ fn indicator_enabled() -> bool {
     crate::hook::REMAP_TABLE
         .load()
         .as_ref()
-        .is_some_and(|table| table.ime_indicator.enabled)
+        .is_some_and(|table| feature_wanted(&table.ime_indicator))
+}
+
+/// Whether anything at all depends on knowing the IME state. The panel and
+/// the tinted cursor (ADR 0067) are two displays of one observation, and
+/// either of them alone is reason enough to run the thread.
+fn feature_wanted(settings: &IndicatorSettings) -> bool {
+    settings.enabled || settings.cursor
 }
 
 /// Hook-callback touch point. Hook-safe by construction: wait-free loads, a
@@ -82,7 +89,10 @@ pub fn notify_keydown(input: KeyCombo) {
         return;
     };
     let settings = &table.ime_indicator;
-    if !settings.enabled {
+    // The cursor tint needs this poke as much as the panel does: the IME
+    // toggle key is the only signal that the state changed without the
+    // foreground window changing (ADR 0067).
+    if !feature_wanted(settings) {
         return;
     }
     // Built-in VK candidates match regardless of held modifiers; configured
@@ -110,13 +120,23 @@ pub fn sync_with_config() {
     let tid = THREAD_ID.load(Ordering::Acquire);
     if tid != 0 {
         overlay::post_to_thread(tid, MSG_SETTINGS);
-    } else if current_settings().enabled {
+    } else if feature_wanted(&current_settings()) {
         start_thread();
+    }
+    // Whatever the config now says, a tint left over from the previous one
+    // is not it. Also the unconditional restore of ADR 0067 decision 5 on
+    // the startup call: nothing has to be remembered across runs.
+    if !current_settings().cursor {
+        crate::cursor::restore();
     }
 }
 
-/// Stops the indicator thread if it runs. Called once at shutdown.
+/// Stops the indicator thread if it runs, and puts the cursor back. Called
+/// once at shutdown — leaving a tinted cursor behind on a clean exit would
+/// make the one signal this feature has ("tinted and no tray icon means
+/// WinRemap died") a lie (ADR 0067).
 pub fn stop() {
+    crate::cursor::restore();
     let tid = THREAD_ID.swap(0, Ordering::AcqRel);
     if tid != 0 {
         overlay::post_quit_to(tid);
@@ -195,8 +215,9 @@ fn run(overlay: &overlay::Overlay) {
                 overlay::kill_thread_timer(query_timer);
                 query_timer = 0;
                 let settings = current_settings();
-                if !settings.enabled {
+                if !feature_wanted(&settings) {
                     overlay.hide();
+                    crate::cursor::apply(false, settings.cursor_color);
                     last_on = false;
                     continue;
                 }
@@ -217,7 +238,14 @@ fn run(overlay: &overlay::Overlay) {
                     continue;
                 }
                 let is_on = sample.open == Some(true);
-                let shown = is_on && (!last_on || sample.target != last_target);
+                // The cursor follows the state itself, not the "became on"
+                // edge the panel flashes on: it is a status light, and it
+                // has to be right when focus moves between applications
+                // whose IME states differ.
+                if settings.cursor {
+                    crate::cursor::apply(is_on, settings.cursor_color);
+                }
+                let shown = settings.enabled && is_on && (!last_on || sample.target != last_target);
                 if shown {
                     // Exe name, not the window title: titles can carry
                     // sensitive document names and churn constantly
@@ -246,9 +274,15 @@ fn run(overlay: &overlay::Overlay) {
                 last_on = is_on;
                 last_target = sample.target;
             }
-            MSG_SETTINGS if !current_settings().enabled => {
-                overlay.hide();
-                last_on = false;
+            MSG_SETTINGS => {
+                let settings = current_settings();
+                if !settings.enabled {
+                    overlay.hide();
+                    last_on = false;
+                }
+                if !settings.cursor {
+                    crate::cursor::apply(false, settings.cursor_color);
+                }
             }
             _ => {}
         }
