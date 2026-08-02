@@ -16,14 +16,17 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use windows::Win32::Foundation::{GENERIC_READ, GENERIC_WRITE};
 use windows::Win32::Storage::FileSystem::{
-    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+    CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_TYPE_DISK,
+    FILE_TYPE_PIPE, GetFileType, OPEN_EXISTING,
 };
 use windows::Win32::System::Console::{
-    ATTACH_PARENT_PROCESS, AttachConsole, FreeConsole, GetStdHandle, STD_ERROR_HANDLE, STD_HANDLE,
-    STD_OUTPUT_HANDLE, SetStdHandle,
+    ATTACH_PARENT_PROCESS, AllocConsole, AttachConsole, FreeConsole, GetStdHandle,
+    STD_ERROR_HANDLE, STD_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, SetConsoleTitleW,
+    SetStdHandle,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    MB_ICONERROR, MB_ICONINFORMATION, MB_OK, MB_SETFOREGROUND, MESSAGEBOX_STYLE, MessageBoxW,
+    GetSystemMetrics, MB_ICONERROR, MB_ICONINFORMATION, MB_OK, MB_SETFOREGROUND, MESSAGEBOX_STYLE,
+    MessageBoxW, SM_SHUTTINGDOWN,
 };
 use windows::core::{HSTRING, PCWSTR, w};
 
@@ -39,6 +42,11 @@ static ATTACHED: AtomicBool = AtomicBool::new(false);
 /// that survives letting the console go. Recorded before the attach adopts
 /// anything, since after that the handles no longer say who set them.
 static LAUNCHER_OWNS_OUTPUT: AtomicBool = AtomicBool::new(false);
+
+/// Whether the console is one WinRemap opened for itself (`--debug`), rather
+/// than the launcher's. Only such a console can be waited on at exit: the
+/// launcher's outlives us anyway (ADR 0068).
+static OWNS_CONSOLE: AtomicBool = AtomicBool::new(false);
 
 /// Attaches to the console of the process that launched us, if it has one.
 ///
@@ -103,6 +111,106 @@ pub fn detach_console() {
     );
 }
 
+/// Opens a console of WinRemap's own for the `--debug` transcript, and reports
+/// whether there now is one.
+///
+/// The alternative — writing into the console of the shell that launched us —
+/// shares one screen buffer with that shell. WinRemap is a `windows` subsystem
+/// binary, so the shell does not wait for it: the prompt comes straight back
+/// and repaints itself on top of the log, and the two overwrite each other.
+/// A console of our own has no second writer, and it exists from the first
+/// line of startup. The tray's log window cannot cover this — it can only be
+/// opened once startup is over, and it vanishes with the process at the end
+/// (ADR 0068, which supersedes that part of ADR 0029).
+///
+/// Does nothing when stdout is a file or a pipe: a caller who redirected the
+/// transcript asked for the bytes, not a window. The UI tests read `--debug`
+/// exactly that way, which is why the check comes first.
+pub fn open_debug_console() -> bool {
+    if stdout_is_captured() {
+        return false;
+    }
+    // A process has at most one console, so the launcher's has to go before
+    // ours can arrive.
+    if ATTACHED.swap(false, Ordering::Relaxed) {
+        // SAFETY: no arguments to get wrong; the swap above established that
+        // there is a console to release.
+        let _ = unsafe { FreeConsole() };
+    }
+    // SAFETY: no arguments to get wrong. On failure we are left with no
+    // console at all, which the return value reports.
+    if unsafe { AllocConsole() }.is_err() {
+        HAS_CONSOLE.store(
+            LAUNCHER_OWNS_OUTPUT.load(Ordering::Relaxed),
+            Ordering::Relaxed,
+        );
+        return false;
+    }
+    // Unconditional, unlike the attach path: whatever these pointed at before
+    // belonged to the console we just left.
+    point_std_handle_at(STD_OUTPUT_HANDLE, w!("CONOUT$"));
+    point_std_handle_at(STD_ERROR_HANDLE, w!("CONOUT$"));
+    // Input too — the wait at exit reads a line from it.
+    point_std_handle_at(STD_INPUT_HANDLE, w!("CONIN$"));
+    // SAFETY: a static wide literal, valid for the duration of the call.
+    let _ = unsafe { SetConsoleTitleW(w!("WinRemap --debug")) };
+    OWNS_CONSOLE.store(true, Ordering::Relaxed);
+    HAS_CONSOLE.store(true, Ordering::Relaxed);
+    true
+}
+
+/// Holds the `--debug` console open after WinRemap is done, so its last lines
+/// can be read.
+///
+/// A console from `AllocConsole` belongs to this process alone and closes the
+/// instant the process does — which would leave the shutdown transcript on
+/// screen for zero milliseconds. **This wait is what makes "what happens at
+/// exit" observable at all**, and without it the console of ADR 0068 would
+/// only have solved the startup half.
+///
+/// Returns immediately when the console is not ours: the launcher's outlives
+/// us anyway, and a redirected run has nobody to press a key.
+pub fn wait_for_debug_console() {
+    if !OWNS_CONSOLE.load(Ordering::Relaxed) || session_is_ending() {
+        return;
+    }
+    println!("{}", crate::i18n::t().debug_console_wait);
+    // This returns when Enter is pressed. Closing the window instead sends
+    // CTRL_CLOSE_EVENT, which ends the process — no handler can refuse that
+    // (ADR 0062), and for a debug session it is the intended way out.
+    let mut line = String::new();
+    let _ = std::io::stdin().read_line(&mut line);
+}
+
+/// Whether Windows is ending the session (sign-out, shutdown, restart).
+///
+/// Checked before the wait above: there is nobody at the keyboard to close a
+/// window, and a process that will not finish is one that Windows has to sit
+/// out its shutdown timeout on.
+fn session_is_ending() -> bool {
+    // SAFETY: SM_SHUTTINGDOWN is a documented index; the call has no
+    // preconditions.
+    unsafe { GetSystemMetrics(SM_SHUTTINGDOWN) != 0 }
+}
+
+/// Whether stdout goes somewhere a console cannot stand in for — a file or a
+/// pipe.
+///
+/// The handle alone does not say: an inherited console and a `> out.txt` both
+/// look "set", so the question is what kind of object it is.
+fn stdout_is_captured() -> bool {
+    // SAFETY: `STD_OUTPUT_HANDLE` is one of the documented STD_* constants.
+    let Ok(handle) = (unsafe { GetStdHandle(STD_OUTPUT_HANDLE) }) else {
+        return false;
+    };
+    if handle.is_invalid() {
+        return false;
+    }
+    // SAFETY: any handle value is acceptable; unknown ones report FILE_TYPE_UNKNOWN.
+    let kind = unsafe { GetFileType(handle) };
+    kind == FILE_TYPE_DISK || kind == FILE_TYPE_PIPE
+}
+
 /// Whether the launcher handed us this standard handle (console, pipe, file).
 fn std_handle_is_set(which: STD_HANDLE) -> bool {
     // SAFETY: `which` is one of the documented STD_* constants.
@@ -121,11 +229,19 @@ fn adopt_console_handle(which: STD_HANDLE) {
     if std_handle_is_set(which) {
         return;
     }
-    // SAFETY: CONOUT$ is the console's screen buffer; the handle is handed to
+    point_std_handle_at(which, w!("CONOUT$"));
+}
+
+/// Points a standard handle at a console device (`CONOUT$` / `CONIN$`),
+/// whatever it held before. Unlike [`adopt_console_handle`] this overwrites,
+/// which is what opening our own console needs: the old value refers to a
+/// console this process has already left.
+fn point_std_handle_at(which: STD_HANDLE, device: PCWSTR) {
+    // SAFETY: the device names are the console's own; the handle is handed to
     // SetStdHandle, which takes ownership for the life of the process.
     let console = unsafe {
         CreateFileW(
-            w!("CONOUT$"),
+            device,
             (GENERIC_READ | GENERIC_WRITE).0,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             None,

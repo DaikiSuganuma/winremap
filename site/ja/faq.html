@@ -143,15 +143,18 @@
             出ます (このオプションを付けない場合は何も出力しません)。<br>
             入力した文章そのものが
             ログに出ることはなく、ログがディスクに保存されることもありません。</p>
-    <p><code>--debug</code> を使うときの注意です。<br>
-            WinRemap は自前のコンソールを持たないため、シェルは終了を待ちません。<br>
-            すぐにプロンプトが戻り、そのプロンプトがログの上に描き直されるので、
-            <strong>文字が重なって見えます</strong>。<br>
-            シェルに待たせれば重なりません:</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>Start-Process winremap.exe -ArgumentList '--debug' -NoNewWindow -Wait</code></pre>
-    <p class="mb-0">停止は <kbd>Ctrl</kbd>+<kbd>C</kbd> かトレイからの終了です。<br>
-            ログウィンドウならこの問題は起きず、<code>--debug</code> も要りません
-            (開くだけでログが有効になります)。</p>
+    <p><code>--debug</code> を付けると、WinRemap 専用のコンソールウィンドウが開きます。<br>
+            他に書き込む相手が居ないので<strong>文字が重なりません</strong>。<br>
+            起動の 1 行目から出ます
+            (ログウィンドウは起動が終わってからしか開けないので、そこは見られません)。<br>
+            そして<strong>WinRemap が終了したあとも残ります</strong>ので、
+            終了時のログも読めます。<br>
+            読み終わったらウィンドウを閉じるか <kbd>Enter</kbd> を押してください。</p>
+    <p class="mb-0">動作中にこのウィンドウを閉じると WinRemap も終了します
+            (このオプションはそういう用途のものです)。<br>
+            出力をリダイレクトした場合
+            (<code>winremap --debug &gt; log.txt</code>) は、ウィンドウを開かず
+            そのファイルに書き続けます。</p>
     </div>
   </div>
 </section>
