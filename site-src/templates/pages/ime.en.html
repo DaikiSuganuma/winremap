@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block hero %}{% raw %}<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <h1 class="display-5 fw-bold">IME status indicator <span class="badge text-bg-secondary align-middle fs-6">optional</span></h1>
+    <p class="lead text-body-secondary mb-0">Know your input mode before you type. Back to the
+    <a href="index.html">help index</a>.</p>
+  </div>
+</header>{% endraw %}{% endblock %}
+
+{% block content %}{% raw %}<main>
+
+<section id="ime" class="container py-4">
+  <p>Independent of remapping, WinRemap can flash a translucent
+  <strong>「あ」</strong> panel at the center of the active window the moment the IME
+  turns on — or when you focus a window whose IME is on — so you always know your
+  input mode before typing. Display only: WinRemap never switches the IME.</p>
+<pre class="bg-body-tertiary border rounded p-3"><code>[ime_indicator]
+enabled = true                # default: false
+# trigger_keys = ["C-Space"]  # if you toggle the IME with Ctrl+Space
+# duration_ms = 800           # 100–5000
+# size = 96                   # 32–256
+# opacity = 200               # 0–255
+# show_app_name = true        # exe name under the glyph
+</code></pre>
+  <p>Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are detected
+  out of the box; add <code>trigger_keys</code> if you use a custom toggle like the
+  Windows 11 IME's Ctrl+Space option. The panel never takes focus or input, and a problem
+  in the indicator never affects remapping.</p>
+</section>
+
+</main>{% endraw %}{% endblock %}

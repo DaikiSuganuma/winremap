@@ -32,3 +32,14 @@ jobs:
         run: cargo clippy --all-targets --features test-inject -- -D warnings
       - name: Test (test-inject)
         run: cargo test --features test-inject
+      # site/ is committed but generated (ADR 0066). Without this, an edit to
+      # site-src/ that was never built would ship the old pages, and an edit
+      # made directly in site/ would look like it worked until the next build
+      # silently reverted it.
+      - name: Install Zola
+        run: |
+          Invoke-WebRequest -Uri https://github.com/getzola/zola/releases/download/v0.22.1/zola-v0.22.1-x86_64-pc-windows-msvc.zip -OutFile zola.zip
+          Expand-Archive zola.zip -DestinationPath $env:RUNNER_TEMP\zola
+          Add-Content $env:GITHUB_PATH "$env:RUNNER_TEMP\zola"
+      - name: Help site is up to date
+        run: .\site-src\build.ps1 -Check

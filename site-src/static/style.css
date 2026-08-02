@@ -1,0 +1,154 @@
+/* WinRemap help site — Bootstrap 5.3 does the work (ADR 0028, ADR 0047).
+ *
+ * Only a few things are ours here. Everything else is stock Bootstrap
+ * components and utility classes, at Bootstrap's own widths.
+ *
+ *   1. The brand colour — WinRemap's icon blue (#0078D4) — mapped onto
+ *      Bootstrap's primary and link colours for both themes.
+ *   2. The hero band.
+ *   3. The hero's button group, stacked on a narrow screen.
+ *   4. The width of the phone menu.
+ *   5. The FAQ's question and answer marks.
+ *
+ * Colours reference Bootstrap's --bs-* custom properties, so dark mode comes
+ * from Bootstrap (switched by data-bs-theme, set from the OS by a small inline
+ * script in each page's <head>). */
+
+/* --- 1. brand colour: WinRemap's icon blue --------------------------- */
+
+:root {
+  --bs-primary: #0078d4;
+  --bs-primary-rgb: 0, 120, 212;
+  --bs-link-color-rgb: 0, 120, 212;
+  --bs-link-hover-color-rgb: 0, 90, 158;
+}
+
+[data-bs-theme="dark"] {
+  --bs-link-color-rgb: 77, 171, 247;
+  --bs-link-hover-color-rgb: 121, 192, 255;
+}
+
+.btn-primary {
+  --bs-btn-bg: #0078d4;
+  --bs-btn-border-color: #0078d4;
+  --bs-btn-hover-bg: #106ebe;
+  --bs-btn-hover-border-color: #106ebe;
+  --bs-btn-active-bg: #005a9e;
+  --bs-btn-active-border-color: #005a9e;
+}
+
+/* --- 2. hero band ---------------------------------------------------- */
+
+.hero {
+  background: var(--bs-tertiary-bg);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* --- 3. the hero's button group on a narrow screen -------------------- */
+
+/* A .btn-group with flex-wrap does wrap on a narrow screen, but Bootstrap's
+ * rounding rules assume one row: only the first and last button in the whole
+ * group are rounded, so a wrapped second row comes out with square outer
+ * corners and reads as a rendering fault. Below Bootstrap's md breakpoint the
+ * group stacks into one column instead, which is what a set of full-width
+ * buttons should look like on a phone anyway. The radius rules below are
+ * Bootstrap's horizontal ones turned through ninety degrees. */
+@media (max-width: 767.98px) {
+  .hero .btn-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .hero .btn-group > .btn {
+    border-radius: 0;
+    margin-left: 0;
+  }
+
+  .hero .btn-group > .btn:first-child {
+    border-top-left-radius: var(--bs-border-radius);
+    border-top-right-radius: var(--bs-border-radius);
+  }
+
+  .hero .btn-group > .btn:last-child {
+    border-bottom-left-radius: var(--bs-border-radius);
+    border-bottom-right-radius: var(--bs-border-radius);
+  }
+
+  .hero .btn-group > .btn + .btn {
+    margin-top: -1px;
+  }
+}
+
+/* --- 4. the width of the phone menu ---------------------------------- */
+
+/* Bootstrap's offcanvas is 400px wide, which on most phones is the whole
+ * screen and then some. Stopping it short of the right edge keeps the
+ * toggler you just pressed in view, and leaves a strip of the page to tap
+ * to dismiss the menu. Above the lg breakpoint the navbar expands and the
+ * offcanvas is inert, so this only ever applies on a phone or tablet. */
+#nav {
+  --bs-offcanvas-width: min(20rem, calc(100vw - 4.5rem));
+}
+
+/* --- 5. the FAQ's question and answer marks --------------------------- */
+
+/* Each entry is a Q row and an A row, marked the way a printed FAQ marks
+ * them. The point is that the answer is recognisable as an answer without
+ * reading it — indentation alone did not carry that. */
+
+.faq-item {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.faq-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.faq-q,
+.faq-a {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.faq-q {
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.faq-mark {
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+  background-color: var(--bs-primary);
+  color: #fff;
+}
+
+.faq-a .faq-mark {
+  margin-top: 0.15rem;             /* sits on the answer's first line */
+  background-color: var(--bs-secondary-bg);
+  color: var(--bs-secondary-color);
+  border: 1px solid var(--bs-border-color);
+}
+
+/* min-width lets a wide <pre> scroll inside the row instead of stretching
+ * it; without it a flex item refuses to shrink below its content. */
+.faq-body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.faq-body > :last-child {
+  margin-bottom: 0;
+}

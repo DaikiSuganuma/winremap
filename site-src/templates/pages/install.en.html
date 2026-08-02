@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block hero %}{% raw %}<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <h1 class="display-5 fw-bold">Install &amp; quick start</h1>
+    <p class="lead text-body-secondary mb-0">Get WinRemap running and make your first
+    per-application remap. Back to the <a href="index.html">help index</a>.</p>
+  </div>
+</header>{% endraw %}{% endblock %}
+
+{% block content %}{% raw %}<main>
+
+<section id="install" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-box-arrow-in-down me-2"></i>Install</h2>
+  <p>There are two official ways to get WinRemap, and they install the same build from
+  the same source. <strong>The Microsoft Store is the recommended one</strong> — Windows installs it
+  without a SmartScreen warning and updates arrive on their own. Take GitHub Releases if you want a
+  portable <code>winremap.exe</code>, or if you would rather verify the download yourself.</p>
+
+  <div class="table-responsive my-3">
+    <table class="table table-bordered align-middle">
+      <thead>
+        <tr><th scope="col"></th><th scope="col">Microsoft Store</th><th scope="col">GitHub Releases</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row" class="fw-normal">SmartScreen warning</th>
+            <td>None — Microsoft signs the package</td>
+            <td>Possible on a new download (see below)</td></tr>
+        <tr><th scope="row" class="fw-normal">Updates</th>
+            <td>Automatic</td>
+            <td>You download the new version</td></tr>
+        <tr><th scope="row" class="fw-normal">Config file</th>
+            <td>Kept in the app's own folder; the settings window shows you where</td>
+            <td><code>%APPDATA%\winremap\config.toml</code></td></tr>
+        <tr><th scope="row" class="fw-normal">Portable use</th>
+            <td>No</td>
+            <td>Yes — a single <code>winremap.exe</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>From the Microsoft Store</h3>
+  <p>Open the Store page, press <em>Get</em>, and Windows does the rest. WinRemap appears
+  in the Start menu and a keyboard icon appears in the task tray when you run it.
+  To have it start with Windows, turn it on under
+  <em>Settings → Apps → Startup</em>.</p>
+
+  <div class="d-flex mt-3 mb-2">
+    <a class="btn btn-primary btn-lg" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-1"></i>Open in the Microsoft Store app</a>
+  </div>
+  <p class="text-body-secondary small"><strong>Windows only.</strong> This button hands off to the Store
+  app, so it does nothing on macOS, Linux or a phone, and your browser will ask for permission the first
+  time. Use the Store page below if the button does not work.</p>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-secondary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-box-arrow-up-right me-1"></i>Store page in your browser</a>
+  </div>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>From GitHub Releases</h3>
+  <ol>
+    <li>Download <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><code>winremap-setup.exe</code></a> and run it.
+      No administrator rights are needed — WinRemap installs per-user.</li>
+    <li>Choose whether WinRemap should <strong>start automatically when you sign in</strong> (recommended for daily use; you can change this later).</li>
+    <li>Finish the wizard. WinRemap starts and a keyboard icon appears in the task tray.</li>
+  </ol>
+
+  <div class="d-flex flex-wrap gap-2 my-3">
+    <a class="btn btn-primary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>Download installer</a>
+    <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>Portable exe</a>
+    <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases"><i class="bi bi-github me-1"></i>All releases</a>
+  </div>
+
+  <div class="alert alert-warning d-flex gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+    <div><strong>"Windows protected your PC" (SmartScreen)?</strong> This applies to files
+    downloaded from GitHub, not to the Store. Those binaries are not code-signed, so Windows
+    may show the warning for a new download. Click <em>More info</em> → <em>Run anyway</em>.
+    You can — and should — verify the download instead of trusting it blindly:
+    every release ships with a <code>SHA256SUMS</code> file and a GitHub build-provenance
+    attestation proving it was built from this repository's public source.
+    See <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a> for the two commands.
+    Installing from the Store avoids the warning entirely.</div>
+  </div>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Install from a package manager</h3>
+  <p>Once the manifest is accepted, winget works too — it pulls the same official
+  binaries from GitHub Releases:</p>
+<pre class="bg-body-tertiary border rounded p-3"><code>winget install winremap</code></pre>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Portable use (no installer)</h3>
+  <p>Prefer a single file? Download
+  <a href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><code>winremap.exe</code></a>
+  and run it from anywhere. It reads the same
+  <code>%APPDATA%\winremap\config.toml</code>, or any file you pass with
+  <code>--config path\to\file.toml</code>. There are no other files or registry entries.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Your config file</h3>
+  <p>WinRemap creates a starter config on first run if you don't already have one, and
+  your existing config is never touched — uninstalling keeps it.</p>
+  <p class="mb-0">Where it lives depends on how you installed. The installer and the
+  portable exe use <code>%APPDATA%\winremap\config.toml</code>. Windows gives Store apps a
+  private copy of that folder, so a fresh Store install keeps the file under
+  <code>%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap\</code>
+  instead. You never have to type that: the settings window names the folder it is actually
+  using and opens it in Explorer for you. And if you already had a config from the installer,
+  the Store version keeps using that one — <strong>switching channels does not lose your
+  rules</strong>.</p>
+</section>
+
+<section id="quickstart" class="container py-4">
+  <h2 class="mb-3"><i class="bi bi-rocket-takeoff me-2"></i>Quick start</h2>
+  <p>WinRemap lives in the task tray. The tray menu has everything:</p>
+  <ul>
+    <li><strong>Enabled</strong> — toggle all remapping on/off without quitting</li>
+    <li><strong>Settings</strong> — see the config in effect right now, and hand <code>config.toml</code> to your text editor</li>
+    <li><strong>Reload config</strong> — apply config changes instantly (no restart, no lost keystrokes)</li>
+    <li><strong>Show log</strong> — watch what WinRemap does with each keystroke, live</li>
+    <li><strong>Quit</strong></li>
+  </ul>
+  <p>Open the config and describe what you want, per application:</p>
+<pre class="bg-body-tertiary border rounded p-3"><code># Ctrl+H sends a plain Backspace, but only inside Notepad
+[[keymap]]
+name = "notepad"
+application = ["notepad.exe"]
+
+[keymap.remap]
+"C-h" = "Back"
+</code></pre>
+  <p>Save, choose <em>Reload config</em> from the tray, and press
+  <kbd>Ctrl</kbd>+<kbd>H</kbd> in Notepad — it now deletes one character, while every
+  other app still sees a normal Ctrl+H.</p>
+
+  <div class="alert alert-info d-flex gap-2" role="alert">
+    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+    <div><strong>Which name goes in <code>application</code>?</strong> Pick
+    <em>Show log</em> from the tray and switch to the target window: the log shows each
+    foreground app's full path, the exact <code>application</code> value to use, and
+    which of your keymaps would apply.</div>
+  </div>
+
+  <p>Ready-made configs to copy from:
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/minimal.toml">minimal.toml</a> (the example above),
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/emacs.toml">emacs.toml</a> (fakeymacs-style Emacs bindings), and
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/personal-ja.toml">personal-ja.toml</a>
+  (a full personal setup with exclusion lists, macros, and prefix keys).</p>
+
+  <p class="mt-4">
+    <a class="btn btn-primary" href="config.html"><i class="bi bi-book me-1"></i>Configuration guide</a>
+  </p>
+  <p class="text-body-secondary">Every option explained, the full key-notation table, and
+  worked examples for CapsLock, Emacs bindings, per-app exceptions and macros.</p>
+</section>
+
+</main>{% endraw %}{% endblock %}

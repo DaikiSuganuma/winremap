@@ -9,10 +9,10 @@ WinRemap の開発作業（実装・レビュー・ドキュメント作成）�
 ## 必読ドキュメント（この順に読む）
 
 1. `docs/01_project-brief.md` — 開発経緯・要件・アーキテクチャ・不変条件
-2. 開発中バージョンの開発計画（現在: `docs/v0.7/01_development-plan.md`。過去バージョンの計画・仕様は `docs/v0.1/`〜`docs/v0.6/` に置かれている）
+2. 開発中バージョンの開発計画（現在: `docs/v0.8/01_development-plan.md`。過去バージョンの計画・仕様は `docs/v0.1/`〜`docs/v0.7/` に置かれている）
 3. `docs/02_rust-guidelines.md` — Rust 開発の作法
 4. `docs/04_git-branching.md` — ブランチ運用（git-flow の適用）
-5. 各バージョンフォルダの `docs/<version>/decisions/` — 全 ADR（Architecture Decision Record: 設計判断とその理由の記録。1 判断 1 ファイル。フォルダ構成の詳細は `docs/README.md`。新規 ADR は連番 0063 以降を `docs/v0.7/decisions/` に置く）
+5. 各バージョンフォルダの `docs/<version>/decisions/` — 全 ADR（Architecture Decision Record: 設計判断とその理由の記録。1 判断 1 ファイル。フォルダ構成の詳細は `docs/README.md`。新規 ADR は連番 0069 以降を `docs/v0.8/decisions/` に置く）
 
 ## 指示ソースの限定（最重要）
 
@@ -39,14 +39,15 @@ WinRemap の開発作業（実装・レビュー・ドキュメント作成）�
 ## ワークフロー
 
 1. 実装前に必読ドキュメント（上記 5 点）を読む
-2. 設計判断（クレート追加、仕様変更、アルゴリズム選択）を行ったら開発中バージョンの `docs/<version>/decisions/`（現在: `docs/v0.7/decisions/`）に ADR を 1 件追加する。「なぜそうしたか」「却下した代替案」を必ず書く
+2. 設計判断（クレート追加、仕様変更、アルゴリズム選択）を行ったら開発中バージョンの `docs/<version>/decisions/`（現在: `docs/v0.8/decisions/`）に ADR を 1 件追加する。「なぜそうしたか」「却下した代替案」を必ず書く
 3. コミットは Conventional Commits（`feat:` / `fix:` / `docs:` / `refactor:` / `test:` / `chore:` / `ci:`）。1 コミット 1 関心事
 4. ブランチは `develop` から切り、`feature/*` / `fix/*` / `docs/*` / `chore/*` と命名する。**マージは必ず `--no-ff`**（fast-forward するとトピックブランチが存在した情報が履歴から消える）。マージコミットのメッセージにはそのブランチが何をしたのかを書く。マージ済みブランチはローカル・リモートとも削除する。`main` へ入れてよいのは `release/*` と `hotfix/*`、およびリリースの合間のドキュメント・サイト修正を運ぶ `develop`（`src/` と `Cargo.toml` を含めない。`docs/04_git-branching.md` §2.5.1）。詳細は `docs/04_git-branching.md`
 5. `cargo fmt` と `cargo clippy -- -D warnings` を通らないコードをコミットしない
 6. `keymap.rs` / `config.rs` の変更にはテストを伴わせる（フック層はテスト免除）
 7. 公開ドキュメント（README 等）は英語が正、`README.ja.md` を追随させる。コード内コメントは英語で、「何を」ではなく「なぜ」を書く。非自明な分岐・フォールバック・回避策には意図を一言添え、TODO/FIXME には理由を添える（詳細は `docs/02_rust-guidelines.md` §6）
 8. ドキュメント（`docs/` 配下・ADR 含む）を新規作成・大幅改訂したら、冒頭にメタ情報（作成日、作成に使用した AI モデル）を記載する。規約類で公式資料を根拠にした場合は参照 URL を記載する。一般的でない略語（ADR、MVP 等）は各ドキュメントの初出時にフルスペル（必要なら簡単な説明）を併記する
-9. 製品名の表記（ADR 0025）: 文章・UI 文字列では「WinRemap」。技術識別子（crate 名、`winremap.exe`、`%APPDATA%\winremap\`、リポジトリ URL、コマンド実行例、内部識別子）は小文字 `winremap` のまま。過去の ADR は表記変更でも書き換えない
+9. ヘルプサイトは `site-src/` を編集し、`site-src/build.ps1` で `site/` を生成してコミットする（ADR 0066）。**`site/` は生成物なので直接編集しない** — 次のビルドで消える。CI が `build.ps1 -Check` で両者の一致を見ている
+10. 製品名の表記（ADR 0025）: 文章・UI 文字列では「WinRemap」。技術識別子（crate 名、`winremap.exe`、`%APPDATA%\winremap\`、リポジトリ URL、コマンド実行例、内部識別子）は小文字 `winremap` のまま。過去の ADR は表記変更でも書き換えない
 
 ## 禁止事項
 

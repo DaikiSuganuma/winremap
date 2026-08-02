@@ -56,6 +56,20 @@ v0.7 が**利用者から見た欠落**（記号キー）を埋めた版だっ�
 - Pages が従来どおり発行され、`privacy.html` が 200 を返す（Store 提出の順序制約に効く）
 - **1 か所の修正が 1 か所の編集で済む**ようになっていること
 
+### 実施記録（2026-08-02）— **移行完了**
+
+`feature/zola-site`。原稿は `site-src/`（Zola 0.22.1）、出力は従来どおり `site/`、`pages.yml` は**無変更**。
+
+| 確かめたこと | 結果 |
+|---|---|
+| 生成物が移行前と同じか | **14 ページすべて、差分はヘッダーコメントの 4 行だけ**（「Created: …」→「Generated from site-src/ …」）。改行を正規化して 1 行ずつ比較した |
+| ビルドの再現性 | `build.ps1 -Check` が「site/ matches site-src/ (23 files)」 |
+| CI | `ci.yml` に Zola の導入と `build.ps1 -Check` を追加。**生成物のコミット忘れと `site/` の直接編集が赤になる** |
+
+- **URL は 1 つも変わっていない。** Zola は `path = "install.html"` をディレクトリにするので、ビルド後に平坦化している（[ADR 0066](decisions/0066-zola-static-site.md)）
+- **`site/` は生成物になった。** 直接編集しないこと。`.gitattributes` で GitHub の差分表示からも畳んである
+- 移行中に **`faq.html` の言語切り替えリンクが日本語トップを指している**不具合を見つけた。移行と混ぜず別コミットで直す
+
 ---
 
 ## 3. Phase B — IME の状態をカーソルの色で示す
