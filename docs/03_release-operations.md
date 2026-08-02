@@ -7,6 +7,7 @@
 - 更新: 2026-07-29（Claude Code / claude-opus-5[1m]）— **§4 Microsoft Store を追加**。v0.6.0 以降、**1 回のリリースで更新するチャネルは 2 つ**になった
 - 更新: 2026-07-30（Claude Code / claude-opus-5[1m]）— v0.6.0 の Store 提出と winget 差し替えの実施記録を §3・§4.2 に追記
 - 更新: 2026-07-31（Claude Code / claude-opus-5[1m]）— v0.6.0 の**認定通過**を §4.2 に記録。P-8 が通り、v0.6 の受け入れが閉じた
+- 更新: 2026-08-03（Claude Code / claude-opus-5[1m]）— §1 に**自動側の所要時間と人の作業への影響**を書く旨を追加。最新チェックリストの参照を v0.8 に更新
 
 ---
 
@@ -48,8 +49,9 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 
    **v0.5 以降は「そのバージョンの 1 枚」だけを見ればよい。** v0.1〜v0.3 の約 200 項目は v0.5 で「自動で通す／手で通す／もう通さない」に仕分けてあり、手で通すものは [v0.5 チェックリスト §4](./v0.5/03_acceptance-checklist.md) の**手動最小集合 H-1〜H-9**（30〜40 分）に集約されている。各バージョンのチェックリストはこれを継承したうえで固有項目を足す形で作る。
 
-   - 最新: [v0.6 受け入れチェックリスト](./v0.6/03_acceptance-checklist.md)（H-1〜H-9 ＋ MSIX 固有の P-1〜P-7）
+   - 最新: [v0.8 受け入れチェックリスト](./v0.8/03_acceptance-checklist.md)（C-1〜C-5 ＋ M-1〜M-6 ＋ H-1〜H-10 ＋ MSIX 固有の P-1〜P-9）。**v0.8 以降、手動の項目は対話ハーネスで進める**（[ADR 0069](./v0.8/decisions/0069-interactive-acceptance-harness.md)）
    - 自動側: `cargo test` と `tests\ui\run-vm-ui-test.ps1`（[05_ui-test-automation.md](./05_ui-test-automation.md)）
+   - **自動側は人の作業を邪魔しうる。所要時間とあわせて、そのバージョンのチェックリスト §1 に表で書く**（v0.8 で追加）。とくに**前面ウィンドウ・マウスカーソル・IME を触る検査**（	ests\acceptance\probe-ime-cursor.ps1 など）は、**回す前に断り、席を外している時間にまとめて回す** — 邪魔になるだけでなく、**人が前面を動かすと検査のほうが誤る**ので測り直しになる（2026-08-03 の実施で判明）
    - 過去分（仕分けの根拠として参照する）: [v0.1](./v0.1/03_acceptance-checklist.md)・[v0.2](./v0.2/03_acceptance-checklist.md)・[v0.3](./v0.3/03_acceptance-checklist.md)・[v0.4](./v0.4/03_acceptance-checklist.md)
 2. **CHANGELOG**: `Unreleased` の内容を新バージョン見出し（例 `## [0.1.0] - 2026-07-XX`）に切り出す
 3. **バージョン**: `Cargo.toml` の `version` が**リリースする番号になっているか確認**する。番号を上げるのは開発の開始時であって、ここではない（[04_git-branching.md](04_git-branching.md) §2.6）。上がっていなければこの時点で上げる
