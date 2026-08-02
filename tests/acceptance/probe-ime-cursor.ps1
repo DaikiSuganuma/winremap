@@ -19,7 +19,8 @@
 [CmdletBinding()]
 param(
     [string]$Exe = ".\target\release\winremap.exe",
-    # Deliberately not the default orange: a colour nothing else produces.
+    # A colour nothing else on the screen produces, so "leans blue" below can
+    # only be this tint.
     [string]$Color = "#00a0ff",
     # Internal: re-invokes this script to take one measurement in a process
     # of its own (see Get-ArrowTint).
@@ -55,25 +56,35 @@ Add-Type -Namespace Probe -Name Cur -MemberDefinition @'
 [StructLayout(LayoutKind.Sequential)] public struct BMI { public int size, w, h; public short planes, bpp; public int compression, imgSize, xppm, yppm, used, important; public int pad1, pad2, pad3; }
 '@
 
-# One system cursor as the session currently has it, summarised as
-# "<blue-leaning> <fully transparent> <pixels read>". A black-and-white cursor
-# leans nowhere; a cursor that is opaque nearly everywhere is a solid
-# rectangle, which is what a broken tint looks like.
-function Read-ArrowTint {
-    $cur = [Probe.Cur]::LoadCursorW([IntPtr]::Zero, $CursorId)
-    $info = New-Object Probe.Cur+INFO
-    if (-not [Probe.Cur]::GetIconInfo($cur, [ref]$info)) { return 0 }
-    $source = if ($info.hbmColor -ne [IntPtr]::Zero) { $info.hbmColor } else { $info.hbmMask }
+# Any bitmap as top-down 32-bit BGRA, whatever it is stored as. A monochrome
+# one comes back black and white, which is what makes counting the AND mask
+# below the same job as counting pixels.
+function Read-Bitmap([IntPtr]$bitmap) {
     $bm = New-Object Probe.Cur+BM
-    [void][Probe.Cur]::GetObjectW($source, [System.Runtime.InteropServices.Marshal]::SizeOf($bm), [ref]$bm)
+    [void][Probe.Cur]::GetObjectW($bitmap, [System.Runtime.InteropServices.Marshal]::SizeOf($bm), [ref]$bm)
     $bmi = New-Object Probe.Cur+BMI
     $bmi.size = 40; $bmi.w = $bm.w; $bmi.h = -$bm.h; $bmi.planes = 1; $bmi.bpp = 32
     $bytes = New-Object byte[] ($bm.w * $bm.h * 4)
     $dc = [Probe.Cur]::CreateCompatibleDC([IntPtr]::Zero)
-    [void][Probe.Cur]::GetDIBits($dc, $source, 0, $bm.h, $bytes, [ref]$bmi, 0)
+    [void][Probe.Cur]::GetDIBits($dc, $bitmap, 0, $bm.h, $bytes, [ref]$bmi, 0)
     [void][Probe.Cur]::DeleteDC($dc)
-    [void][Probe.Cur]::DeleteObject($info.hbmMask)
-    if ($info.hbmColor -ne [IntPtr]::Zero) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
+    return $bytes
+}
+
+# One system cursor as the session currently has it, summarised as
+# "<blue-leaning> <alpha-transparent> <pixels read> <mask-transparent>".
+#
+# A black-and-white cursor leans nowhere, so "leans blue" can only be the
+# tint. The two transparency counts are the same shape described twice — once
+# in the colour bitmap's alpha channel and once in the 1-bit AND mask — and
+# Windows does not always read the same one, so both have to say it (see the
+# check that compares them).
+function Read-ArrowTint {
+    $cur = [Probe.Cur]::LoadCursorW([IntPtr]::Zero, $CursorId)
+    $info = New-Object Probe.Cur+INFO
+    if (-not [Probe.Cur]::GetIconInfo($cur, [ref]$info)) { return 0 }
+    $colored = $info.hbmColor -ne [IntPtr]::Zero
+    $bytes = Read-Bitmap $(if ($colored) { $info.hbmColor } else { $info.hbmMask })
     $blue = 0
     $clear = 0
     # BGRA. "Leans blue" = clearly more blue than red, which no grey pixel of
@@ -82,7 +93,19 @@ function Read-ArrowTint {
         if ($bytes[$i] -gt $bytes[$i + 2] + 40) { $blue++ }
         if ($bytes[$i + 3] -eq 0) { $clear++ }
     }
-    return "$blue $clear $($bytes.Length / 4)"
+    # The AND mask, where 1 (white, once read as 32-bit) means the screen
+    # shows through. Only meaningful next to a colour bitmap: on a mask-only
+    # cursor this bitmap is twice as tall and carries the XOR rows too.
+    $masked = 0
+    if ($colored) {
+        $mask = Read-Bitmap $info.hbmMask
+        for ($i = 0; $i -lt $mask.Length; $i += 4) {
+            if ($mask[$i] -ne 0 -or $mask[$i + 1] -ne 0 -or $mask[$i + 2] -ne 0) { $masked++ }
+        }
+    }
+    [void][Probe.Cur]::DeleteObject($info.hbmMask)
+    if ($colored) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
+    return "$blue $clear $($bytes.Length / 4) $masked"
 }
 
 if ($ReadArrowOnly) {
@@ -99,7 +122,7 @@ $selfPath = $PSCommandPath
 $hostExe = (Get-Process -Id $PID).Path
 function Measure-Cursor([int]$id = 32512) {
     $raw = (& $hostExe -NoProfile -File $selfPath -ReadArrowOnly -CursorId $id | Select-Object -Last 1) -split ' '
-    return [pscustomobject]@{ Blue = [int]$raw[0]; Clear = [int]$raw[1]; Total = [int]$raw[2] }
+    return [pscustomobject]@{ Blue = [int]$raw[0]; Clear = [int]$raw[1]; Total = [int]$raw[2]; Masked = [int]$raw[3] }
 }
 function Get-ArrowTint {
     (Measure-Cursor 32512).Blue
@@ -149,7 +172,27 @@ function Measure-Poke {
     "the 半角/全角 poke {0} this machine's IME" -f $(if ($script:pokeToggles) { "toggles" } else { "does not move" })
 }
 
+# The window every measurement is taken against. The IME's open state is
+# per-window and WinRemap reads whichever window is in front, so a probe that
+# lets the foreground drift is measuring an unrelated window's IME — two runs
+# failed different checks that way (2026-08-02).
+$script:target = [IntPtr]::Zero
+
+function Set-Focus {
+    [void][Probe.Cur]::SetForegroundWindow($script:target)
+    Start-Sleep -Milliseconds 400
+}
+
+# Sets the state without telling WinRemap. For arranging the ground before a
+# start, when there is no WinRemap running to notice.
+function Set-ImeDirect([int]$open) {
+    Set-Focus
+    [void][Probe.Cur]::SendMessageW((Get-ImeWnd), 0x283, [IntPtr]6, [IntPtr]$open)
+    Start-Sleep -Milliseconds 200
+}
+
 function Set-Ime([int]$open) {
+    Set-Focus
     $ime = Get-ImeWnd
     # Aim off by one when the poke will flip it, so the flip lands on target.
     $aim = if ($script:pokeToggles) { 1 - $open } else { $open }
@@ -187,15 +230,19 @@ application = ["*"]
 
 "before anything: $(Get-ArrowTint) blue-leaning pixels in the arrow"
 
-$app = Start-WinRemap $config
-Check "startup-clears-any-leftover" ((Get-ArrowTint) -eq 0) "a tint from a previous run must not survive the next start"
-
+# The window under test comes first, and the IME goes off before WinRemap
+# starts: "a start clears the tint" is only a statement about the tint if the
+# IME is not on at the time, or WinRemap is right to put the colour straight
+# back.
 $notepad = Start-Process notepad -PassThru
 Start-Sleep -Seconds 3
-[void][Probe.Cur]::SetForegroundWindow($notepad.MainWindowHandle)
-Start-Sleep -Milliseconds 700
-
+$script:target = $notepad.MainWindowHandle
+Set-Focus
 Measure-Poke
+Set-ImeDirect 0
+
+$app = Start-WinRemap $config
+Check "startup-clears-any-leftover" ((Get-ArrowTint) -eq 0) "a tint from a previous run must not survive the next start"
 
 $state = Set-Ime 1
 $on = Get-ArrowTint
@@ -211,6 +258,15 @@ $beam = Measure-Cursor 32513
 $kept = $beam.Blue -gt 0 -and $beam.Clear -gt $beam.Total / 2
 Check "the-i-beam-keeps-its-shape" $kept "blue $($beam.Blue), transparent $($beam.Clear) of $($beam.Total)"
 
+# Being transparent in the alpha channel is not enough: Windows has more than
+# one path for putting a cursor on the screen, and the one that reads the
+# 1-bit AND mask draws a solid rectangle whenever that mask says "opaque
+# everywhere". Zed took that path (owner report, 2026-08-02). So the shape has
+# to be stated twice, and the two statements have to agree.
+$arrow = Measure-Cursor 32512
+$agree = $arrow.Masked -eq $arrow.Clear -and $beam.Masked -eq $beam.Clear
+Check "the-shape-is-in-the-mask-too" $agree "arrow mask $($arrow.Masked) vs alpha $($arrow.Clear); I-beam mask $($beam.Masked) vs alpha $($beam.Clear)"
+
 $state = Set-Ime 0
 $off = Get-ArrowTint
 Check "restores-when-the-ime-goes-off" ($state -eq 0 -and $off -eq 0) "IME reports $state; blue-leaning pixels: $off"
@@ -225,15 +281,15 @@ $afterKill = Get-ArrowTint
 Check "a-kill-leaves-the-tint-behind" ($beforeKill -gt 0 -and $afterKill -gt 0) "before $beforeKill, after $afterKill"
 
 # ...and the next start clears it, without anything having been recorded.
+# The IME goes off first, and directly: with the tint left behind and nothing
+# running to notice, this is arranging the ground, not a thing being measured
+# — and it keeps "the colour went away" from meaning "the IME went off".
+Set-ImeDirect 0
 $app = Start-WinRemap $config
 $afterRestart = Get-ArrowTint
 Check "the-next-start-restores-it" ($afterRestart -eq 0) "blue-leaning pixels: $afterRestart"
 
 Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
-# The IME was left on in that window; put it back before closing.
-[void][Probe.Cur]::SetForegroundWindow($notepad.MainWindowHandle)
-Start-Sleep -Milliseconds 500
-[void](Set-Ime 0)
 Stop-Process -Id $notepad.Id -Force -ErrorAction SilentlyContinue
 Remove-Item $config -ErrorAction SilentlyContinue
 
