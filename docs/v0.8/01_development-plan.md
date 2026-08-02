@@ -25,7 +25,7 @@ v0.7 が**利用者から見た欠落**（記号キー）を埋めた版だっ�
 | A | **ヘルプサイトの静的サイトジェネレーター化** | 方式決定済み（[ADR 0066](decisions/0066-zola-static-site.md)）— Zola、生成物をコミット |
 | B | **IME 切り替え時にマウスカーソルの色を変える** | 方式決定済み（[ADR 0067](decisions/0067-ime-cursor-color.md)）— `SetSystemCursor`。異常終了は**その場で見て分かる形**で畳む |
 | C | **`--debug` を `AllocConsole` にする** | 方式決定済み（[ADR 0068](decisions/0068-debug-console.md)）— **閉じられるまで残す**。ADR 0029 の決定 1 を覆す |
-| D | **受け入れテストの対話化** | **ADR 0069 が要る**（形と記録先の決定） |
+| D | **受け入れテストの対話化** | 方式決定済み（[ADR 0069](decisions/0069-interactive-acceptance-harness.md)）— チェックリストの Markdown を読み、同じ Markdown へ書き戻す |
 
 ### やらないこと
 
@@ -182,11 +182,37 @@ v0.7 の受け入れで実際に起きたことが、そのまま要件である
 4. **結果を選ぶ**（通過 / 不合格 / 未実施）＋ **自由記述**（「US 101 の `;`（`VK_OEM_1`）」のような、記録に残す価値のある一文）
 5. **チェックリストの §7 に追記する** — 人が写さない
 
-### ADR 0069 で決めること
+### 決定（[ADR 0069](decisions/0069-interactive-acceptance-harness.md)）
 
-- **記録先**（チェックリストの Markdown を直接書き換えるか、中間ファイルを経由するか）
-- **「未実施」と「測れない」を区別できる形**（後者は認定待ちのように**後で埋まる**）
-- ハーネス自体をどこに置くか（`tests/acceptance/` に [`symbol-keys.toml`](../../tests/acceptance/symbol-keys.toml) がある）
+- **記録先はチェックリストの Markdown へ直接**。中間ファイルは挟まない（成果物が 2 つになるとずれる）
+- **項目もチェックリストの Markdown から読む。** ハーネスに写さない — 写した瞬間「手順が 2 か所にある」が復活する
+- **結果は 4 値**（通過 / 不合格 / 未実施 / 測れない）。**「測れない」には「何が揃えば測れるか」を必須**にし、`-Resume` の対象にする
+- **実行環境（キーボード配列・版・OS）はハーネスが自動で刻む。** v0.7 で「配列を書いてください」と依頼して書かれなかったので、機械が知っていることは機械が書く
+- 置き場所は **`tests/acceptance/`**（[`symbol-keys.toml`](../../tests/acceptance/symbol-keys.toml)・[`probe-ime-cursor.ps1`](../../tests/acceptance/probe-ime-cursor.ps1) と同居）
+
+### 実施記録（2026-08-02）— **実装完了**
+
+`feature/acceptance-harness`。[`tests/acceptance/run-acceptance.ps1`](../../tests/acceptance/run-acceptance.ps1)。
+
+```powershell
+.\tests\acceptance\run-acceptance.ps1 docs\v0.8\03_acceptance-checklist.md
+.\tests\acceptance\run-acceptance.ps1 <checklist> -Only S-1,S-2   # 部分実行
+.\tests\acceptance\run-acceptance.ps1 <checklist> -Resume         # 未記録＋測れない／不合格
+.\tests\acceptance\run-acceptance.ps1 <checklist> -List           # 解析結果だけ表示
+```
+
+| 確かめたこと | 結果 |
+|---|---|
+| v0.7 のチェックリストを解析できるか | **25 項目すべて**（S-1〜S-6・H-1〜H-10・P-1〜P-9）。`\|` を含む行（P-5）も壊れない |
+| 列の見出し | **表ごとに違う 4 列目**（§4 は「通過条件」、§3 は「v0.7 での見どころ」）を、その表の見出しのまま表示する |
+| 書き戻し | 実行 1 回につき見出し＋表 1 つを追記。記録中の `\|` は退避する |
+| 再開 | 追記後に `-Resume` が 25 → 22 件（通過・未実施が落ち、**測れないは残る**） |
+| §2 の準備と後片付け | 実運用の設定を退避 → 受け入れ用を配置 → **終了時に確実に戻す**（`finally`）。**退避先が既にあるときは触らずに止まる** |
+| マーカーが無いとき | **人に質問する前に**止まり、貼るべき断片を出す |
+| 環境の自動記録 | `キーボード: Japanese（00000411） / WinRemap 0.8.0 / Microsoft Windows 11 Pro（26200）` |
+
+- **`-Answers`（回答を流し込む自己テスト）を使うと、記録の見出しにその旨が残る。** 人が打っていないものを「通過」と書ける道具なので、痕跡が残らないと嘘の記録が作れてしまう
+- **v0.8 のチェックリストには `<!-- harness:begin -->` / `<!-- harness:end -->` を入れること**（Phase E）
 
 ---
 
@@ -213,6 +239,8 @@ Phase D（対話ハーネス）──┘
 - **B は C の後**が望ましい。異常終了まわりの確認は、起動時・終了時のログが見えるほうが速い
 - **D は B より前**に形だけ用意できると、B の受け入れ（プロセスを殺してカーソルが残ることの確認）をそのハーネスで行える
 
+> **実際の順序は C → A → B → D になった**（2026-08-02）。B が先に済んだのは、オーナーが実際に使って不具合が 2 件出たためである（[§3 の実施記録](#3-phase-b--ime-の状態をカーソルの色で示す)）。**B の受け入れは Phase E で、D のハーネスから行う。**
+
 ---
 
 ## 8. オーナー判断（**要・承認**）
@@ -223,5 +251,5 @@ Phase D（対話ハーネス）──┘
 | 2 | カーソルの色は **`SetSystemCursor`** | **決定済み（2026-08-02）** → [ADR 0067](decisions/0067-ime-cursor-color.md) |
 | 3 | **異常終了の扱い** — 痕跡ファイルは置かず、「色が残り、トレイに居ない」で分かる形にする | **決定済み（2026-08-02）** → [ADR 0067](decisions/0067-ime-cursor-color.md) 決定 4・5 |
 | 4 | **`--debug` の終了時ログ** — **閉じられるまで残す** | **決定済み（2026-08-02）** → [ADR 0068](decisions/0068-debug-console.md) 決定 2 |
-| 5 | 対話ハーネスの**記録先とハーネスの置き場所** | **未決**（ADR 0069。Phase D の着手時） |
+| 5 | 対話ハーネスの**記録先とハーネスの置き場所** | **決定済み（2026-08-02）** → [ADR 0069](decisions/0069-interactive-acceptance-harness.md)。記録先は**チェックリストの Markdown 本体**、置き場所は `tests/acceptance/`。**項目もそこから読む** |
 | 6 | 4 件を**この順序**（C → A・B → D）で進めてよいか | **未確認。** §7 の推奨のまま進める |
