@@ -180,7 +180,7 @@ Partner Center の製品は登録済みで、**これらの値は変えてはな
    - **Store からインストールしたときに SmartScreen の警告が出ないこと**
    - 「認定通過後に公開されます」の但し書きを文書から消す（**6 か所**。[v0.6 開発計画 §4.3](./v0.6/01_development-plan.md) に一覧）
 
-> **2026-08-02（v0.7.0）**: `packaging\msix\out\winremap-0.7.0.msix`（4.15 MB・**未署名**・`Identity/@Version` = `0.7.0.0`・Publisher は Partner Center の `CN=38CDEE8D-…` のまま）を作成した。パッケージの中身を開いて `AppxSignature.p7x` が無いことと Identity の 3 項目を確認済み。4.1 の順序制約も満たしている（Release 公開済み、`privacy.html` が 200）。**提出はオーナー**。掲載情報の変更点は [v0.7 の差分ノート](./v0.7/notes/20260802_store-listing-0.7.0.md)（**書き換えるのは「このバージョンの新機能」と「主な機能」の 1 行だけ**）。
+> **2026-08-02（v0.7.0）**: `packaging\msix\out\winremap-0.7.0.msix`（4.15 MB・**未署名**・`Identity/@Version` = `0.7.0.0`・Publisher は Partner Center の `CN=38CDEE8D-…` のまま）を作成した。パッケージの中身を開いて `AppxSignature.p7x` が無いことと Identity の 3 項目を確認済み。4.1 の順序制約も満たしている（Release 公開済み、`privacy.html` が 200）。**同日オーナーが Partner Center へ提出した。認定待ち。** 掲載情報の変更点は [v0.7 の差分ノート](./v0.7/notes/20260802_store-listing-0.7.0.md)（**書き換えるのは「このバージョンの新機能」と「主な機能」の 1 行だけ**）。
 >
 > **`cargo build` が「アクセスが拒否されました」で落ちたら、WinRemap 自身が `target\release\winremap.exe` から常駐している。** トレイから終了してから流し直す（2026-08-02 に遭遇）。
 >
