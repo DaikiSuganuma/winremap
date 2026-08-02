@@ -15,6 +15,11 @@
 # The items come out of the checklist's own tables, and the answers go back
 # into the same file between the `harness:begin` / `harness:end` markers, so
 # there is exactly one document and nobody transcribes anything.
+#
+# **Do not pipe this through `Select-Object -First N`.** That stops the whole
+# script where it is, so the teardown never runs and the live configuration
+# stays moved aside. (The next run refuses rather than overwrite it, so
+# nothing is lost — but it has to be put back by hand.)
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
@@ -140,26 +145,50 @@ function Get-Environment {
 $script:config = $ConfigPath
 $script:backup = "$ConfigPath.bak"
 
+# Puts an acceptance configuration in place, keeping the live one. Refuses
+# rather than overwrite: a stale backup means a previous run did not finish,
+# and the file under it is the owner's real configuration.
+function Use-Config([string]$fixture) {
+    if (Test-Path $script:backup) {
+        throw "$script:backup が既にある。前回の受け入れが片付いていない — 中身を確かめてから手で戻すこと"
+    }
+    if (Test-Path $script:config) {
+        Move-Item $script:config $script:backup
+        "  実運用の設定を $script:backup へ退避した"
+    }
+    Copy-Item (Join-Path $PSScriptRoot $fixture) $script:config
+    "  受け入れ用の設定を置いた（tests\acceptance\$fixture）"
+}
+
+function Restore-Config {
+    if (Test-Path $script:backup) {
+        Move-Item -Force $script:backup $script:config
+        "  実運用の設定を戻した"
+    }
+}
+
 $script:prep = @{
+    'C' = @{
+        Name   = '--debug コンソール'
+        Manual = @(
+            'ターミナル（Windows Terminal / PowerShell / cmd のどれか）を開いておく',
+            'どのターミナルで見たかを記録に書くこと（重なりの原因は相手側の再描画だった）',
+            'WinRemap が常駐していたら終了しておく（2 つ目は自力で終了してしまう）'
+        )
+    }
+    'M' = @{
+        Name  = 'IME カーソル'
+        Enter = { Use-Config 'ime-cursor.toml' }
+        Leave = { Restore-Config }
+        Manual = @(
+            'WinRemap を起動しておく（常駐していれば トレイ → 再読み込み）',
+            'メモ帳と、暗い背景のアプリ（Zed など）を開いておく — M-2 は背景の明るさで答えが変わる'
+        )
+    }
     'S' = @{
         Name  = '記号キー'
-        Enter = {
-            if (Test-Path $script:backup) {
-                throw "$script:backup が既にある。前回の受け入れが片付いていない — 中身を確かめてから手で戻すこと"
-            }
-            if (Test-Path $script:config) {
-                Move-Item $script:config $script:backup
-                "  実運用の設定を $script:backup へ退避した"
-            }
-            Copy-Item (Join-Path $PSScriptRoot 'symbol-keys.toml') $script:config
-            "  受け入れ用の設定を置いた（tests\acceptance\symbol-keys.toml）"
-        }
-        Leave = {
-            if (Test-Path $script:backup) {
-                Move-Item -Force $script:backup $script:config
-                "  実運用の設定を戻した"
-            }
-        }
+        Enter = { Use-Config 'symbol-keys.toml' }
+        Leave = { Restore-Config }
         Manual = @(
             'WinRemap を起動しておく（常駐していなければ）',
             'トレイ →「ログを表示」でログウィンドウを開いておく',

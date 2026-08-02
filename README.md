@@ -67,7 +67,9 @@ flowchart TD
   Nothing is ever written to disk
 - **IME status indicator** (opt-in): the moment the IME turns on, a
   translucent "あ" panel flashes at the center of the active window so you
-  always know the input mode — display only; WinRemap never switches the IME
+  always know the input mode — and the mouse cursor can carry the state too,
+  for the times you look after the flash is gone. Display only; WinRemap
+  never switches the IME
 - **Japanese and English UI**, auto-detected from the system language
   (`--lang en|ja` to override)
 - **Single binary, no runtime dependencies**
@@ -239,6 +241,8 @@ a translucent "あ" panel flashes at the center of the active window.
 [ime_indicator]
 enabled = true                # default: false
 # trigger_keys = ["C-Space"]  # if you toggle the IME with Ctrl+Space
+# change_cursor_color = true  # colour the mouse cursor while the IME is on
+# cursor_color = "#0078d4"    # the colour, default WinRemap's blue
 ```
 
 Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are
@@ -249,6 +253,21 @@ default 200) tune the panel, and `show_app_name = true` adds the target
 app's exe name under the glyph (never the window title). The panel never
 takes focus or input, taskbar/desktop clicks are ignored, and a problem in
 the indicator never affects remapping.
+
+`change_cursor_color = true` turns that one-off flash into something you can
+check at any moment: while the IME is on, the arrow and the text I-beam are
+drawn in `cursor_color` with a white border. It is independent of `enabled`,
+so you can have the cursor without the panel, and it works over elevated
+windows, where an overlay cannot reach. Off by default, because it changes
+the cursor **for the whole session** rather than only inside WinRemap — which
+is worth one paragraph of its own:
+
+> **A coloured cursor with no WinRemap in the tray means WinRemap was
+> killed.** The colour is only ever applied while the IME is on, so a colour
+> left behind cannot be mistaken for normal. Nothing needs repairing: start
+> WinRemap again and the cursor goes back, and so does signing out and back
+> in. Quitting from the tray, a crash WinRemap can still see, and closing the
+> `--debug` window all restore it on the way out.
 
 Every option, the full key-notation table and worked examples live in the
 [configuration guide](https://daikisuganuma.github.io/winremap/config.html);

@@ -223,6 +223,21 @@ v0.7 の受け入れで実際に起きたことが、そのまま要件である
 - 受け入れチェックリスト（`docs/v0.8/03_acceptance-checklist.md`）は **Phase D のハーネスの最初の顧客**にする
 - リリースは [03_release-operations.md](../03_release-operations.md) のとおり。チャネルは **GitHub Releases・Microsoft Store・winget の 3 つ**
 
+### 実施記録（2026-08-02）— **文書とチェックリストは完了。受け入れの実施とリリースはこれから**
+
+`docs/v0.8-phase-e`。
+
+| やったこと | 中身 |
+|---|---|
+| **README（en/ja）とヘルプサイト `ime.html`（日英）** | `change_cursor_color` / `cursor_color`、**`enabled` と独立**であること、管理者権限のウィンドウの上でも効くこと、そして **「色が残り、トレイに居ない ＝ 異常終了。何もしなくてよく、もう一度起動すれば戻る」** を書いた。[ADR 0067](decisions/0067-ime-cursor-color.md) 決定 4 は**読み方が書かれていないと設計として成立しない** |
+| **[v0.8 受け入れチェックリスト](03_acceptance-checklist.md)** | **C-1〜C-5**（`--debug` コンソール）と **M-1〜M-6**（IME カーソル）を新設。**H-10 を書き換え**（`--debug` は起動元のターミナルを閉じても続き、**自分の窓**を閉じると終わる）。H-1〜H-9・P-1〜P-9 を継承し、S-6 は「測れない」として残す。**全 31 項目がハーネスから読める**ことを確認済み |
+| **[`tests/acceptance/ime-cursor.toml`](../../tests/acceptance/ime-cursor.toml)** | M-* 用の設定をファイル化。ハーネスが退避・配置・後片付けまで行う（`symbol-keys.toml` と同じ形） |
+| **FAQ の hreflang** | Phase A で見つけて持ち越していた不具合（両言語ともサイトのトップを指していた）を別コミットで修正 |
+
+`--debug` の FAQ は Phase C で入れ替え済みで、**v0.7 で足した回避策（`Start-Process … -NoNewWindow -Wait`）は消えている**ことを確認した。
+
+**残り**: 受け入れの実施（ハーネスで C-*・M-*・H-*・P-*）と、[03_release-operations.md](../03_release-operations.md) に沿ったリリース。
+
 ---
 
 ## 7. フェーズ順序と依存関係
