@@ -50,4 +50,4 @@
 - **`--debug` の窓を閉じると WinRemap が落ちる。** `CTRL_CLOSE_EVENT` はハンドラが `TRUE` を返しても終了を止められない（ADR 0062 で確認済み）。デバッグ用途では自然な挙動として受け入れ、文書に書く
 - **`unsafe` の追加は `notify.rs` の中で収まる**（[ADR 0031](../../v0.2/decisions/0031-notify-module-unsafe-allowlist.md) の許可範囲）。不変条件 3 の改訂は不要
 - **ヘルプサイトの FAQ を書き換える。** v0.7 で足した回避策（`Start-Process ... -NoNewWindow -Wait`）は、この版で**不要になる**（[v0.7 §6.3](../../v0.7/03_acceptance-checklist.md)）
-- **文字コードに注意する。** 新しいコンソールの出力コードページは既定で OEM である。日本語のログを出しているので、`SetConsoleOutputCP(CP_UTF8)` 相当を明示するか、`WriteConsoleW` で書く。**ここを外すと全部文字化けする**
+- **文字コードは追加の手当てが要らなかった**（2026-08-02 実測）。新しいコンソールの出力コードページは **932 のまま**だが、Rust の標準出力はハンドルがコンソールだと判定した場合 UTF-16 に変換して `WriteConsoleW` で書くため、化けない。実際にコンソールの画面バッファを読み出して**`U+306F`（は）が格納されている**ことを確認した。`SetConsoleOutputCP` は呼ばない

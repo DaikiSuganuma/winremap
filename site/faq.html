@@ -133,14 +133,15 @@
             WinRemap with <code>winremap.exe --debug</code> and the same lines go there instead;
             without that flag it prints nothing. Debug output never includes typed text and is
             never written to disk.</p>
-    <p>One thing to know about <code>--debug</code>: WinRemap opens no console of its
-            own, so your shell does not wait for it. The prompt comes straight back and then
-            repaints itself on top of the log, and the two overwrite each other. Keep the shell out
-            of the way by making it wait:</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>Start-Process winremap.exe -ArgumentList '--debug' -NoNewWindow -Wait</code></pre>
-    <p class="mb-0">Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd> or from the tray. The log window never
-            has this problem, and it does not need <code>--debug</code> — opening it turns the log
-            on by itself.</p>
+    <p><code>--debug</code> opens a console window of WinRemap's own. Nothing else writes to it, so
+            nothing overwrites the log; it is there from the first line of startup, which the log
+            window cannot show you because it can only be opened once startup is over; and
+            <strong>it stays after WinRemap exits</strong>, so the shutdown lines can be read
+            instead of vanishing with the process. Close the window, or press
+            <kbd>Enter</kbd>, when you are done.</p>
+    <p class="mb-0">Closing that window while WinRemap is still running ends WinRemap — that is
+            what the flag is for. Redirecting the output (<code>winremap --debug &gt;
+            log.txt</code>) keeps the text going to the file and opens no window.</p>
     </div>
   </div>
 </section>
