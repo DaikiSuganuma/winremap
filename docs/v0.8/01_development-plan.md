@@ -113,6 +113,21 @@ v0.7 が**利用者から見た欠落**（記号キー）を埋めた版だっ�
 - **[H-10](../v0.7/03_acceptance-checklist.md) を書き換える** — 「端末を閉じると終了する」→「**`--debug` の窓を閉じると終了する**」。無印の挙動は変わらない
 - ヘルプサイト FAQ の回避策（`Start-Process ... -NoNewWindow -Wait`）を**不要になったので消す**
 
+### 実施記録（2026-08-02）— **実装完了**
+
+`feature/debug-console`。`Cargo.toml` を 0.8.0 に上げ、`notify.rs` に `open_debug_console` と `wait_for_debug_console` を足した（`unsafe` は `notify.rs` の中で収まっており、不変条件 3 の改訂は不要だった）。
+
+| 確かめたこと | 結果 |
+|---|---|
+| `cargo test` / `clippy --all-targets -D warnings` / `fmt --check` | **135 件通過・警告なし・差分なし** |
+| 起動時のログが 1 行目から出る | **出た。** タイトル `WinRemap --debug` の専用コンソールに、`WinRemap v0.8.0 を起動しました` から |
+| 終了時のログが読める | **読めた。** トレイ →「終了」のあと `[操作] 終了` → セッション終了行 → 待機行が残り、**プロセスが生きたまま待っている** |
+| 起動時エラーでも待つ | **待った**（多重起動のエラーで確認） |
+| 文字化け | **無し。** 出力コードページは 932 のままだが、Rust の標準出力がコンソール宛には `WriteConsoleW` を使うため。画面バッファを読んで `U+306F`（は）が入っていることを確認 |
+| リダイレクト時の従来動作 | **VM の `00-log-view`（26/26）と `06-foreground-line`（12/12）が PASS。** `the-console-says-the-same` と `no-debug-means-no-console-output` が、まさにこの経路を見ている |
+
+**待っている間はプロセスが生きたまま**なので、`--debug` の窓を閉じるまで `winremap.exe` は置き換えられない（開発中に `cargo build` が「アクセスが拒否されました」で落ちる原因が 1 つ増える）。
+
 ---
 
 ## 5. Phase D — 受け入れテストの対話化（**ADR 0069 が要る**）
