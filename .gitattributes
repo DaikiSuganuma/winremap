@@ -1,0 +1,4 @@
+# site/ is generated from site-src/ by Zola (ADR 0066). Marking it as
+# generated collapses it in GitHub's diff view and keeps it out of the
+# language statistics — the source to review is site-src/.
+site/** linguist-generated=true
