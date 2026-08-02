@@ -98,14 +98,17 @@ v0.7 が**利用者から見た欠落**（記号キー）を埋めた版だっ�
 
 ### 実施記録（2026-08-02）— **実装完了**
 
-`feature/ime-cursor`。`src/cursor.rs` を新設（`unsafe` はここに隔離。AGENTS.md 不変条件 3 を改訂）。設定は `[ime_indicator]` に `cursor` / `cursor_color` を追加し、**パネル（`enabled`）とは独立**にした。
+`feature/ime-cursor`。`src/cursor.rs` を新設（`unsafe` はここに隔離。AGENTS.md 不変条件 3 を改訂）。設定は `[ime_indicator]` に `change_cursor_color` / `cursor_color` を追加し、**パネル（`enabled`）とは独立**にした。
 
-[`tests/acceptance/probe-ime-cursor.ps1`](../../tests/acceptance/probe-ime-cursor.ps1) が **5/5 通過**（システムの矢印カーソルの画素を直接読む検査）。起動時の残骸消去・IME オンで着色・オフで復元・**強制終了で色が残る**・次の起動で戻る。
+[`tests/acceptance/probe-ime-cursor.ps1`](../../tests/acceptance/probe-ime-cursor.ps1) が **6/6 通過**（システムのカーソルの画素を直接読む検査）。起動時の残骸消去・IME オンで着色・**I ビームが形を保つ**・オフで復元・**強制終了で色が残る**・次の起動で戻る。
 
-実装で分かったことは [ADR 0067](decisions/0067-ime-cursor-color.md) の「実装で分かったこと」に集約した。要点は 3 つ:
+**オーナーが実際に使って 1 件出た**（2026-08-02、Zed のテキスト入力欄で I ビームが黒い四角になる）。標準の I ビームは**画面を反転して描かれている**カーソルで、その画素を透明に落としていたのが原因。修正済み・検査に項目を追加。
+
+実装で分かったことは [ADR 0067](decisions/0067-ime-cursor-color.md) の「実装で分かったこと」に集約した。要点は 4 つ:
 
 - **`SPI_SETCURSORS` だけでは戻らないことがある**（既定スキームではレジストリの値が空）。`user32.dll` の標準カーソルを入れ直してから `SPI_SETCURSORS` を打つ 2 段構えにした
-- **注入したキーではこの機械の IME は動かない。** 検査は `IMC_SETOPENSTATUS` で状態を直接設定する
+- **32bpp でアルファが一様に 0 だと、Windows はアルファ無しと解釈して AND マスクに転落する。** 全面不透明の黒 ＝ 黒い四角。反転で描かれる画素は塗る画素として扱い、色ビットマップは `CreateDIBSection` で作る
+- **注入したキーで IME が動くかどうかは機械と時期による。** 検査は最初にそれ自体を実測して狙いを合わせる
 - **カーソルのハンドルはプロセスごとにキャッシュされる。** 同じプロセスで 2 回読むと復元を見落とす — この誤読で 1 時間溶かした
 
 `cargo test` 137 件通過、`clippy`（通常・test-inject とも）警告なし、`fmt` クリーン。

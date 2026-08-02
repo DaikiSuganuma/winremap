@@ -36,7 +36,7 @@ pub struct IndicatorSettings {
     /// Tint the mouse cursor while the IME is on (ADR 0067). Off by default:
     /// this one replaces cursors for the whole session, not just inside
     /// WinRemap, so it is not something to switch on for somebody.
-    pub cursor: bool,
+    pub change_cursor_color: bool,
     /// The tint as R/G/B. Applied to the cursor's own shape rather than
     /// replacing it, so the black outline stays black and the white body
     /// takes this colour.
@@ -52,7 +52,7 @@ impl Default for IndicatorSettings {
             opacity: 200,
             trigger_keys: Vec::new(),
             show_app_name: false,
-            cursor: false,
+            change_cursor_color: false,
             // A warm orange: distinct from the black-and-white the cursors
             // start as, and readable on both light and dark backgrounds.
             cursor_color: (0xE0, 0x5A, 0x2B),

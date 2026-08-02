@@ -23,7 +23,9 @@ param(
     [string]$Color = "#00a0ff",
     # Internal: re-invokes this script to take one measurement in a process
     # of its own (see Get-ArrowTint).
-    [switch]$ReadArrowOnly
+    [switch]$ReadArrowOnly,
+    # Which system cursor to measure: 32512 = arrow, 32513 = I-beam.
+    [int]$CursorId = 32512
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,10 +55,12 @@ Add-Type -Namespace Probe -Name Cur -MemberDefinition @'
 [StructLayout(LayoutKind.Sequential)] public struct BMI { public int size, w, h; public short planes, bpp; public int compression, imgSize, xppm, yppm, used, important; public int pad1, pad2, pad3; }
 '@
 
-# The arrow as the session currently has it, summarised as "how many pixels
-# lean blue" — a black-and-white cursor has none.
+# One system cursor as the session currently has it, summarised as
+# "<blue-leaning> <fully transparent> <pixels read>". A black-and-white cursor
+# leans nowhere; a cursor that is opaque nearly everywhere is a solid
+# rectangle, which is what a broken tint looks like.
 function Read-ArrowTint {
-    $cur = [Probe.Cur]::LoadCursorW([IntPtr]::Zero, 32512)  # IDC_ARROW
+    $cur = [Probe.Cur]::LoadCursorW([IntPtr]::Zero, $CursorId)
     $info = New-Object Probe.Cur+INFO
     if (-not [Probe.Cur]::GetIconInfo($cur, [ref]$info)) { return 0 }
     $source = if ($info.hbmColor -ne [IntPtr]::Zero) { $info.hbmColor } else { $info.hbmMask }
@@ -71,10 +75,14 @@ function Read-ArrowTint {
     [void][Probe.Cur]::DeleteObject($info.hbmMask)
     if ($info.hbmColor -ne [IntPtr]::Zero) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
     $blue = 0
+    $clear = 0
     # BGRA. "Leans blue" = clearly more blue than red, which no grey pixel of
     # a black-and-white cursor ever is.
-    for ($i = 0; $i -lt $bytes.Length; $i += 4) { if ($bytes[$i] -gt $bytes[$i + 2] + 40) { $blue++ } }
-    return $blue
+    for ($i = 0; $i -lt $bytes.Length; $i += 4) {
+        if ($bytes[$i] -gt $bytes[$i + 2] + 40) { $blue++ }
+        if ($bytes[$i + 3] -eq 0) { $clear++ }
+    }
+    return "$blue $clear $($bytes.Length / 4)"
 }
 
 if ($ReadArrowOnly) {
@@ -89,29 +97,68 @@ if ($ReadArrowOnly) {
 # broken one. (Cost an hour of chasing the wrong bug on 2026-08-02.)
 $selfPath = $PSCommandPath
 $hostExe = (Get-Process -Id $PID).Path
+function Measure-Cursor([int]$id = 32512) {
+    $raw = (& $hostExe -NoProfile -File $selfPath -ReadArrowOnly -CursorId $id | Select-Object -Last 1) -split ' '
+    return [pscustomobject]@{ Blue = [int]$raw[0]; Clear = [int]$raw[1]; Total = [int]$raw[2] }
+}
 function Get-ArrowTint {
-    [int](& $hostExe -NoProfile -File $selfPath -ReadArrowOnly | Select-Object -Last 1)
+    (Measure-Cursor 32512).Blue
 }
 
 # Puts the focused window's IME into a known state and gives WinRemap a
 # reason to look, then returns the state the IME reports afterwards.
 #
-# The state is set through the IME window (`IMC_SETOPENSTATUS`) rather than
-# by pressing 半角/全角: an injected toggle key does not move this machine's
-# IME at all (measured 2026-08-02 — it stayed on across four presses), so a
-# probe built on it would be measuring nothing. The keypress is still sent,
-# for its other job: WinRemap re-reads the IME on a toggle-candidate key or a
-# focus change, and nothing else.
-function Set-Ime([int]$open) {
+# Two things have to happen: the IME must end up in the wanted state, and
+# WinRemap must have a reason to re-read it — it only looks on a
+# toggle-candidate key or a foreground change, nothing else. So the state is
+# set through the IME window (`IMC_SETOPENSTATUS`) and 半角/全角 is sent as a
+# poke.
+#
+# Whether that poke *also* toggles the IME is a property of the machine, not
+# something to assume: on 2026-08-02 an injected toggle key moved this IME not
+# at all (four presses, no change), and later the same day it toggled every
+# time. Assuming either way silently measures the opposite state — which is
+# how the I-beam check first came back green against an untinted cursor. So
+# measure it once, up front, and aim accordingly.
+$script:pokeToggles = $false
+
+function Get-ImeWnd {
     $ime = [Probe.Cur]::ImmGetDefaultIMEWnd([Probe.Cur]::GetForegroundWindow())
     if ($ime -eq [IntPtr]::Zero) { throw "no IME window for the focused window" }
-    [void][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]6, [IntPtr]$open)   # IMC_SETOPENSTATUS
-    [Probe.Cur]::keybd_event(0x19, 0, 0, [IntPtr]::Zero)                     # VK_KANJI, the poke
+    return $ime
+}
+
+function Read-Ime([IntPtr]$ime) {
+    return [int][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]5, [IntPtr]0)  # IMC_GETOPENSTATUS
+}
+
+function Send-Poke {
+    [Probe.Cur]::keybd_event(0x19, 0, 0, [IntPtr]::Zero)                      # VK_KANJI
     Start-Sleep -Milliseconds 60
     [Probe.Cur]::keybd_event(0x19, 0, 2, [IntPtr]::Zero)
+}
+
+function Measure-Poke {
+    $ime = Get-ImeWnd
+    $before = Read-Ime $ime
+    Send-Poke
+    Start-Sleep -Milliseconds 800
+    $script:pokeToggles = ((Read-Ime $ime) -ne $before)
+    [void][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]6, [IntPtr]$before)
+    Start-Sleep -Milliseconds 300
+    "the 半角/全角 poke {0} this machine's IME" -f $(if ($script:pokeToggles) { "toggles" } else { "does not move" })
+}
+
+function Set-Ime([int]$open) {
+    $ime = Get-ImeWnd
+    # Aim off by one when the poke will flip it, so the flip lands on target.
+    $aim = if ($script:pokeToggles) { 1 - $open } else { $open }
+    [void][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]6, [IntPtr]$aim)     # IMC_SETOPENSTATUS
+    Start-Sleep -Milliseconds 120
+    Send-Poke
     # The poke arms a 50 ms timer, then the IME is queried across processes.
     Start-Sleep -Milliseconds 1500
-    return [int][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]5, [IntPtr]0) # IMC_GETOPENSTATUS
+    return Read-Ime $ime
 }
 
 function Start-WinRemap([string]$config) {
@@ -127,7 +174,7 @@ if (Get-Process winremap -ErrorAction SilentlyContinue) {
 $config = Join-Path ([IO.Path]::GetTempPath()) "winremap-cursor-probe.toml"
 @"
 [ime_indicator]
-cursor = true
+change_cursor_color = true
 cursor_color = "$Color"
 
 [[keymap]]
@@ -148,9 +195,21 @@ Start-Sleep -Seconds 3
 [void][Probe.Cur]::SetForegroundWindow($notepad.MainWindowHandle)
 Start-Sleep -Milliseconds 700
 
+Measure-Poke
+
 $state = Set-Ime 1
 $on = Get-ArrowTint
 Check "tints-while-the-ime-is-on" ($state -eq 1 -and $on -gt 0) "IME reports $state; blue-leaning pixels: $on"
+
+# The I-beam is a mask-only cursor, and getting one wrong does not look like
+# a missing tint — it looks like a black square over the text (owner report,
+# 2026-08-02). An I-beam is a thin shape in a mostly empty box, so "the shape
+# survived" is: some pixels took the colour, and most of the box is still
+# transparent. The untouched cursor is no use as a baseline here — mask-only
+# cursors carry no alpha to compare against, which is the whole problem.
+$beam = Measure-Cursor 32513
+$kept = $beam.Blue -gt 0 -and $beam.Clear -gt $beam.Total / 2
+Check "the-i-beam-keeps-its-shape" $kept "blue $($beam.Blue), transparent $($beam.Clear) of $($beam.Total)"
 
 $state = Set-Ime 0
 $off = Get-ArrowTint

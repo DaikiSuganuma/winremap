@@ -418,7 +418,9 @@ fn compile_ime_indicator(
         opacity: opacity as u8,
         trigger_keys,
         show_app_name: raw.show_app_name.unwrap_or(defaults.show_app_name),
-        cursor: raw.cursor.unwrap_or(defaults.cursor),
+        change_cursor_color: raw
+            .change_cursor_color
+            .unwrap_or(defaults.change_cursor_color),
         cursor_color,
     }
 }
