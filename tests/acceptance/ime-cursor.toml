@@ -1,0 +1,18 @@
+# 受け入れ用（v0.8 §2.3 の M-1〜M-6）。
+#
+# パネルとカーソルの両方を有効にしてある。M-6 だけは enabled = false に
+# 書き換えて再読み込みし、「パネルを出さずにカーソルだけ」を確かめる。
+#
+# cursor_color は書いていない ＝ 既定（#0078d4、WinRemap のアイコンの青）で
+# 試す。別の色を見たいときだけ足すこと — 既定が実際に使える色かどうかも
+# この受け入れで見ている。
+[ime_indicator]
+enabled = true
+change_cursor_color = true
+
+[[keymap]]
+name = "accept"
+application = ["*"]
+
+[keymap.remap]
+"C-h" = "Back" # H-1 と同じキー。カーソルを見ながらリマップも生きていること
