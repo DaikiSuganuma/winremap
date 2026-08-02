@@ -7,7 +7,7 @@ path = "faq.html"
 [extra]
 prefix = ""
 brand = "index.html"
-footer = "index"
+footer = "guide"
 hreflang_en = "https://daikisuganuma.github.io/winremap/"
 hreflang_ja = "https://daikisuganuma.github.io/winremap/ja/"
 alt_href = "ja/faq.html"
