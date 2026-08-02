@@ -18,8 +18,10 @@
 //!
 //! The tint keeps the cursor the user actually has — theme, size and shape —
 //! and only recolours it: each pixel's brightness becomes the same fraction
-//! of the chosen colour, so a black outline stays black and a white body
-//! takes the colour.
+//! of the chosen colour, so a white body takes the colour. A white border is
+//! then drawn around the shape, because the colour alone is darker than the
+//! white it replaced and would be lost on a dark application (see
+//! [`outlined`]).
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -203,6 +205,7 @@ fn tinted(name: PCWSTR, color: (u8, u8, u8)) -> Option<HCURSOR> {
         from_color(color_bmp.0, mask.0, color)?
     };
 
+    let pixels = outlined(width, height, &pixels);
     let bits = and_mask(width, height, &pixels);
     // SAFETY: a 1bpp monochrome bitmap; `bits` is sized to its stride (rows
     // padded to a 16-bit boundary) times its height.
@@ -227,6 +230,51 @@ fn tinted(name: PCWSTR, color: (u8, u8, u8)) -> Option<HCURSOR> {
     // for a cursor, which is what the hotspots are for.
     let icon = unsafe { CreateIconIndirect(&icon_info) }.ok()?;
     Some(HCURSOR(icon.0))
+}
+
+/// Puts a white border around the cursor's solid shape, and drops whatever
+/// was outside it.
+///
+/// **Without this the tint is invisible on a dark application** (owner
+/// report, 2026-08-02). The reason is arithmetic: the tint maps the cursor's
+/// white body to the chosen colour, and `#0078d4` is about 37% as bright as
+/// white. What used to be the brightest thing on the screen becomes a middling
+/// one — fine on a white page, lost on a black editor.
+///
+/// A border in the opposite direction fixes it by construction: the cursor is
+/// then made of two colours at opposite ends of the brightness range, so
+/// **whatever the background, one of them stands out**. Windows takes the same
+/// approach for its own custom-coloured pointer.
+///
+/// Synthesised rather than recoloured, because there is often nothing to
+/// recolour. The stock arrow on Windows 11 has **no black outline at all** —
+/// measured 2026-08-02: 77 opaque white pixels and 67 semi-transparent ones
+/// making a soft drop shadow, and not one opaque black pixel. The I-beam has
+/// no outline either. So the border is drawn from the shape itself: solid
+/// pixels keep the tint, their transparent neighbours become opaque white,
+/// and the rest — the old shadow, which a white border makes redundant —
+/// goes away.
+fn outlined(width: i32, height: i32, pixels: &[u32]) -> Vec<u32> {
+    let (w, h) = (width as usize, height as usize);
+    // Half-transparent is the dividing line: the anti-aliased fringe of the
+    // body belongs to the border, not to the shape.
+    let solid: Vec<bool> = pixels.iter().map(|px| px >> 24 >= 128).collect();
+    let mut out = vec![0u32; pixels.len()];
+    for y in 0..h {
+        for x in 0..w {
+            let i = y * w + x;
+            if solid[i] {
+                out[i] = pixels[i];
+                continue;
+            }
+            let touches = (y.saturating_sub(1)..=(y + 1).min(h - 1))
+                .any(|ny| (x.saturating_sub(1)..=(x + 1).min(w - 1)).any(|nx| solid[ny * w + nx]));
+            if touches {
+                out[i] = 0xFFFF_FFFF;
+            }
+        }
+    }
+    out
 }
 
 /// The 1-bit AND mask that says where the screen shows through: 1 for the

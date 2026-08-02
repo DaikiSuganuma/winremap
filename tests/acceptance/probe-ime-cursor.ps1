@@ -26,7 +26,10 @@ param(
     # of its own (see Get-ArrowTint).
     [switch]$ReadArrowOnly,
     # Which system cursor to measure: 32512 = arrow, 32513 = I-beam.
-    [int]$CursorId = 32512
+    [int]$CursorId = 32512,
+    # Run WinRemap with --debug into this file. For working out *why* a check
+    # failed: the log says what WinRemap thought the IME was doing.
+    [string]$DebugLog
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,7 +51,12 @@ Add-Type -Namespace Probe -Name Cur -MemberDefinition @'
 [DllImport("gdi32.dll", SetLastError=true)] public static extern bool DeleteObject(IntPtr o);
 [DllImport("user32.dll", SetLastError=true)] public static extern void keybd_event(byte vk, byte scan, uint flags, IntPtr extra);
 [DllImport("user32.dll", SetLastError=true)] public static extern bool SetForegroundWindow(IntPtr h);
+[DllImport("user32.dll", SetLastError=true)] public static extern bool ShowWindow(IntPtr h, int cmd);
 [DllImport("user32.dll", SetLastError=true)] public static extern IntPtr GetForegroundWindow();
+[DllImport("user32.dll", SetLastError=true)] public static extern bool BringWindowToTop(IntPtr h);
+[DllImport("user32.dll", SetLastError=true)] public static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
+[DllImport("user32.dll", SetLastError=true)] public static extern bool AttachThreadInput(uint from, uint to, bool attach);
+[DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
 [DllImport("imm32.dll", SetLastError=true)] public static extern IntPtr ImmGetDefaultIMEWnd(IntPtr h);
 [DllImport("user32.dll", SetLastError=true)] public static extern IntPtr SendMessageW(IntPtr h, uint msg, IntPtr wp, IntPtr lp);
 [StructLayout(LayoutKind.Sequential)] public struct INFO { public bool fIcon; public int xHot, yHot; public IntPtr hbmMask, hbmColor; }
@@ -87,11 +95,15 @@ function Read-ArrowTint {
     $bytes = Read-Bitmap $(if ($colored) { $info.hbmColor } else { $info.hbmMask })
     $blue = 0
     $clear = 0
+    $white = 0
     # BGRA. "Leans blue" = clearly more blue than red, which no grey pixel of
-    # a black-and-white cursor ever is.
+    # a black-and-white cursor ever is. "White" = opaque and bright in all
+    # three channels, which is the synthesised border and nothing else once
+    # the body has taken the colour.
     for ($i = 0; $i -lt $bytes.Length; $i += 4) {
         if ($bytes[$i] -gt $bytes[$i + 2] + 40) { $blue++ }
         if ($bytes[$i + 3] -eq 0) { $clear++ }
+        if ($bytes[$i + 3] -eq 255 -and $bytes[$i] -gt 215 -and $bytes[$i + 1] -gt 215 -and $bytes[$i + 2] -gt 215) { $white++ }
     }
     # The AND mask, where 1 (white, once read as 32-bit) means the screen
     # shows through. Only meaningful next to a colour bitmap: on a mask-only
@@ -105,7 +117,7 @@ function Read-ArrowTint {
     }
     [void][Probe.Cur]::DeleteObject($info.hbmMask)
     if ($colored) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
-    return "$blue $clear $($bytes.Length / 4) $masked"
+    return "$blue $clear $($bytes.Length / 4) $masked $white"
 }
 
 if ($ReadArrowOnly) {
@@ -122,28 +134,33 @@ $selfPath = $PSCommandPath
 $hostExe = (Get-Process -Id $PID).Path
 function Measure-Cursor([int]$id = 32512) {
     $raw = (& $hostExe -NoProfile -File $selfPath -ReadArrowOnly -CursorId $id | Select-Object -Last 1) -split ' '
-    return [pscustomobject]@{ Blue = [int]$raw[0]; Clear = [int]$raw[1]; Total = [int]$raw[2]; Masked = [int]$raw[3] }
+    return [pscustomobject]@{ Blue = [int]$raw[0]; Clear = [int]$raw[1]; Total = [int]$raw[2]; Masked = [int]$raw[3]; White = [int]$raw[4] }
 }
 function Get-ArrowTint {
     (Measure-Cursor 32512).Blue
 }
 
-# Puts the focused window's IME into a known state and gives WinRemap a
-# reason to look, then returns the state the IME reports afterwards.
-#
-# Two things have to happen: the IME must end up in the wanted state, and
-# WinRemap must have a reason to re-read it — it only looks on a
-# toggle-candidate key or a foreground change, nothing else. So the state is
-# set through the IME window (`IMC_SETOPENSTATUS`) and 半角/全角 is sent as a
-# poke.
-#
-# Whether that poke *also* toggles the IME is a property of the machine, not
-# something to assume: on 2026-08-02 an injected toggle key moved this IME not
-# at all (four presses, no change), and later the same day it toggled every
-# time. Assuming either way silently measures the opposite state — which is
-# how the I-beam check first came back green against an untinted cursor. So
-# measure it once, up front, and aim accordingly.
-$script:pokeToggles = $false
+# The cursor is changed by another process, reacting to something this script
+# did, so at any single instant "not yet" and "never" look the same — a fixed
+# sleep either makes the run slow or makes the check flaky, and this one was
+# flaky (2 runs in 3 failed the restore, 2026-08-02). Poll for the expected
+# answer instead: a pass costs one reading, and only a real failure costs the
+# timeout. Each reading spawns a process, which paces the loop by itself.
+function Wait-Tint([scriptblock]$until, [int]$timeoutMs = 8000) {
+    $deadline = (Get-Date).AddMilliseconds($timeoutMs)
+    while ($true) {
+        $tint = Get-ArrowTint
+        if ((& $until $tint) -or (Get-Date) -gt $deadline) { return $tint }
+    }
+}
+
+# The two windows this drives. The IME's open state is **per window**, and
+# WinRemap reads whichever window is in front, so a probe that lets the
+# foreground drift is measuring an unrelated window's IME — two runs failed
+# different checks that way (2026-08-02). `other` exists only to be switched
+# to and away from; see Set-Ime.
+$script:target = [IntPtr]::Zero
+$script:other = [IntPtr]::Zero
 
 function Get-ImeWnd {
     $ime = [Probe.Cur]::ImmGetDefaultIMEWnd([Probe.Cur]::GetForegroundWindow())
@@ -155,57 +172,111 @@ function Read-Ime([IntPtr]$ime) {
     return [int][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]5, [IntPtr]0)  # IMC_GETOPENSTATUS
 }
 
-function Send-Poke {
-    [Probe.Cur]::keybd_event(0x19, 0, 0, [IntPtr]::Zero)                      # VK_KANJI
-    Start-Sleep -Milliseconds 60
-    [Probe.Cur]::keybd_event(0x19, 0, 2, [IntPtr]::Zero)
-}
-
-function Measure-Poke {
-    $ime = Get-ImeWnd
-    $before = Read-Ime $ime
-    Send-Poke
-    Start-Sleep -Milliseconds 800
-    $script:pokeToggles = ((Read-Ime $ime) -ne $before)
-    [void][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]6, [IntPtr]$before)
-    Start-Sleep -Milliseconds 300
-    "the 半角/全角 poke {0} this machine's IME" -f $(if ($script:pokeToggles) { "toggles" } else { "does not move" })
-}
-
-# The window every measurement is taken against. The IME's open state is
-# per-window and WinRemap reads whichever window is in front, so a probe that
-# lets the foreground drift is measuring an unrelated window's IME — two runs
-# failed different checks that way (2026-08-02).
-$script:target = [IntPtr]::Zero
-
-function Set-Focus {
-    [void][Probe.Cur]::SetForegroundWindow($script:target)
-    Start-Sleep -Milliseconds 400
+# Brings a window to the front, and **fails loudly if it cannot**.
+#
+# `SetForegroundWindow` is refused outright for a process that is not itself
+# in the foreground and has not just received input — so a script run from a
+# background session is simply ignored, and every reading afterwards is of
+# whatever window happened to be there instead. That is not a hypothetical:
+# it silently produced 3-passed-5-failed runs whose real cause was that the
+# foreground never moved at all (2026-08-02, found by reading WinRemap's own
+# debug log, which had one `[window]` line for the whole run).
+#
+# Attaching to the foreground window's input queue lifts the restriction for
+# the duration — the documented way in, and the reason the earlier
+# keypress-driven version of this script appeared to work: injecting a key
+# also grants the right, as a side effect.
+function Set-Focus([IntPtr]$window) {
+    foreach ($attempt in 1..5) {
+        $front = [Probe.Cur]::GetForegroundWindow()
+        if ($front -eq $window) { Start-Sleep -Milliseconds 250; return }
+        $me = [Probe.Cur]::GetCurrentThreadId()
+        $owner = [Probe.Cur]::GetWindowThreadProcessId($front, [IntPtr]::Zero)
+        $attached = $owner -ne 0 -and $owner -ne $me -and [Probe.Cur]::AttachThreadInput($me, $owner, $true)
+        [void][Probe.Cur]::BringWindowToTop($window)
+        [void][Probe.Cur]::SetForegroundWindow($window)
+        if ($attached) { [void][Probe.Cur]::AttachThreadInput($me, $owner, $false) }
+        Start-Sleep -Milliseconds 300
+    }
+    if ([Probe.Cur]::GetForegroundWindow() -ne $window) {
+        throw "could not bring window $window to the front; every reading after this would be of some other window's IME"
+    }
 }
 
 # Sets the state without telling WinRemap. For arranging the ground before a
 # start, when there is no WinRemap running to notice.
 function Set-ImeDirect([int]$open) {
-    Set-Focus
+    Set-Focus $script:target
     [void][Probe.Cur]::SendMessageW((Get-ImeWnd), 0x283, [IntPtr]6, [IntPtr]$open)
     Start-Sleep -Milliseconds 200
 }
 
+# Puts the target window's IME into a known state and gives WinRemap a reason
+# to look, then returns the state the IME reports afterwards.
+#
+# Two things have to happen: the IME must end up in the wanted state, and
+# WinRemap must have a reason to re-read it — it only looks on a
+# toggle-candidate key or a foreground change, nothing else.
+#
+# **The trigger is the foreground change, not a keypress.** Sending 半角/全角
+# was tried first and does not hold: whether an injected toggle key also moves
+# this machine's IME changed between runs on one machine in one afternoon
+# (2026-08-02 — no effect across four presses in the morning, a reliable
+# toggle later, and back again). Measuring that once per run and aiming around
+# it still failed, because it can differ *within* a run. The key path is what
+# the owner uses in real life; it is not what this measures.
+#
+# It takes a **second window**, and minimising the first one is not a
+# substitute: WinRemap keys off `EVENT_SYSTEM_FOREGROUND` and skips a window
+# it is already on, so minimise-and-restore produces no re-read at all
+# (measured 2026-08-02 — the debug log showed one `[window]` line for the
+# whole run). Windows 11's Notepad opens a *tab* on the second launch and
+# hands back no window handle, so the second window is a console window.
 function Set-Ime([int]$open) {
-    Set-Focus
+    Set-Focus $script:target
     $ime = Get-ImeWnd
-    # Aim off by one when the poke will flip it, so the flip lands on target.
-    $aim = if ($script:pokeToggles) { 1 - $open } else { $open }
-    [void][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]6, [IntPtr]$aim)     # IMC_SETOPENSTATUS
-    Start-Sleep -Milliseconds 120
-    Send-Poke
-    # The poke arms a 50 ms timer, then the IME is queried across processes.
-    Start-Sleep -Milliseconds 1500
+    [void][Probe.Cur]::SendMessageW($ime, 0x283, [IntPtr]6, [IntPtr]$open)    # IMC_SETOPENSTATUS
+    Start-Sleep -Milliseconds 150
+    Set-Focus $script:other
+    Set-Focus $script:target
+    # The foreground change arms a short timer, then the IME is queried across
+    # processes.
+    Start-Sleep -Milliseconds 800
     return Read-Ime $ime
 }
 
+# Windows 11's Notepad is a packaged application: the process that gets
+# started can hand the work to one that is already running and then exit, so
+# the window is not always owned by the process `Start-Process` handed back —
+# and it is not there the instant the call returns either. Wait for a window,
+# from the launched process if it has one and from any process of that name
+# if it does not.
+function Wait-MainWindow($process, [string]$name, [int]$timeoutMs = 15000) {
+    $deadline = (Get-Date).AddMilliseconds($timeoutMs)
+    while ((Get-Date) -lt $deadline) {
+        if (-not $process.HasExited) {
+            $process.Refresh()
+            if ($process.MainWindowHandle -ne [IntPtr]::Zero) { return $process.MainWindowHandle }
+        }
+        $owner = Get-Process $name -ErrorAction SilentlyContinue |
+            Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } | Select-Object -First 1
+        if ($owner) { return $owner.MainWindowHandle }
+        Start-Sleep -Milliseconds 500
+    }
+    throw "$name did not give up a window handle within $timeoutMs ms"
+}
+
 function Start-WinRemap([string]$config) {
-    $p = Start-Process $Exe -ArgumentList '--config', $config, '--lang', 'en', '--accept-injected' -PassThru
+    $arguments = @('--config', $config, '--lang', 'en', '--accept-injected')
+    # Redirected, so WinRemap writes to the file rather than opening its own
+    # console (ADR 0068) — which would also steal the foreground and change
+    # the very thing being measured.
+    if ($DebugLog) { $arguments += '--debug' }
+    $p = if ($DebugLog) {
+        Start-Process $Exe -ArgumentList $arguments -PassThru -RedirectStandardOutput $DebugLog
+    } else {
+        Start-Process $Exe -ArgumentList $arguments -PassThru
+    }
     Start-Sleep -Seconds 3
     return $p
 }
@@ -235,17 +306,20 @@ application = ["*"]
 # IME is not on at the time, or WinRemap is right to put the colour straight
 # back.
 $notepad = Start-Process notepad -PassThru
-Start-Sleep -Seconds 3
-$script:target = $notepad.MainWindowHandle
-Set-Focus
-Measure-Poke
+$script:target = Wait-MainWindow $notepad 'notepad'
+# Something to switch away to, so that switching back is a foreground change.
+# `winver` because it is a plain Win32 window that is always present and does
+# nothing: a console window reports no handle here, and an Explorer window
+# would be a shell surface, which the indicator deliberately skips (ADR 0023).
+$other = Start-Process winver -PassThru
+$script:other = Wait-MainWindow $other 'winver'
 Set-ImeDirect 0
 
 $app = Start-WinRemap $config
-Check "startup-clears-any-leftover" ((Get-ArrowTint) -eq 0) "a tint from a previous run must not survive the next start"
+Check "startup-clears-any-leftover" ((Wait-Tint { param($t) $t -eq 0 }) -eq 0) "a tint from a previous run must not survive the next start"
 
 $state = Set-Ime 1
-$on = Get-ArrowTint
+$on = Wait-Tint { param($t) $t -gt 0 }
 Check "tints-while-the-ime-is-on" ($state -eq 1 -and $on -gt 0) "IME reports $state; blue-leaning pixels: $on"
 
 # The I-beam is a mask-only cursor, and getting one wrong does not look like
@@ -267,8 +341,15 @@ $arrow = Measure-Cursor 32512
 $agree = $arrow.Masked -eq $arrow.Clear -and $beam.Masked -eq $beam.Clear
 Check "the-shape-is-in-the-mask-too" $agree "arrow mask $($arrow.Masked) vs alpha $($arrow.Clear); I-beam mask $($beam.Masked) vs alpha $($beam.Clear)"
 
+# The tint alone is invisible on a dark application: #0078d4 is 37% as bright
+# as the white body it replaces (owner report, 2026-08-02). The white border
+# is what makes the cursor two colours at opposite ends of the brightness
+# range, so one of them stands out whatever is underneath.
+$bordered = $arrow.White -gt 0 -and $beam.White -gt 0
+Check "there-is-a-white-border" $bordered "arrow $($arrow.White) white pixels, I-beam $($beam.White)"
+
 $state = Set-Ime 0
-$off = Get-ArrowTint
+$off = Wait-Tint { param($t) $t -eq 0 }
 Check "restores-when-the-ime-goes-off" ($state -eq 0 -and $off -eq 0) "IME reports $state; blue-leaning pixels: $off"
 
 # The design's headline claim: killed while tinted, the tint stays. That is
@@ -286,11 +367,11 @@ Check "a-kill-leaves-the-tint-behind" ($beforeKill -gt 0 -and $afterKill -gt 0) 
 # — and it keeps "the colour went away" from meaning "the IME went off".
 Set-ImeDirect 0
 $app = Start-WinRemap $config
-$afterRestart = Get-ArrowTint
+$afterRestart = Wait-Tint { param($t) $t -eq 0 }
 Check "the-next-start-restores-it" ($afterRestart -eq 0) "blue-leaning pixels: $afterRestart"
 
 Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
-Stop-Process -Id $notepad.Id -Force -ErrorAction SilentlyContinue
+Stop-Process -Id $notepad.Id, $other.Id -Force -ErrorAction SilentlyContinue
 Remove-Item $config -ErrorAction SilentlyContinue
 
 ""
