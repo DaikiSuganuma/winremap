@@ -180,6 +180,10 @@ Partner Center の製品は登録済みで、**これらの値は変えてはな
    - **Store からインストールしたときに SmartScreen の警告が出ないこと**
    - 「認定通過後に公開されます」の但し書きを文書から消す（**6 か所**。[v0.6 開発計画 §4.3](./v0.6/01_development-plan.md) に一覧）
 
+> **2026-08-02（v0.7.0）**: `packaging\msix\out\winremap-0.7.0.msix`（4.15 MB・**未署名**・`Identity/@Version` = `0.7.0.0`・Publisher は Partner Center の `CN=38CDEE8D-…` のまま）を作成した。パッケージの中身を開いて `AppxSignature.p7x` が無いことと Identity の 3 項目を確認済み。4.1 の順序制約も満たしている（Release 公開済み、`privacy.html` が 200）。**提出はオーナー**。掲載情報の変更点は [v0.7 の差分ノート](./v0.7/notes/20260802_store-listing-0.7.0.md)（**書き換えるのは「このバージョンの新機能」と「主な機能」の 1 行だけ**）。
+>
+> **`cargo build` が「アクセスが拒否されました」で落ちたら、WinRemap 自身が `target\release\winremap.exe` から常駐している。** トレイから終了してから流し直す（2026-08-02 に遭遇）。
+>
 > **2026-07-30 実施（v0.6.0）**: オーナーが `packaging\msix\out\winremap-0.6.0.msix`（4.3 MB・未署名・バージョン `0.6.0.0`）を Partner Center へ提出した。提出前に 4.1 の順序制約は満たしている（`privacy.html` が日英とも 200）。
 >
 > **2026-07-31 認定通過**: ストアページが公開され、`https://apps.microsoft.com/detail/9N6TQDXRX5WV` が 200 を返すようになった。オーナーが**ストアから実際にインストールし、SmartScreen の警告が出ないことを確認した**（[受け入れ](./v0.6/03_acceptance-checklist.md) **P-8**）。**これで v0.6 の受け入れが閉じた。** 手順 5 の但し書き削除（6 か所）も実施済み。**提出から公開まで 1 日**だった。
