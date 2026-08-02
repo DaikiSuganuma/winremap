@@ -20,7 +20,7 @@ use std::path::Path;
 
 use crate::ime_indicator_settings::{
     IndicatorSettings, MAX_INDICATOR_DURATION_MS, MAX_INDICATOR_SIZE, MIN_INDICATOR_DURATION_MS,
-    MIN_INDICATOR_SIZE,
+    MIN_INDICATOR_SIZE, parse_hex_color,
 };
 use crate::keymap::{
     KeyCombo, Keymap, Layout, MAX_MACRO_DELAY_MS, RemapTable, is_modifier_vk, parse_key_combo,
@@ -393,6 +393,23 @@ fn compile_ime_indicator(
             )),
         }
     }
+    let cursor_color = match raw.cursor_color {
+        None => defaults.cursor_color,
+        Some(value) => match parse_hex_color(value.get_ref()) {
+            Some(rgb) => rgb,
+            None => {
+                issues.push(issue_at_offset(
+                    source,
+                    value.span().start,
+                    &format!(
+                        "`ime_indicator.cursor_color` must be `#rrggbb` (got `{}`)",
+                        value.get_ref()
+                    ),
+                ));
+                defaults.cursor_color
+            }
+        },
+    };
     IndicatorSettings {
         enabled: raw.enabled.unwrap_or(defaults.enabled),
         duration_ms,
@@ -401,5 +418,7 @@ fn compile_ime_indicator(
         opacity: opacity as u8,
         trigger_keys,
         show_app_name: raw.show_app_name.unwrap_or(defaults.show_app_name),
+        cursor: raw.cursor.unwrap_or(defaults.cursor),
+        cursor_color,
     }
 }

@@ -96,6 +96,20 @@ v0.7 が**利用者から見た欠落**（記号キー）を埋めた版だっ�
 - `Stop-Process -Force` で殺すと**色付きのまま残り**、トレイに居ないことと合わせて異常終了と読める。**次に起動すると戻る**
 - 独自のカーソルテーマを使っている環境で、復元後に**そのテーマに戻る**
 
+### 実施記録（2026-08-02）— **実装完了**
+
+`feature/ime-cursor`。`src/cursor.rs` を新設（`unsafe` はここに隔離。AGENTS.md 不変条件 3 を改訂）。設定は `[ime_indicator]` に `cursor` / `cursor_color` を追加し、**パネル（`enabled`）とは独立**にした。
+
+[`tests/acceptance/probe-ime-cursor.ps1`](../../tests/acceptance/probe-ime-cursor.ps1) が **5/5 通過**（システムの矢印カーソルの画素を直接読む検査）。起動時の残骸消去・IME オンで着色・オフで復元・**強制終了で色が残る**・次の起動で戻る。
+
+実装で分かったことは [ADR 0067](decisions/0067-ime-cursor-color.md) の「実装で分かったこと」に集約した。要点は 3 つ:
+
+- **`SPI_SETCURSORS` だけでは戻らないことがある**（既定スキームではレジストリの値が空）。`user32.dll` の標準カーソルを入れ直してから `SPI_SETCURSORS` を打つ 2 段構えにした
+- **注入したキーではこの機械の IME は動かない。** 検査は `IMC_SETOPENSTATUS` で状態を直接設定する
+- **カーソルのハンドルはプロセスごとにキャッシュされる。** 同じプロセスで 2 回読むと復元を見落とす — この誤読で 1 時間溶かした
+
+`cargo test` 137 件通過、`clippy`（通常・test-inject とも）警告なし、`fmt` クリーン。
+
 ---
 
 ## 4. Phase C — `--debug` を `AllocConsole` にする
