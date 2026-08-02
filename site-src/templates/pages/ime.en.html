@@ -22,11 +22,35 @@ enabled = true                # default: false
 # size = 96                   # 32–256
 # opacity = 200               # 0–255
 # show_app_name = true        # exe name under the glyph
+# change_cursor_color = true  # colour the mouse cursor while the IME is on
+# cursor_color = "#0078d4"    # the colour, default WinRemap's blue
 </code></pre>
   <p>Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are detected
   out of the box; add <code>trigger_keys</code> if you use a custom toggle like the
   Windows 11 IME's Ctrl+Space option. The panel never takes focus or input, and a problem
   in the indicator never affects remapping.</p>
+</section>
+
+<section id="cursor" class="container py-4">
+  <h2 class="h4">Colouring the mouse cursor</h2>
+  <p><code>change_cursor_color = true</code> turns the panel's one-off flash into something
+  you can check at any moment: while the IME is on, the arrow and the text I-beam are
+  drawn in your colour with a white border. It is independent of
+  <code>enabled</code> — you can have the cursor without the panel. Off by default.</p>
+  <p>The cursor is the one thing an overlay cannot reach everywhere, so this works over
+  elevated windows too. The price is that it is <strong>a change to the whole session,
+  not just to WinRemap's own windows</strong>, and that leads to one thing worth
+  knowing:</p>
+  <div class="alert alert-warning" role="alert">
+    <p class="mb-0"><strong>A coloured cursor with no WinRemap in the tray means WinRemap
+    was killed.</strong> The colour is only ever applied while the IME is on, so a colour
+    left behind cannot be mistaken for normal. Nothing is broken and nothing needs
+    repairing: <strong>start WinRemap again and the cursor goes back</strong>, and so does
+    signing out and back in.</p>
+  </div>
+  <p class="mb-0">Quitting from the tray, a crash WinRemap can still see, and closing the
+  <code>--debug</code> window all put the cursor back on the way out. Your own cursor
+  theme and size are kept — the shape is recoloured, not replaced.</p>
 </section>
 
 </main>{% endraw %}{% endblock %}
