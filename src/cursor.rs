@@ -26,8 +26,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::Graphics::Gdi::{
-    BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, CreateBitmap, CreateCompatibleDC, DIB_RGB_COLORS,
-    DeleteDC, DeleteObject, GetDIBits, GetObjectW, HBITMAP, HGDIOBJ,
+    BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, CreateBitmap, CreateCompatibleDC,
+    CreateDIBSection, DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDIBits, GetObjectW, HBITMAP,
+    HGDIOBJ,
 };
 use windows::Win32::System::Diagnostics::Debug::{EXCEPTION_POINTERS, SetUnhandledExceptionFilter};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -202,22 +203,24 @@ fn tinted(name: PCWSTR, color: (u8, u8, u8)) -> Option<HCURSOR> {
         from_color(color_bmp.0, mask.0, color)?
     };
 
-    // Transparency rides in the alpha channel, so the AND mask is all zeros
-    // ("take the colour bitmap"). CreateBitmap zero-fills when given no bits.
-    // SAFETY: a 1bpp monochrome bitmap of the cursor's size; no bits given.
-    let empty_mask = unsafe { CreateBitmap(width, height, 1, 1, None) };
-    // SAFETY: 32bpp BGRA, one plane, `pixels` holds width*height entries.
-    let colored = unsafe {
+    // Transparency rides in the alpha channel, so the AND mask says "take the
+    // colour bitmap" everywhere: all zeros. Passed explicitly — CreateBitmap
+    // leaves the contents *undefined* when given no bits, and an undefined
+    // AND mask is a cursor with holes in it wherever the memory happened to
+    // be set.
+    let blank = vec![0u8; (((width + 15) / 16) * 2 * height) as usize];
+    // SAFETY: a 1bpp monochrome bitmap; `blank` is sized to its stride
+    // (rows padded to a 16-bit boundary) times its height.
+    let empty_mask = Bitmap(unsafe {
         CreateBitmap(
             width,
             height,
             1,
-            32,
-            Some(pixels.as_ptr() as *const core::ffi::c_void),
+            1,
+            Some(blank.as_ptr() as *const core::ffi::c_void),
         )
-    };
-    let empty_mask = Bitmap(empty_mask);
-    let colored = Bitmap(colored);
+    });
+    let colored = Bitmap(dib_section(width, height, &pixels)?);
     let icon_info = ICONINFO {
         fIcon: false.into(),
         xHotspot: info.xHotspot,
@@ -229,6 +232,44 @@ fn tinted(name: PCWSTR, color: (u8, u8, u8)) -> Option<HCURSOR> {
     // for a cursor, which is what the hotspots are for.
     let icon = unsafe { CreateIconIndirect(&icon_info) }.ok()?;
     Some(HCURSOR(icon.0))
+}
+
+/// Copies 32-bit BGRA pixels into a bitmap a cursor can be built from.
+///
+/// A DIB section, not `CreateBitmap`: `CreateIconIndirect` only honours the
+/// alpha channel of a **device-independent** 32-bit bitmap. Given a
+/// device-dependent one it ignores alpha and falls back to the AND mask,
+/// which here says "opaque everywhere" — and the cursor comes out as a solid
+/// rectangle. That is what an I-beam looked like on the first attempt: a
+/// black square (owner report, 2026-08-02).
+fn dib_section(width: i32, height: i32, pixels: &[u32]) -> Option<HBITMAP> {
+    let info = BITMAPINFO {
+        bmiHeader: BITMAPINFOHEADER {
+            biSize: size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: width,
+            // Negative: top-down, matching the order `pixels` is in.
+            biHeight: -height,
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut bits: *mut core::ffi::c_void = std::ptr::null_mut();
+    // SAFETY: `info` describes the buffer the call hands back through `bits`;
+    // a null DC is allowed for DIB_RGB_COLORS.
+    let bitmap =
+        unsafe { CreateDIBSection(None, &info, DIB_RGB_COLORS, &mut bits, None, 0) }.ok()?;
+    if bits.is_null() {
+        // SAFETY: the bitmap was just created here and is not used again.
+        let _ = unsafe { DeleteObject(HGDIOBJ(bitmap.0)) };
+        return None;
+    }
+    // SAFETY: the section is width*height 32-bit pixels, exactly the length
+    // of `pixels`, and nothing else refers to it yet.
+    unsafe { std::ptr::copy_nonoverlapping(pixels.as_ptr(), bits as *mut u32, pixels.len()) };
+    Some(bitmap)
 }
 
 /// A modern cursor: colour bitmap plus, for the ones without alpha, the AND
@@ -265,7 +306,30 @@ fn from_color(
 }
 
 /// A classic mask-only cursor (the default I-beam is one): the bitmap is
-/// twice as tall, the AND rows above the XOR rows.
+/// twice as tall, the AND rows above the XOR rows. The two bits together pick
+/// one of four things to do with the pixel underneath:
+///
+/// | AND | XOR | classic meaning | here |
+/// |---|---|---|---|
+/// | 1 | 0 | leave the screen alone | transparent |
+/// | 1 | 1 | **invert** the screen | the colour |
+/// | 0 | 0 | black | black |
+/// | 0 | 1 | white | the colour |
+///
+/// The invert row is not a corner case: **the stock I-beam is drawn entirely
+/// out of it** (measured 2026-08-02 — its AND plane is 1 everywhere, and all
+/// 26 visible pixels are AND=1/XOR=1). That is how it stays legible on a dark
+/// background as well as a light one. Dropping those pixels as "no colour to
+/// tint" left a cursor with nothing opaque in it at all, and Windows reads a
+/// 32-bit bitmap whose alpha is uniformly zero as having no alpha channel: it
+/// falls back to the AND mask, which here is opaque everywhere, and draws the
+/// all-black colour bitmap as a **solid black square** (owner report,
+/// 2026-08-02).
+///
+/// Painting them the tint colour loses the inversion — on a background of
+/// that same colour the I-beam is harder to pick out than the stock one. That
+/// is the trade this feature already makes everywhere else: the point is that
+/// the colour says the IME is on.
 fn from_mask_only(mask: HBITMAP, color: (u8, u8, u8)) -> Option<(i32, i32, Vec<u32>)> {
     let (width, double_height, bits) = read_as_bgra(mask)?;
     let height = double_height / 2;
@@ -276,15 +340,12 @@ fn from_mask_only(mask: HBITMAP, color: (u8, u8, u8)) -> Option<(i32, i32, Vec<u
     let pixels = (0..plane)
         .map(|i| {
             let and = bits[i] & 0x00FF_FFFF != 0;
-            if and {
-                // Background shows through. The AND=1/XOR=1 combination
-                // (invert what is underneath) becomes transparent too: there
-                // is no colour to tint, and a cursor that inverts the screen
-                // would not say "the IME is on" anyway.
-                return 0;
-            }
             let lit = bits[plane + i] & 0x00FF_FFFF != 0;
-            0xFF00_0000 | if lit { tint(0x00FF_FFFF, color) } else { 0 }
+            match (and, lit) {
+                (true, false) => 0,
+                (_, true) => 0xFF00_0000 | tint(0x00FF_FFFF, color),
+                (false, false) => 0xFF00_0000,
+            }
         })
         .collect();
     Some((width, height, pixels))

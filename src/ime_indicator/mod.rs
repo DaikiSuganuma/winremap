@@ -72,7 +72,7 @@ fn indicator_enabled() -> bool {
 /// the tinted cursor (ADR 0067) are two displays of one observation, and
 /// either of them alone is reason enough to run the thread.
 fn feature_wanted(settings: &IndicatorSettings) -> bool {
-    settings.enabled || settings.cursor
+    settings.enabled || settings.change_cursor_color
 }
 
 /// Hook-callback touch point. Hook-safe by construction: wait-free loads, a
@@ -126,7 +126,7 @@ pub fn sync_with_config() {
     // Whatever the config now says, a tint left over from the previous one
     // is not it. Also the unconditional restore of ADR 0067 decision 5 on
     // the startup call: nothing has to be remembered across runs.
-    if !current_settings().cursor {
+    if !current_settings().change_cursor_color {
         crate::cursor::restore();
     }
 }
@@ -242,7 +242,7 @@ fn run(overlay: &overlay::Overlay) {
                 // edge the panel flashes on: it is a status light, and it
                 // has to be right when focus moves between applications
                 // whose IME states differ.
-                if settings.cursor {
+                if settings.change_cursor_color {
                     crate::cursor::apply(is_on, settings.cursor_color);
                 }
                 let shown = settings.enabled && is_on && (!last_on || sample.target != last_target);
@@ -280,7 +280,7 @@ fn run(overlay: &overlay::Overlay) {
                     overlay.hide();
                     last_on = false;
                 }
-                if !settings.cursor {
+                if !settings.change_cursor_color {
                     crate::cursor::apply(false, settings.cursor_color);
                 }
             }
