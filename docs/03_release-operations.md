@@ -117,6 +117,10 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 
 > 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
 
+> **2026-08-02 実施（v0.7.0）**: [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) は**依然として OPEN**（初回登録の審査待ちが 3 版にまたがっている）。0.5.0・0.6.0 と**同じ判断を 3 度目**に繰り返し、新規 PR を出さずに中身を 0.7.0 へ差し替えた。**初回登録されるバージョンは 0.7.0 になる。** 差分はディレクトリのリネームと **7 行**（`PackageVersion` ×3・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`・`ReleaseDate`）。`ProductCode` は Inno の `AppId` を変えていないので据え置き。提出前に **公開後の URL から `winremap-setup.exe` を実際に落として SHA256 が manifest と `SHA256SUMS` の両方に一致すること**を確認し、`winget validate` は提出物と `packaging/` の control copy の両方で通した。0. の DLL チェックも出力が空であることを確認済み。PR のタイトルを 0.7.0 に直し、経緯をコメントに残した。
+>
+> **次に同じ作業をするときの注意（2026-08-02 に踏んだ罠）**: 提出済みマニフェストは **CRLF** である。**Git Bash の `sed -i` を使わないこと** — 改行が LF に変換され、6 行のはずの差分が全行差分になる。PowerShell で `[IO.File]::ReadAllText` → `.Replace()` → `[IO.File]::WriteAllText`（`UTF8Encoding($false)`）と書けば CRLF が保たれる。fork のクローンは HTTPS だと非対話環境で push できないので、`git remote set-url origin git@github.com:...` に直す。
+>
 > **winget 初回登録の状況（2026-07-26 更新）**: v0.3.0 の提出（[PR #405731](https://github.com/microsoft/winget-pkgs/pull/405731)）は上記 0. の依存が原因で検証に失敗した。リリース済みバイナリは差し替えられないため、この PR は取り下げ、初回登録は v0.4.0 でやり直すことにした（オーナー決定 2026-07-23。経緯は[作業ノート](./v0.4/notes/20260723_winget-0.3.0-validation.md)）。
 >
 > **2026-07-30 実施**: [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) は v0.6.0 公開時点でまだ OPEN（モデレーター承認待ち）だったため、v0.5.0 と**同じ判断を繰り返し**、新規 PR を出さずに中身を 0.6.0 に差し替えた。**初回登録されるバージョンは 0.6.0 になる。** 差分はディレクトリのリネームと 6 行のみ（`PackageVersion` ×3・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`）。`ReleaseDate` は 0.5.0 の提出日と v0.6.0 の公開日が同じ 2026-07-29 なので変更なし。`ProductCode` も Inno の `AppId` を変えていないので据え置き。提出前に `winremap-setup.exe` を **URL から実際に落として SHA256 が manifest と `SHA256SUMS` の両方に一致すること**を確認し、`winget validate` は提出物と `packaging/` の control copy の両方で通した。PR のタイトルも 0.6.0 に直し、経緯をコメントに残した。
