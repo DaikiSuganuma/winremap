@@ -32,7 +32,7 @@
 | [v0.5/](v0.5/) | v0.5 開発計画（[01_development-plan.md](v0.5/01_development-plan.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v0.5/03_acceptance-checklist.md)）、decisions/（ADR 0055-0058）、notes/。スコープは v0.4 からの持ち越し 3 件（ログの文字コード・制御コード表示、UI テストの決定論化、v0.1〜v0.3 の受け入れ回帰） |
 | [v0.6/](v0.6/) | v0.6 開発計画（[01_development-plan.md](v0.6/01_development-plan.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v0.6/03_acceptance-checklist.md)）、decisions/（ADR 0059-0062）、notes/（[ストア掲載情報の草案](v0.6/notes/20260729_store-listing.md)）。スコープは Microsoft Store（MSIX）対応 — SmartScreen の警告を消せる唯一の配信経路だという調査結果に基づく |
 | [v0.7/](v0.7/) | v0.7 開発計画（[01_development-plan.md](v0.7/01_development-plan.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v0.7/03_acceptance-checklist.md)）、decisions/（ADR 0063-0065）、notes/（[キーボード配列の実測](v0.7/notes/20260731_layout-probe.md)、[前面アプリ検出の競合状態](v0.7/notes/20260801_foreground-race.md)）。スコープは記号（OEM）キー対応と、UI テストの操作系の winapp CLI への移行。**2026-08-02 リリース** |
-| [v0.8/](v0.8/) | **開発中（実装完了・受け入れ待ち）。** v0.8 開発計画（[01_development-plan.md](v0.8/01_development-plan.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v0.8/03_acceptance-checklist.md)）、decisions/（ADR 0066-0069）。スコープはヘルプサイトの Zola 化・IME の状態をマウスカーソルの色で示す・`--debug` の `AllocConsole` 化・受け入れテストの対話化 |
+| [v0.8/](v0.8/) | **開発中（実装完了・受け入れ待ち）。** v0.8 開発計画（[01_development-plan.md](v0.8/01_development-plan.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v0.8/03_acceptance-checklist.md)）、decisions/（ADR 0066-0070）。スコープはヘルプサイトの Zola 化・IME の状態をマウスカーソルの色で示す・`--debug` の `AllocConsole` 化・受け入れテストの対話化 |
 
 設定ファイルの利用者向け説明は、docs ではなく[ヘルプサイト](../site/)（GitHub Pages）で分かりやすく提供する運用とする（詳細仕様書 `v0.1/02_config-spec.md` は開発者向け）。
 

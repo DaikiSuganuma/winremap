@@ -3,6 +3,7 @@
 - 作成日: 2026-08-02
 - 作成: Claude Code（AI モデル: claude-opus-5[1m]）
 - ステータス: 採用（オーナー宣言 2026-08-02「受け入れテストは対話形式で AI エージェントが環境を準備して、人間が入力し、その結果を選択できるような仕組みにしたい」を受けた形の決定。[開発計画 §8 の 5](../01_development-plan.md) の未決事項に対応する）
+- 後継: [ADR 0070](0070-agent-led-acceptance.md)（**対話の主体だけを差し替えた** — 司会は `Read-Host` ではなく AI エージェントになった。本 ADR の他の決定と、この本文は書き換えていない）
 - 関連: [v0.7 受け入れチェックリスト](../../v0.7/03_acceptance-checklist.md)（この ADR が解こうとしている 3 つの不具合の現物）、[ADR 0053](../../v0.4/decisions/0053-test-inject-mode.md)（注入を受け付けるビルド。**ハーネスは使わない**）、[ADR 0063](../../v0.7/decisions/0063-symbol-keys.md)（記号キーは機械によって答えが変わる ＝ 配列の記録が要る理由）、[ADR 0064](../../v0.7/decisions/0064-winapp-cli-for-ui-tests.md)（自動側の操作系）、[05_ui-test-automation.md](../../05_ui-test-automation.md)（自動テストの現状）
 - 公式: [`GetKeyboardLayoutNameW`](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayoutnamew)（アクティブな配列の識別子）／[Keyboard Layouts のレジストリ](https://learn.microsoft.com/en-us/globalization/windows-keyboard-layouts)（識別子から表示名を引く）／[`Read-Host`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/read-host)
 

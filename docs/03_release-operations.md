@@ -49,7 +49,7 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 
    **v0.5 以降は「そのバージョンの 1 枚」だけを見ればよい。** v0.1〜v0.3 の約 200 項目は v0.5 で「自動で通す／手で通す／もう通さない」に仕分けてあり、手で通すものは [v0.5 チェックリスト §4](./v0.5/03_acceptance-checklist.md) の**手動最小集合 H-1〜H-9**（30〜40 分）に集約されている。各バージョンのチェックリストはこれを継承したうえで固有項目を足す形で作る。
 
-   - 最新: [v0.8 受け入れチェックリスト](./v0.8/03_acceptance-checklist.md)（C-1〜C-5 ＋ M-1〜M-6 ＋ H-1〜H-10 ＋ MSIX 固有の P-1〜P-9）。**v0.8 以降、手動の項目は対話ハーネスで進める**（[ADR 0069](./v0.8/decisions/0069-interactive-acceptance-harness.md)）
+   - 最新: [v0.8 受け入れチェックリスト](./v0.8/03_acceptance-checklist.md)（C-1〜C-5 ＋ M-1〜M-6 ＋ H-1〜H-10 ＋ MSIX 固有の P-1〜P-9）。**v0.8 以降、手動の項目は Claude Code との対話で進める**（`/acceptance`。[ADR 0069](./v0.8/decisions/0069-interactive-acceptance-harness.md)・[ADR 0070](./v0.8/decisions/0070-agent-led-acceptance.md)）
    - 自動側: `cargo test` と `tests\ui\run-vm-ui-test.ps1`（[05_ui-test-automation.md](./05_ui-test-automation.md)）
    - **自動側は人の作業を邪魔しうる。所要時間とあわせて、そのバージョンのチェックリスト §1 に表で書く**（v0.8 で追加）。とくに**前面ウィンドウ・マウスカーソル・IME を触る検査**（	ests\acceptance\probe-ime-cursor.ps1 など）は、**回す前に断り、席を外している時間にまとめて回す** — 邪魔になるだけでなく、**人が前面を動かすと検査のほうが誤る**ので測り直しになる（2026-08-03 の実施で判明）
    - 過去分（仕分けの根拠として参照する）: [v0.1](./v0.1/03_acceptance-checklist.md)・[v0.2](./v0.2/03_acceptance-checklist.md)・[v0.3](./v0.3/03_acceptance-checklist.md)・[v0.4](./v0.4/03_acceptance-checklist.md)
