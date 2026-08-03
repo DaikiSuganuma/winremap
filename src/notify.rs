@@ -12,6 +12,7 @@
 //! attached to it — so the attach is not permanent: [`detach_console`] hands
 //! it back once startup output is done (ADR 0062).
 
+use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use windows::Win32::Foundation::{GENERIC_READ, GENERIC_WRITE};
@@ -20,8 +21,9 @@ use windows::Win32::Storage::FileSystem::{
     FILE_TYPE_PIPE, GetFileType, OPEN_EXISTING,
 };
 use windows::Win32::System::Console::{
-    ATTACH_PARENT_PROCESS, AllocConsole, AttachConsole, FreeConsole, GetStdHandle,
-    STD_ERROR_HANDLE, STD_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, SetConsoleTitleW,
+    ATTACH_PARENT_PROCESS, AllocConsole, AttachConsole, CONSOLE_MODE, ENABLE_EXTENDED_FLAGS,
+    ENABLE_QUICK_EDIT_MODE, FreeConsole, GetConsoleMode, GetStdHandle, STD_ERROR_HANDLE,
+    STD_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, SetConsoleMode, SetConsoleTitleW,
     SetStdHandle,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -152,11 +154,65 @@ pub fn open_debug_console() -> bool {
     point_std_handle_at(STD_ERROR_HANDLE, w!("CONOUT$"));
     // Input too — the wait at exit reads a line from it.
     point_std_handle_at(STD_INPUT_HANDLE, w!("CONIN$"));
+    disable_quick_edit();
     // SAFETY: a static wide literal, valid for the duration of the call.
     let _ = unsafe { SetConsoleTitleW(w!("WinRemap --debug")) };
     OWNS_CONSOLE.store(true, Ordering::Relaxed);
     HAS_CONSOLE.store(true, Ordering::Relaxed);
     true
+}
+
+/// Turns QuickEdit off on the console we just opened.
+///
+/// A fresh console has QuickEdit on, which turns a single click in the window
+/// into a text selection — and **a console in selection mode blocks every
+/// write to it**. The thread that blocks is the one draining the log, so it
+/// stops pumping messages; the low-level hook then misses
+/// `LowLevelHooksTimeout` (300 ms by default) and Windows starts dropping its
+/// calls. **One stray click in the `--debug` window stops the remapping**,
+/// which is invariant 1 (never stall the hook) losing to a convenience.
+///
+/// Selecting text is still possible from the window menu (Alt+Space → 編集 →
+/// 範囲指定); the click shortcut is what goes. Found in the v0.8 acceptance,
+/// 2026-08-03 — it cost two retries of M-1 before the cause was clear
+/// (ADR 0071).
+fn disable_quick_edit() {
+    // SAFETY: STD_INPUT_HANDLE is a documented constant, and the handle is
+    // only read here.
+    let Ok(input) = (unsafe { GetStdHandle(STD_INPUT_HANDLE) }) else {
+        return;
+    };
+    let mut mode = CONSOLE_MODE::default();
+    // SAFETY: `input` is the console input handle installed just above, and
+    // `mode` is a live local for the duration of the call.
+    if unsafe { GetConsoleMode(input, &mut mode) }.is_err() {
+        return;
+    }
+    // ENABLE_EXTENDED_FLAGS has to travel with the change: without it
+    // SetConsoleMode ignores the QuickEdit bit entirely.
+    let mode = (mode & !ENABLE_QUICK_EDIT_MODE) | ENABLE_EXTENDED_FLAGS;
+    // SAFETY: same handle; every other bit is carried over from the mode we
+    // just read, so the line input the exit wait needs stays on.
+    let _ = unsafe { SetConsoleMode(input, mode) };
+}
+
+/// Writes a line to stdout, and **keeps going when the write fails**.
+///
+/// `println!` panics on a failed write, and the write can fail for reasons
+/// that are none of WinRemap's doing. PowerShell's `>` hands a native process
+/// a pipe and closes it the moment the command "finishes" — which, for a
+/// process that goes resident, is long before the last log line. The panic
+/// took the whole tray app down with it (v0.8 acceptance C-4, 2026-08-03).
+///
+/// A transcript that cannot be delivered is a lost transcript; it is not a
+/// reason to stop remapping keys (ADR 0071).
+fn print_line(message: &str) {
+    let _ = writeln!(std::io::stdout(), "{message}");
+}
+
+/// [`print_line`] for the error stream.
+fn print_error_line(message: &str) {
+    let _ = writeln!(std::io::stderr(), "{message}");
 }
 
 /// Holds the `--debug` console open after WinRemap is done, so its last lines
@@ -174,7 +230,7 @@ pub fn wait_for_debug_console() {
     if !OWNS_CONSOLE.load(Ordering::Relaxed) || session_is_ending() {
         return;
     }
-    println!("{}", crate::i18n::t().debug_console_wait);
+    print_line(crate::i18n::t().debug_console_wait);
     // This returns when Enter is pressed. Closing the window instead sends
     // CTRL_CLOSE_EVENT, which ends the process — no handler can refuse that
     // (ADR 0062), and for a debug session it is the intended way out.
@@ -266,7 +322,7 @@ pub fn error(message: &str) {
     // and the reason for a failed reload is worth keeping around.
     crate::gui::log::push(message);
     if has_console() {
-        eprintln!("{message}");
+        print_error_line(message);
     } else {
         message_box(message, MB_ICONERROR);
     }
@@ -276,7 +332,7 @@ pub fn error(message: &str) {
 /// failure — `--help` and `--version` when launched without a terminal.
 pub fn info(message: &str) {
     if has_console() {
-        println!("{message}");
+        print_line(message);
     } else {
         message_box(message, MB_ICONINFORMATION);
     }
@@ -306,6 +362,6 @@ fn message_box(message: &str, icon: MESSAGEBOX_STYLE) {
 /// dialog to fall back on.
 pub fn console_line(message: &str) {
     if has_console() {
-        println!("{message}");
+        print_line(message);
     }
 }
