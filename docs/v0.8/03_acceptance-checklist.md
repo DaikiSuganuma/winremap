@@ -228,6 +228,8 @@ Get-ChildItem docs -Recurse -Filter *.md | ForEach-Object {
 
 **受け入れ用の設定の不備を 1 つ直した。** [`ime-cursor.toml`](../../tests/acceptance/ime-cursor.toml) に `trigger_keys` が無く、**`半角/全角` キーを持たないキーボード**（`Ctrl+Space` で切り替える）では IME を切り替えても追随しなかった（[ADR 0021](../v0.2/decisions/0021-ime-indicator-trigger-keys.md) のとおりの仕様）。`trigger_keys = ["C-Space"]` と `show_app_name = true` を足して M-1 を確認し直した。**この不備は「WinRemap の不具合」に見えた** — 受け入れ用の設定は、その機械で実際に使える形になっていないと項目の判定を誤らせる。
 
+**上の 2 件は同日中に直した**（[ADR 0071](decisions/0071-debug-console-must-not-kill-the-app.md)）。自前のコンソールで QuickEdit を切り、コンソールへの書き込み失敗で panic しないようにした。**窓の中をクリックしても止まらないことはオーナーが実際にクリックして確認済み**。PowerShell の `>` は panic しなくなったが**ファイルは空のまま**で、これは PowerShell が GUI サブシステムのプロセスを待たない性質なので直せない — C-4 の手順を `cmd /c` へ書き換えた。**§8 の C-4 は不合格のまま残してある**（書き換えた手順での再実行がまだなので、次の回に `-Resume` で戻ってくる）。M-3 の想定誤りも同日、README（en/ja）とこの表を書き換えて解消した。
+
 **ハーネス自体について**（§0 の 2「この文書を使うこと自体が確認になる」）。[ADR 0070](decisions/0070-agent-led-acceptance.md) の対話形式で回した初回である。人が写す作業は実際に無く、11 件で記録の空欄も出なかった。**効いたのは、症状の切り分けをその場でできること**だった — C-4 は `cmd` 経由との比較を、QuickEdit はログの時刻の欠落を、M-1 は設定の読み合わせを、いずれも会話の途中で行って原因まで届いている。`Read-Host` 版なら「不合格」とだけ書いて終わっていた。
 
 ---
