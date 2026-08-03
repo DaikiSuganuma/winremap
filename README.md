@@ -257,8 +257,8 @@ the indicator never affects remapping.
 `change_cursor_color = true` turns that one-off flash into something you can
 check at any moment: while the IME is on, the arrow and the text I-beam are
 drawn in `cursor_color` with a white border. It is independent of `enabled`,
-so you can have the cursor without the panel, and it works over elevated
-windows, where an overlay cannot reach. Off by default, because it changes
+so you can have the cursor without the panel. Elevated windows are the one
+place it does not follow — see Limitations. Off by default, because it changes
 the cursor **for the whole session** rather than only inside WinRemap — which
 is worth one paragraph of its own:
 
@@ -371,8 +371,11 @@ nothing** — starting it from a shell is as quiet as starting it from Explorer.
 ## Limitations
 
 - **Windows with elevated privileges** (admin) do not receive events from a
-  non-elevated hook (UIPI, User Interface Privilege Isolation). Run WinRemap
-  elevated only if you need remapping there.
+  non-elevated hook (UIPI, User Interface Privilege Isolation). The IME
+  indicator and the coloured cursor are blind there for the same reason: the
+  IME state is read by messaging the target window, and UIPI blocks that too,
+  so neither the panel nor the colour appears while an elevated window is in
+  front. Run WinRemap elevated only if you need any of this there.
 - **No tap/hold or mark mode** yet; sequences are limited to two strokes.
 - Chords involving **Alt or Win** inject a masking key so the modifier lift
   does not pop the menu bar / Start menu; if a specific app still shows menu
@@ -382,13 +385,18 @@ nothing** — starting it from a shell is as quiet as starting it from Explorer.
 - Do not run WinRemap together with other keyboard-hook software (Keyhac,
   AutoHotkey, ...) remapping the same keys — stacked low-level hooks have
   undefined ordering.
-- Started from a terminal with `--debug`, WinRemap prints to that terminal but
-  does not hold it: the prompt returns immediately and output arrives
-  interleaved with it. Closing that terminal also closes WinRemap — a `--debug`
-  session streams its log there, so it stays attached to the console and
-  Windows kills everything attached when the window goes. Without `--debug`
-  nothing is printed and WinRemap lets the console go once it is up, so it
-  keeps running after the terminal closes.
+- `--debug` opens a console window of its own and keeps it after WinRemap is
+  done, so the startup and shutdown lines can both be read; closing that
+  window ends WinRemap. The terminal you launched from is free to close.
+  Without `--debug` nothing is printed and WinRemap lets that console go once
+  it is up, so it keeps running after the terminal closes. `--help` and
+  `--version` still print to the launching terminal, where the shell's prompt
+  may repaint over them.
+- Redirecting `--debug` writes the transcript to the destination instead of
+  opening a window — but **PowerShell's `>` loses it**, because PowerShell does
+  not wait for a GUI-subsystem process and closes the pipe as soon as WinRemap
+  goes resident. Use `cmd /c "winremap.exe --debug > log.txt"` or
+  `Start-Process winremap.exe -ArgumentList '--debug' -RedirectStandardOutput log.txt`.
 - A launcher that puts its children in a job object with kill-on-close (some
   IDE terminals do) still takes WinRemap down with it, whatever the flags.
 - IME **control** is out of scope by design (the optional indicator only
