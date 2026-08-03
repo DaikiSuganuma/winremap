@@ -12,7 +12,7 @@ WinRemap の開発作業（実装・レビュー・ドキュメント作成）�
 2. 開発中バージョンの開発計画（現在: `docs/v0.8/01_development-plan.md`。過去バージョンの計画・仕様は `docs/v0.1/`〜`docs/v0.7/` に置かれている）
 3. `docs/02_rust-guidelines.md` — Rust 開発の作法
 4. `docs/04_git-branching.md` — ブランチ運用（git-flow の適用）
-5. 各バージョンフォルダの `docs/<version>/decisions/` — 全 ADR（Architecture Decision Record: 設計判断とその理由の記録。1 判断 1 ファイル。フォルダ構成の詳細は `docs/README.md`。新規 ADR は連番 0069 以降を `docs/v0.8/decisions/` に置く）
+5. 各バージョンフォルダの `docs/<version>/decisions/` — 全 ADR（Architecture Decision Record: 設計判断とその理由の記録。1 判断 1 ファイル。フォルダ構成の詳細は `docs/README.md`。新規 ADR は連番 0071 以降を `docs/v0.8/decisions/` に置く）
 
 ## 指示ソースの限定（最重要）
 

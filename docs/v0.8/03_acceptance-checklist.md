@@ -59,13 +59,15 @@ cargo build --release                   # 受け入れは素の配布ビルド�
 > したがって**自動側は席を外す時間（昼休みなど）に回すのがよい**。全部で **30 分弱**、うち 26 分が VM である。
 
 1. 上が緑であること。**落ちたら手動へ進まない**（v0.5 以来の規律 — 自動側の判定が壊れているほうが重い）
-2. 手動の項目は**対話ハーネスで進める**（[ADR 0069](decisions/0069-interactive-acceptance-harness.md)）:
+2. 手動の項目は **Claude Code との対話で進める**（[ADR 0069](decisions/0069-interactive-acceptance-harness.md)・[ADR 0070](decisions/0070-agent-led-acceptance.md)）。Claude Code で:
 
-```powershell
-.\tests\acceptance\run-acceptance.ps1 docs\v0.8\03_acceptance-checklist.md
+```
+/acceptance docs\v0.8\03_acceptance-checklist.md
 ```
 
-   項目・手順・通過条件はこの文書から読み出され、答えた結果は [§8](#8-対話ハーネスの記録) へ書き戻される。**人が写す作業は無い。** 途中で止めたければ `q`、続きからは `-Resume`、一部だけなら `-Only C-1,M-4`
+   **司会は Claude Code が務める。** 環境の準備（設定の退避と配置、WinRemap の起動）を行い、項目を 1 件ずつ読み上げる。**人がすることは、実キーボードで打って、見えたことを自分の言葉で言うこと**だけ。4 値への分類と記録の文は Claude Code が案を出し、**確認を取ってから** [§8](#8-対話ハーネスの記録) へ書き戻す。**人が写す作業は無い。**
+
+   続きからは「続きから」（`-Resume` 相当）、一部だけなら「C-1 と M-4 だけ」と言えばよい。止めたいときはそう言えば、その場で片付け（設定を戻す）まで行う
 3. **キーは実キーボードで打つこと。** ハーネスは 1 つもキーを注入しない — 注入で足りるものは `tests/ui` が既に見ている
 4. §7 に、その回の全体的な判断（省略した項目とその理由など）を散文で書く
 5. **Store 側（P-8・P-9）は認定通過後**に `-Resume` でもう一度回す
@@ -76,7 +78,7 @@ cargo build --release                   # 受け入れは素の配布ビルド�
 
 ### 2.1 事前準備
 
-M-* の設定は [`tests/acceptance/ime-cursor.toml`](../../tests/acceptance/ime-cursor.toml) にしてある。**退避と配置と後片付けはハーネスがやる**ので、通常は何もしなくてよい（`-Only M-4` のように一部だけ回す場合も同じ）。C-* は設定を問わない。
+M-* の設定は [`tests/acceptance/ime-cursor.toml`](../../tests/acceptance/ime-cursor.toml) にしてある。**退避と配置と、受け入れ用の設定での起動と、後片付けはハーネスがやる**ので、通常は何もしなくてよい（一部だけ回す場合も同じ）。C-* は設定を問わない。
 
 手で行う場合は次のとおり。**実運用の設定は必ず退避してから**行うこと。
 
@@ -213,14 +215,49 @@ Get-ChildItem docs -Recurse -Filter *.md | ForEach-Object {
 | 日付 | 対象 | 結果 |
 |---|---|---|
 | 2026-08-02 | 本チェックリストの作成 | 作成。C-1〜C-5（`--debug` コンソール）と M-1〜M-6（IME カーソル）を新設し、H-10 を書き換え、H-1〜H-9 と P-1〜P-9 を継承。**[ADR 0069](decisions/0069-interactive-acceptance-harness.md) のハーネスの最初の顧客**である |
+| 2026-08-03 | **C-1〜C-5 ＋ M-1〜M-6**（11 件。H-*・P-*・S-6 は未実施） | 通過 8・不合格 2（**C-4・M-3**）・未実施 1（M-5）。自動側は `cargo fmt` / `clippy` / `cargo test`（137 件）/ `site-src\build.ps1 -Check` を当日実行して緑。VM の UI テストと `probe-ime-cursor.ps1` は同日すでに回してあるというオーナー申告に拠った |
+
+### 2026-08-03 の回で分かったこと
+
+**リリース前に手当てが要るものが 2 つある。** どちらも `--debug` 経路で、[ADR 0068](decisions/0068-debug-console.md) がこの版で触った領域である。
+
+1. **PowerShell の `>` でリダイレクトすると panic して常駐ごと死ぬ**（C-4、不合格）。`failed printing to stdout: パイプを閉じています (os error 232)`。PowerShell の `>` はネイティブ exe の出力をいったんパイプで受けるので、常駐に入って端末を手放した時点でそのパイプが閉じ、次の書き込みで落ちる。**`cmd /c … > file` なら通る**（常駐が続き、ログも全部入る）。stdout が消えたくらいで常駐が落ちるのは [ADR 0062](../v0.6/decisions/0062-detach-console-when-resident.md) の「端末を手放しても効き続ける」に反する
+2. **`--debug` の窓を 1 回クリックするとリマップごと止まる**（項目に無い。この回の発見）。`open_debug_console()`（`src/notify.rs`）は `AllocConsole` の直後にタイトルを付けるだけで**コンソールのモードに触っていない**ため、既定で有効な **QuickEdit** の選択モードに入り、そこへの書き込みがブロックされる。書いていたスレッドが止まると低レベルフックが `LowLevelHooksTimeout`（既定 300 ms）を超え、**Windows がフックの呼び出しを捨てる** — ログが止まるだけでなくリマップが効かなくなる。**不変条件 1（フックを止めない）に直撃する。** 実際この回は、これを踏んだまま M-1 を 2 度やり直している。`SetConsoleMode` で `ENABLE_QUICK_EDIT_MODE` を落とすのが手当て
+
+**文書側の誤りが 1 つ。** M-3 の通過条件「リマップは効かないが、カーソルは効く」は**想定が誤っている**（不合格）。カーソルの*描画*はセッション全体に効くが、IME 状態の*検知*は `SendMessageTimeoutW(WM_IME_CONTROL)` のクロスプロセス送信なので **UIPI に遮断される**。管理者権限のウィンドウが前面のあいだは色もパネルも出ない。回避には昇格が要り、それは**不変条件 5 で禁じている**。本項目と README の Limitations を書き換えること。
+
+**受け入れ用の設定の不備を 1 つ直した。** [`ime-cursor.toml`](../../tests/acceptance/ime-cursor.toml) に `trigger_keys` が無く、**`半角/全角` キーを持たないキーボード**（`Ctrl+Space` で切り替える）では IME を切り替えても追随しなかった（[ADR 0021](../v0.2/decisions/0021-ime-indicator-trigger-keys.md) のとおりの仕様）。`trigger_keys = ["C-Space"]` と `show_app_name = true` を足して M-1 を確認し直した。**この不備は「WinRemap の不具合」に見えた** — 受け入れ用の設定は、その機械で実際に使える形になっていないと項目の判定を誤らせる。
+
+**ハーネス自体について**（§0 の 2「この文書を使うこと自体が確認になる」）。[ADR 0070](decisions/0070-agent-led-acceptance.md) の対話形式で回した初回である。人が写す作業は実際に無く、11 件で記録の空欄も出なかった。**効いたのは、症状の切り分けをその場でできること**だった — C-4 は `cmd` 経由との比較を、QuickEdit はログの時刻の欠落を、M-1 は設定の読み合わせを、いずれも会話の途中で行って原因まで届いている。`Read-Host` 版なら「不合格」とだけ書いて終わっていた。
 
 ---
 
 ## 8. 対話ハーネスの記録
 
-[`tests/acceptance/run-acceptance.ps1`](../../tests/acceptance/run-acceptance.ps1) が下のマーカーの間に追記する（[ADR 0069](decisions/0069-interactive-acceptance-harness.md)）。**手で書き換えないこと** — 追記のみで、同じ項目を後日やり直せば新しい行が増える。「測れない → 認定通過後に通過」という経緯が読めることが、この欄の値打ちである。
+[`tests/acceptance/run-acceptance.ps1`](../../tests/acceptance/run-acceptance.ps1) が下のマーカーの間に追記する（[ADR 0069](decisions/0069-interactive-acceptance-harness.md)・[ADR 0070](decisions/0070-agent-led-acceptance.md)）。見出しには**その回の環境**（キーボード配列・版・OS）と、**誰が答えたか**が刻まれる。**手で書き換えないこと** — 追記のみで、同じ項目を後日やり直せば新しい行が増える。「測れない → 認定通過後に通過」という経緯が読めることが、この欄の値打ちである。
 
 <!-- harness:begin -->
+#### 2026-08-03 — キーボード: Japanese（00000411） / WinRemap 0.8.0 / Microsoft Windows 11 Pro（26200）（対話: 人が実キーボードで確認し、AI エージェントが記録）
+
+| 項目 | 結果 | 記録 |
+|---|---|---|
+| C-1 | 通過 | Windows Terminal の PowerShell から `--debug` 起動。タイトル `WinRemap --debug` の別窓が開き、1 行目の「起動しました」から出ていて、起動元のプロンプトも崩れなかった |
+| C-2 | 通過 | トレイ →「終了」で `[操作] 終了` とセッション終了行が出て、待機の案内を出したまま窓が残った。Enter で閉じた |
+| C-4 | 不合格 | PowerShell の `>` でリダイレクトすると、窓は開かずプロンプトも返るが直後に `failed printing to stdout: パイプを閉じています (os error 232)` で panic。`log.txt` は空、トレイからも消える。`cmd /c … > file` なら通る（常駐が続きログ 5 行が起動行から入る）ので、引き金は PowerShell の `>` がパイプを閉じること。stdout の書き込み失敗で常駐ごと落ちるのは ADR 0062 に反する |
+| C-5 | 通過 | `--help` と `--version` はどちらも起動元の Windows Terminal に出た（専用の窓を開かない）。ただし `AttachConsole` の帰結でプロンプトと文字が重なって読みにくい（ADR 0029 の既知の帰結。`--debug` 側は v0.8 で解消済み） |
+
+#### 2026-08-03 — キーボード: Japanese（00000411） / WinRemap 0.8.0 / Microsoft Windows 11 Pro（26200）（対話: 人が実キーボードで確認し、AI エージェントが記録）
+
+| 項目 | 結果 | 記録 |
+|---|---|---|
+| C-3 | 通過 | `--debug` で起動し、メモ帳で IME をオンにしてカーソルが青い状態で窓を「×」で閉じた。WinRemap が終了し、カーソルの色も戻った |
+| M-1 | 通過 | `Ctrl+Space` で切り替え。オンで矢印が青くなり、オフで素に戻り、切り替えた瞬間に変わる（前面を行き来する必要なし）。ただし受け入れ用の設定に `trigger_keys` が無いと追随せず、`半角/全角` キーの無いキーボードでは `trigger_keys = ["C-Space"]` が要る（ADR 0021）。設定に足してから確認した |
+| M-2 | 通過 | メモ帳と暗い背景のアプリで確認。I ビームにも青が付き、I の形が残り、暗い背景でも見失わない。打鍵中に I ビームが消えるのは Windows の「入力中にポインターを非表示にする」仕様 |
+| M-3 | 不合格 | 管理者権限の Windows Terminal とメモ帳で `Ctrl+Space`。カーソルの色は変わらず、パネルも出ない（他のアプリから戻っても同じ）。リマップも効かない。状態検知が `SendMessageTimeoutW(WM_IME_CONTROL)` のクロスプロセス送信で UIPI に遮断されるため。通過条件「カーソルは効く」の想定が誤り — 描画はセッション全体だが検知は届かない。README の Limitations と本項目の書き換えが要る（昇格は不変条件 5 で禁止） |
+| M-4 | 通過 | メモ帳で IME をオンにして色が付いた状態で `Stop-Process -Force`。色が残ることを確認し、起動し直したら何も操作せずに色が戻った |
+| M-5 | 未実施 | カーソルのテーマ・サイズを変えていない機械（スキーム `Windows Aero`、サイズ 32 の既定のまま）。チェックリストの指示どおり未実施 |
+| M-6 | 通過 | `enabled = false` ＋ `change_cursor_color = true` で起動して確認。パネルは出ず、カーソルの色だけが `Ctrl+Space` に追随した（2 つが独立している） |
+
 <!-- harness:end -->
 
 ---
