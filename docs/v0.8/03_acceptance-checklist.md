@@ -96,8 +96,19 @@ Move-Item -Force $env:APPDATA\winremap\config.toml.bak $env:APPDATA\winremap\con
 | **C-1** | **起動時のログが 1 行目から読める** | ターミナルで `.\winremap.exe --debug` | ①**別のコンソールウィンドウ**が開く（タイトル `WinRemap --debug`） ②`WinRemap v0.8.0 を起動しました` から**すべて**出ている ③起動元のターミナルのプロンプトと**重ならない**（v0.7 §6.3 の症状が消えている） |
 | **C-2** | **終了時のログが読める** | C-1 の状態でトレイ →「終了」 | ①`[操作] 終了` とセッション終了行が出る ②**ウィンドウが消えない**（待機している） ③Enter か閉じるボタンで終わる |
 | **C-3** | **窓を閉じると WinRemap も終わる** | C-1 の状態で、動作中に `--debug` の窓を閉じる | ①WinRemap が終了する（トレイから消える） ②**カーソルの色を使っていた場合、色も戻る**（[ADR 0062](../v0.6/decisions/0062-detach-console-when-resident.md) の経路） |
-| **C-4** | **リダイレクトすると従来どおり** | `cmd /c ".\winremap.exe --debug > log.txt"`（**PowerShell の `>` では確かめられない。下記**） | ①**窓は開かない** ②`log.txt` に同じ内容が入る ③**待たない**（プロンプトが戻る）④**常駐が続く**。この経路は UI テストが踏んでいる（`Start-Process -RedirectStandardOutput`） |
+| **C-4** | **リダイレクトすると従来どおり** | `Start-Process .\winremap.exe -ArgumentList '--debug' -RedirectStandardOutput log.txt`（**シェルの `>` では確かめられない。下記**） | ①**窓は開かない** ②`log.txt` に同じ内容が入る ③**待たない**（プロンプトが戻る）④**常駐が続く**。この経路は UI テストが踏んでいる |
 | **C-5** | **`--help` と `--version` は起動元へ** | `.\winremap.exe --help` と `--version` | 起動元のターミナルに出る（専用の窓を開かない）。[ADR 0029](../v0.2/decisions/0029-attach-console-and-tray-log-window.md) の意図を保っていること |
+
+**C-4 でシェルの `>` が使えない理由**（2026-08-04 に判明。[ADR 0071 の訂正](decisions/0071-debug-console-must-not-kill-the-app.md#2026-08-04-の訂正決定-3-の表が誤っていた)）。WinRemap は `windows` サブシステムのバイナリで、**この 2 つは事情が違う**。
+
+| 経路 | 標準出力が WinRemap に届くか | 結果 |
+|---|---|---|
+| PowerShell の `>` | 届く（パイプ） | **ファイルは空**。PowerShell は GUI サブシステムのプロセスを待たないので、常駐に入る前にパイプを閉じる |
+| `cmd /c "… > log.txt"` | **届かない** | **窓が開き**、ファイルは空。cmd は `>` を自分の標準ハンドルの差し替えで実装しており `STARTF_USESTDHANDLES` を使わない。Windows は GUI サブシステムの子プロセスにその経路で標準ハンドルを渡さないので、WinRemap からは**未リダイレクトに見える** |
+| `Start-Process -RedirectStandardOutput` | 届く | **通る。これで確かめること** |
+| Git Bash の `>` | 届く | 通る（MSYS は `STARTF_USESTDHANDLES` で渡す） |
+
+見分け方は `--help` で足りる — ヘルプは必ず何か出すので、**`--help` をその経路に流して 0 バイトなら、その経路では届いていない**。
 
 ### 2.3 IME をマウスカーソルの色で示す（[ADR 0067](decisions/0067-ime-cursor-color.md)）
 
