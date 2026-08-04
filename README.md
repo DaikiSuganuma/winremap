@@ -393,10 +393,14 @@ nothing** — starting it from a shell is as quiet as starting it from Explorer.
   `--version` still print to the launching terminal, where the shell's prompt
   may repaint over them.
 - Redirecting `--debug` writes the transcript to the destination instead of
-  opening a window — but **PowerShell's `>` loses it**, because PowerShell does
-  not wait for a GUI-subsystem process and closes the pipe as soon as WinRemap
-  goes resident. Use `cmd /c "winremap.exe --debug > log.txt"` or
-  `Start-Process winremap.exe -ArgumentList '--debug' -RedirectStandardOutput log.txt`.
+  opening a window, but **neither shell's `>` can do it**. PowerShell's closes
+  the pipe as soon as WinRemap goes resident, because it does not wait for a
+  GUI-subsystem process; `cmd`'s never reaches WinRemap at all, because cmd
+  redirects by swapping its own standard handles rather than passing
+  `STARTF_USESTDHANDLES`, and Windows does not hand those to a GUI-subsystem
+  child — so a window opens and the file stays empty. Use
+  `Start-Process winremap.exe -ArgumentList '--debug' -RedirectStandardOutput log.txt`
+  (Git Bash's `>` works too).
 - A launcher that puts its children in a job object with kill-on-close (some
   IDE terminals do) still takes WinRemap down with it, whatever the flags.
 - IME **control** is out of scope by design (the optional indicator only
