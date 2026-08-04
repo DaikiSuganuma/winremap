@@ -211,11 +211,19 @@ function Get-HarnessProcess {
 
 function Stop-HarnessProcess {
     $running = Get-HarnessProcess
+    $stopped = @()
     if ($running.Count -gt 0) {
+        $stopped = @($running | ForEach-Object { $_.Id })
         $running | Stop-Process -Force
         "  $Exe の常駐を終了した（$($running.Count) 個）"
     }
-    $others = @(Get-Process winremap -ErrorAction SilentlyContinue)
+    # Two guards, because Stop-Process returns before the process is gone:
+    # the ids we just killed, and an empty Path — which is what a dying
+    # process answers with. Without them the teardown reported "ほかの
+    # WinRemap が常駐している（）", an empty path, right after killing the
+    # only instance there was (2026-08-04).
+    $others = @(Get-Process winremap -ErrorAction SilentlyContinue |
+        Where-Object { $stopped -notcontains $_.Id -and $_.Path })
     if ($others.Count -gt 0) {
         "  [人] ほかの WinRemap が常駐している（$($others[0].Path)）— 受け入れ対象はこれではない。終了しておくこと"
     }
