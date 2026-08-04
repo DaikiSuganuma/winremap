@@ -242,8 +242,24 @@ fn run(overlay: &overlay::Overlay) {
                 // edge the panel flashes on: it is a status light, and it
                 // has to be right when focus moves between applications
                 // whose IME states differ.
-                if settings.change_cursor_color {
-                    crate::cursor::apply(is_on, settings.cursor_color);
+                //
+                // Only a *known* state moves it. The panel treats "unknown"
+                // as "do not show" (design doc §3.2) because a panel that
+                // flashes wrongly is worse than one that stays away — but
+                // the cursor is not a flash, it is a state, and clearing it
+                // asserts "the IME is off", which an unanswered query does
+                // not support. The asymmetry is what makes this matter:
+                // a stale tint is corrected by the next query, while a
+                // cleared one stays cleared until the user toggles the IME
+                // themselves, because nothing re-queries in between
+                // (ADR 0021 — foreground changes and trigger keys only).
+                // v0.8 acceptance M-1, 2026-08-04: composing, moving the
+                // pointer out of the window and confirming left the cursor
+                // plain with the IME still on (ADR 0072).
+                if settings.change_cursor_color
+                    && let Some(open) = sample.open
+                {
+                    crate::cursor::apply(open, settings.cursor_color);
                 }
                 let shown = settings.enabled && is_on && (!last_on || sample.target != last_target);
                 if shown {
