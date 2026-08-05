@@ -263,6 +263,7 @@ Start-Process .\winremap.exe -ArgumentList '--debug','--config','.\examples\pers
 | 2026-08-02 | **winget** | [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) を 0.7.0 へ差し替え（3 度目）。**モデレーターのマージ待ち**。受け入れの合否には影響しない |
 | 2026-08-02 | **Microsoft Store 提出** | `winremap-0.7.0.msix`（未署名・`0.7.0.0`）を作成し、**オーナーが Partner Center へ提出。認定待ち**。通過したら下の P-8・P-9 を実施する |
 | 2026-08-02 | §2.1 の受け入れ用設定をファイル化 | [`tests/acceptance/symbol-keys.toml`](../../tests/acceptance/symbol-keys.toml) として残した（オーナー指示）。**次の版はこれを写して使う** |
+| 2026-08-06 | **winget マージ**（初回登録の完了） | [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) がマージされた（08-05 21:59 UTC）。**登録された最初のバージョンは 0.7.0**。マニフェストの `InstallerSha256` が Release の `SHA256SUMS` と一致、`Moniker` は `winremap`。**公開索引への反映はまだ**（マージ 5 分後の時点で `winget search` が見つけない）。**受け入れの合否には影響しない**（§4 の対象外）。反映を確認したら README・ヘルプサイトの「マニフェストの受理後」4 か所を消す |
 | 2026-08-04 | **Microsoft Store 認定通過**（パートナー センターより公開の連絡） | **提出（08-02）から 2 日で公開**。`https://apps.microsoft.com/detail/9N6TQDXRX5WV` が応答することを確認。**P-8・P-9 の Store 側はこの日は実施していない**（オーナー判断で後日）。**前提は生きている** — 機械には Store 版 **0.6.0** が入ったまま（`Get-AppxPackage` の `SignatureKind` が `Store`）で、P-9 が測れる。**やるときは P-9 →（アンインストール）→ P-8 の順**（§4 の注記。逆順にすると P-9 の前提が消え、0.6.0 → 0.7.0 の更新経路は二度と測れない） |
 | 2026-08-01 | §6.1 前面アプリ行の扱い（オーナー判断） | **決着済み。**「v0.7 で直す」というオーナー決定により [ADR 0065](decisions/0065-foreground-window-from-the-event.md) で修正し、同じ計測で 24 回中 2 件 → **0 件**。判断は残っていない |
 
