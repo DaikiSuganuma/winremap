@@ -9,6 +9,7 @@
 - 更新: 2026-07-31（Claude Code / claude-opus-5[1m]）— v0.6.0 の**認定通過**を §4.2 に記録。P-8 が通り、v0.6 の受け入れが閉じた
 - 更新: 2026-08-03（Claude Code / claude-opus-5[1m]）— §1 に**自動側の所要時間と人の作業への影響**を書く旨を追加。最新チェックリストの参照を v0.8 に更新
 - 更新: 2026-08-04（Claude Code / claude-opus-5[1m]）— v0.7.0 の**認定通過**を §4.2 に記録。あわせて §4.2 手順 5 に**受け入れ P-9 → P-8 の順序制約**を明記した
+- 更新: 2026-08-06（Claude Code / claude-opus-5[1m]）— winget の**初回登録がマージされた**ことを §3 に記録。以後この節は「初回登録」ではなく**通常の版上げ**の手順になる
 
 ---
 
@@ -119,6 +120,14 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 5. 更新自動化（[winget-releaser](https://github.com/vedantmgoyal9/winget-releaser) 等）を入れるかは [ADR 0045](./v0.3/decisions/0045-package-manager-channels.md) 決定 6 に従って判断する
 
 > 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
+
+> **2026-08-06 マージ（初回登録の完了）**: [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) が **2026-08-05 21:59 UTC（JST では 08-06 06:59）にマージされた**（`d3dad85`）。**登録された最初のバージョンは 0.7.0** で、v0.4.0 の再提出から数えて **3 度の差し替えを経て 11 日**かかった。master の `manifests/d/DaikiSuganuma/WinRemap/0.7.0/` を照合し、`InstallerSha256` が Release の `SHA256SUMS` と一致すること、`InstallerUrl` が `v0.7.0/winremap-setup.exe` を指すこと、`Moniker` が `winremap`（README とヘルプサイトが載せている `winget install winremap` がこの形で通る）を確認した。
+>
+> **マージと索引の反映は別**である。マージ 5 分後の時点で `winget search DaikiSuganuma.WinRemap` はまだ見つけない。公開索引は `Microsoft.PreIndexed.Package` の CDN キャッシュで、マージ後のビルドを待つ必要がある（この日の索引の最終更新は 07:03:28 で、06:59 のマージより後だが中身はマージ前）。**「マージされた」と「利用者が入れられる」は同じ日でもずれる。**
+>
+> **反映を確認したら、4 か所の但し書きを消す** — `README.md`（Install の節）・`README.ja.md`（同）・`site-src/templates/pages/install.en.html`・`install.ja.html` の「マニフェストの受理後」「Once the manifest is accepted」。Store の「認定通過後に公開されます」（§4.2 手順 5）と同じ性質の記述である。**サイトは `site-src/` を直して `build.ps1` で `site/` を作り直す**（[AGENTS.md](../AGENTS.md) 9）。
+>
+> **次のリリース（0.8.0）からは初回登録ではない。** 「審査中に 2 本目を出さない」という 3 度繰り返した判断はもう要らず、版ごとに新規 PR を出す通常の運用になる。差し替えではなく `manifests/d/DaikiSuganuma/WinRemap/<version>/` を**新しく足す**形である。
 
 > **2026-08-02 実施（v0.7.0）**: [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) は**依然として OPEN**（初回登録の審査待ちが 3 版にまたがっている）。0.5.0・0.6.0 と**同じ判断を 3 度目**に繰り返し、新規 PR を出さずに中身を 0.7.0 へ差し替えた。**初回登録されるバージョンは 0.7.0 になる。** 差分はディレクトリのリネームと **7 行**（`PackageVersion` ×3・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`・`ReleaseDate`）。`ProductCode` は Inno の `AppId` を変えていないので据え置き。提出前に **公開後の URL から `winremap-setup.exe` を実際に落として SHA256 が manifest と `SHA256SUMS` の両方に一致すること**を確認し、`winget validate` は提出物と `packaging/` の control copy の両方で通した。0. の DLL チェックも出力が空であることを確認済み。PR のタイトルを 0.7.0 に直し、経緯をコメントに残した。
 >
