@@ -152,9 +152,14 @@
             読み終わったらウィンドウを閉じるか <kbd>Enter</kbd> を押してください。</p>
     <p class="mb-0">動作中にこのウィンドウを閉じると WinRemap も終了します
             (このオプションはそういう用途のものです)。<br>
-            出力をリダイレクトした場合
-            (<code>winremap --debug &gt; log.txt</code>) は、ウィンドウを開かず
-            そのファイルに書き続けます。</p>
+            出力をリダイレクトした場合は、ウィンドウを開かずそのファイルへ書き出します。<br>
+            ただし<strong>どちらのシェルの <code>&gt;</code> でも受け取れません</strong>。
+            PowerShell は WinRemap が常駐に入った時点でパイプを閉じてしまい、
+            <code>cmd</code> のほうはリダイレクト先のハンドルを
+            GUI サブシステムの子プロセスに渡さないためです
+            (どちらもファイルは空になります)。<br>
+            <code>Start-Process winremap.exe -ArgumentList '--debug' -RedirectStandardOutput
+            log.txt</code> をお使いください (Git Bash の <code>&gt;</code> でも受け取れます)。</p>
     </div>
   </div>
 </section>

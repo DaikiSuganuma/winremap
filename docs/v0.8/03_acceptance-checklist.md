@@ -242,7 +242,7 @@ Get-ChildItem docs -Recurse -Filter *.md | ForEach-Object {
 
 **文書側の誤りが 1 つ。** M-3 の通過条件「リマップは効かないが、カーソルは効く」は**想定が誤っている**（不合格）。カーソルの*描画*はセッション全体に効くが、IME 状態の*検知*は `SendMessageTimeoutW(WM_IME_CONTROL)` のクロスプロセス送信なので **UIPI に遮断される**。管理者権限のウィンドウが前面のあいだは色もパネルも出ない。回避には昇格が要り、それは**不変条件 5 で禁じている**。本項目と README の Limitations を書き換えること。
 
-**受け入れ用の設定の不備を 1 つ直した。** [`ime-cursor.toml`](../../tests/acceptance/ime-cursor.toml) に `trigger_keys` が無く、**`半角/全角` キーを持たないキーボード**（`Ctrl+Space` で切り替える）では IME を切り替えても追随しなかった（[ADR 0021](../v0.2/decisions/0021-ime-indicator-trigger-keys.md) のとおりの仕様）。`trigger_keys = ["C-Space"]` と `show_app_name = true` を足して M-1 を確認し直した。**この不備は「WinRemap の不具合」に見えた** — 受け入れ用の設定は、その機械で実際に使える形になっていないと項目の判定を誤らせる。
+**受け入れ用の設定の不備を 1 つ直した。** [`ime-cursor.toml`](../../tests/acceptance/ime-cursor.toml) に `trigger_keys` が無く、**`半角/全角` キーを持たないキーボード**（`Ctrl+Space` で切り替える）では IME を切り替えても追随しなかった（[ADR 0021](../v0.1/decisions/0021-ime-indicator-trigger-keys.md) のとおりの仕様）。`trigger_keys = ["C-Space"]` と `show_app_name = true` を足して M-1 を確認し直した。**この不備は「WinRemap の不具合」に見えた** — 受け入れ用の設定は、その機械で実際に使える形になっていないと項目の判定を誤らせる。
 
 **上の 2 件は同日中に直した**（[ADR 0071](decisions/0071-debug-console-must-not-kill-the-app.md)）。自前のコンソールで QuickEdit を切り、コンソールへの書き込み失敗で panic しないようにした。**窓の中をクリックしても止まらないことはオーナーが実際にクリックして確認済み**。PowerShell の `>` は panic しなくなったが**ファイルは空のまま**で、これは PowerShell が GUI サブシステムのプロセスを待たない性質なので直せない — C-4 の手順を `cmd /c` へ書き換えた。**§8 の C-4 は不合格のまま残してある**（書き換えた手順での再実行がまだなので、次の回に `-Resume` で戻ってくる）。M-3 の想定誤りも同日、README（en/ja）とこの表を書き換えて解消した。
 
