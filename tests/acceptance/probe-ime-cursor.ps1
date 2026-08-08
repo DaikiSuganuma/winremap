@@ -61,6 +61,13 @@ Add-Type -Namespace Probe -Name Cur -MemberDefinition @'
 [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
 [DllImport("imm32.dll", SetLastError=true)] public static extern IntPtr ImmGetDefaultIMEWnd(IntPtr h);
 [DllImport("user32.dll", SetLastError=true)] public static extern IntPtr SendMessageW(IntPtr h, uint msg, IntPtr wp, IntPtr lp);
+[DllImport("user32.dll", SetLastError=true)] public static extern bool GetCursorInfo(ref CURSORINFO info);
+[DllImport("user32.dll", SetLastError=true)] public static extern bool SetCursorPos(int x, int y);
+[DllImport("user32.dll", SetLastError=true)] public static extern bool GetClientRect(IntPtr h, out RECT r);
+[DllImport("user32.dll", SetLastError=true)] public static extern bool ClientToScreen(IntPtr h, ref PT p);
+[StructLayout(LayoutKind.Sequential)] public struct CURSORINFO { public int size, flags; public IntPtr cursor; public int x, y; }
+[StructLayout(LayoutKind.Sequential)] public struct RECT { public int left, top, right, bottom; }
+[StructLayout(LayoutKind.Sequential)] public struct PT { public int x, y; }
 [StructLayout(LayoutKind.Sequential)] public struct INFO { public bool fIcon; public int xHot, yHot; public IntPtr hbmMask, hbmColor; }
 [StructLayout(LayoutKind.Sequential)] public struct BM { public int type, w, h, wbytes; public short planes, bpp; public IntPtr bits; }
 [StructLayout(LayoutKind.Sequential)] public struct BMI { public int size, w, h; public short planes, bpp; public int compression, imgSize, xppm, yppm, used, important; public int pad1, pad2, pad3; }
@@ -120,6 +127,62 @@ function Read-ArrowTint {
     [void][Probe.Cur]::DeleteObject($info.hbmMask)
     if ($colored) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
     return "$blue $clear $($bytes.Length / 4) $masked $white"
+}
+
+# What is on the pointer *right now*, over the text of a real window.
+#
+# Everything above reads the cursor the system has registered, which is what
+# SetSystemCursor writes — but not necessarily what the user sees. On
+# 2026-08-08 the tinted I-beam went invisible on screen (acceptance M-2)
+# while every registered-cursor measurement passed, so the two questions came
+# apart and this one had no answer at all. GetCursorInfo hands out the cursor
+# being displayed; a cursor with no drawn pixels is one the user sees nothing
+# of, whatever the registry and the system cursor table say.
+#
+# Counting differs by cursor kind. A modern cursor is drawn where its alpha
+# is not zero. The stock I-beam has no colour bitmap and no solid pixels at
+# all: it is visible only because it *inverts* the screen under it (AND=1
+# with XOR=1), which is why "count the opaque pixels" reports zero for a
+# perfectly visible cursor.
+function Measure-Drawn([IntPtr]$window) {
+    $r = New-Object Probe.Cur+RECT
+    if (-not [Probe.Cur]::GetClientRect($window, [ref]$r)) { return $null }
+    $p = New-Object Probe.Cur+PT
+    $p.x = [int](($r.right - $r.left) * 0.5)
+    $p.y = [int](($r.bottom - $r.top) * 0.6)
+    [void][Probe.Cur]::ClientToScreen($window, [ref]$p)
+    [void][Probe.Cur]::SetCursorPos($p.x, $p.y)
+    Start-Sleep -Milliseconds 300
+
+    $ci = New-Object Probe.Cur+CURSORINFO
+    $ci.size = [System.Runtime.InteropServices.Marshal]::SizeOf($ci)
+    if (-not [Probe.Cur]::GetCursorInfo([ref]$ci)) { return $null }
+    if (($ci.flags -band 1) -eq 0) { return [pscustomobject]@{ Kind = 'hidden'; Visible = 0; Blue = 0 } }
+    $info = New-Object Probe.Cur+INFO
+    if (-not [Probe.Cur]::GetIconInfo($ci.cursor, [ref]$info)) { return $null }
+
+    $colored = $info.hbmColor -ne [IntPtr]::Zero
+    $visible = 0
+    $blue = 0
+    if ($colored) {
+        $bytes = Read-Bitmap $info.hbmColor
+        for ($i = 0; $i -lt $bytes.Length; $i += 4) {
+            if ($bytes[$i + 3] -ne 0) { $visible++ }
+            if ($bytes[$i] -gt $bytes[$i + 2] + 40) { $blue++ }
+        }
+    } else {
+        $bytes = Read-Bitmap $info.hbmMask
+        $rows = $bytes.Length / 4
+        $half = $rows / 2
+        for ($i = 0; $i -lt $half; $i++) {
+            $and = $bytes[$i * 4] -ne 0
+            $xor = $bytes[($i + $half) * 4] -ne 0
+            if (-not $and) { $visible++ } elseif ($xor) { $visible++ }
+        }
+    }
+    [void][Probe.Cur]::DeleteObject($info.hbmMask)
+    if ($colored) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
+    [pscustomobject]@{ Kind = $(if ($colored) { 'colour' } else { 'mask-only' }); Visible = $visible; Blue = $blue }
 }
 
 if ($ReadArrowOnly) {
@@ -403,6 +466,16 @@ Check "the-shape-is-in-the-mask-too" $agree "arrow mask $($arrow.Masked) vs alph
 # range, so one of them stands out whatever is underneath.
 $bordered = $arrow.White -gt 0 -and $beam.White -gt 0
 Check "there-is-a-white-border" $bordered "arrow $($arrow.White) white pixels, I-beam $($beam.White)"
+
+# And the same question asked of the screen rather than of the system cursor
+# table: with the pointer over Notepad's text and the IME on, is there a
+# tinted I-beam actually being drawn? Acceptance M-2 is exactly the case
+# where the checks above pass and this one is what the owner is looking at.
+$drawn = Measure-Drawn $script:target
+$isDrawn = $null -ne $drawn -and $drawn.Visible -gt 0 -and $drawn.Blue -gt 0
+Check "the-i-beam-on-screen-is-the-tinted-one" $isDrawn $(
+    if ($null -eq $drawn) { "could not read the displayed cursor" }
+    else { "$($drawn.Kind), drawn pixels $($drawn.Visible), blue-leaning $($drawn.Blue)" })
 
 $state = Set-Ime 0
 $off = Wait-TintOwning { param($t) $t -eq 0 }
