@@ -105,18 +105,68 @@ pub fn restore() {
     let _ = unsafe { SystemParametersInfoW(SPI_SETCURSORS, 0, None, SPIF_SENDCHANGE) };
 }
 
+/// What one [`apply`] call did to the session's cursors, so the debug log can
+/// say it.
+///
+/// v0.8 acceptance M-2 (2026-08-08): the tinted I-beam goes invisible now and
+/// then, and the log could not distinguish "the tint was put on again" from
+/// "nothing happened" — the caller runs on every foreground change and every
+/// trigger key, so both are common. Three explanations were measured and
+/// ruled out that day (a handle another process holds is not invalidated;
+/// `SPI_SETCURSORS` with an empty registry value does not blank the I-beam;
+/// repeated `SetSystemCursor` does not damage the contents), which leaves
+/// the question of what the call sequence was when it broke.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Action {
+    pub kind: Kind,
+    /// The tinted copies were built here (first use, or the colour changed).
+    pub rebuilt: bool,
+    /// Cursors handed to `SetSystemCursor`.
+    pub replaced: u8,
+    /// Cursors that could not be copied or installed.
+    pub failed: u8,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Kind {
+    /// The IME is off and no tint was installed: nothing was called.
+    Idle,
+    /// The tint was taken off.
+    Restored,
+    /// The tint went on where there was none.
+    Installed,
+    /// `SetSystemCursor` ran for a tint that was **already installed**. This
+    /// is what a foreground change between two applications with the IME on
+    /// takes, and it is the path M-2 is suspected of.
+    Reinstalled,
+}
+
 /// Installs or removes the tint. `on` is the IME's open state.
 ///
 /// Building the tinted copies is done once per colour and reused, because
 /// this runs on every IME toggle.
-pub fn apply(on: bool, color: (u8, u8, u8)) {
+pub fn apply(on: bool, color: (u8, u8, u8)) -> Action {
+    let idle = Action {
+        kind: Kind::Idle,
+        rebuilt: false,
+        replaced: 0,
+        failed: 0,
+    };
     if !on {
         if INSTALLED.swap(false, Ordering::Relaxed) {
             restore();
+            return Action {
+                kind: Kind::Restored,
+                ..idle
+            };
         }
-        return;
+        return idle;
     }
-    let Ok(mut slot) = TINTED.lock() else { return };
+    let Ok(mut slot) = TINTED.lock() else {
+        return idle;
+    };
+    let was_installed = INSTALLED.load(Ordering::Relaxed);
+    let mut rebuilt = false;
     if slot.as_ref().is_none_or(|p| p.color != color) {
         // Rebuilt from the system's cursors, so it has to happen while ours
         // are not installed — otherwise the tint would be tinted again.
@@ -130,10 +180,13 @@ pub fn apply(on: bool, color: (u8, u8, u8)) {
                 .filter_map(|(id, name)| tinted(*name, color).map(|cur| (*id, cur.0 as isize)))
                 .collect(),
         });
+        rebuilt = true;
     }
     let Some(prepared) = slot.as_ref() else {
-        return;
+        return idle;
     };
+    let mut replaced = 0u8;
+    let mut failed = 0u8;
     for (id, cursor) in &prepared.cursors {
         // A copy per call: SetSystemCursor takes ownership and destroys what
         // it is given, so handing it the stored handle would leave the
@@ -141,13 +194,27 @@ pub fn apply(on: bool, color: (u8, u8, u8)) {
         // SAFETY: the stored handles come from CreateIconIndirect below and
         // are alive for the life of the process.
         let Ok(copy) = (unsafe { CopyIcon(HICON(*cursor as *mut _)) }) else {
+            failed += 1;
             continue;
         };
         // SAFETY: `copy` is a live cursor of the system's own size; `id` is
         // one of the documented OCR_* constants. Ownership passes here.
-        let _ = unsafe { SetSystemCursor(HCURSOR(copy.0), *id) };
+        match unsafe { SetSystemCursor(HCURSOR(copy.0), *id) } {
+            Ok(()) => replaced += 1,
+            Err(_) => failed += 1,
+        }
     }
     INSTALLED.store(true, Ordering::Relaxed);
+    Action {
+        kind: if was_installed {
+            Kind::Reinstalled
+        } else {
+            Kind::Installed
+        },
+        rebuilt,
+        replaced,
+        failed,
+    }
 }
 
 /// Makes the ends that still run code put the cursor back: a Rust panic and

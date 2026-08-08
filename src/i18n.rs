@@ -805,6 +805,50 @@ pub fn debug_ime_query(open: Option<bool>, shown: bool, via_child: bool) -> Stri
     }
 }
 
+/// What the last [`crate::cursor::apply`] did, for the debug log.
+///
+/// The distinction that matters is "installed" versus "reinstalled": the
+/// caller runs on every foreground change, so an already-installed tint is
+/// handed to `SetSystemCursor` again and again. v0.8 acceptance M-2 needs to
+/// know which of those happened when the I-beam went invisible.
+pub fn debug_cursor_action(action: crate::cursor::Action) -> String {
+    use crate::cursor::Kind;
+    let rebuilt = action.rebuilt;
+    let (replaced, failed) = (action.replaced, action.failed);
+    match lang() {
+        Lang::En => {
+            let what = match action.kind {
+                Kind::Idle => return "cursor: nothing to do".into(),
+                Kind::Restored => return "cursor: tint removed".into(),
+                Kind::Installed => "tint installed",
+                Kind::Reinstalled => "tint installed again (was already on)",
+            };
+            let built = if rebuilt { ", cursors rebuilt" } else { "" };
+            let bad = if failed > 0 {
+                format!(", {failed} failed")
+            } else {
+                String::new()
+            };
+            format!("cursor: {what} — {replaced} replaced{bad}{built}")
+        }
+        Lang::Ja => {
+            let what = match action.kind {
+                Kind::Idle => return "カーソル: 何もしない".into(),
+                Kind::Restored => return "カーソル: 着色を外した".into(),
+                Kind::Installed => "着色した",
+                Kind::Reinstalled => "着色し直した（すでに着色済み）",
+            };
+            let built = if rebuilt { "・作り直し" } else { "" };
+            let bad = if failed > 0 {
+                format!("・失敗 {failed}")
+            } else {
+                String::new()
+            };
+            format!("カーソル: {what} — 差し替え {replaced}{bad}{built}")
+        }
+    }
+}
+
 /// The IME indicator could not start (or died); remapping keeps running.
 /// `error` stays in English on purpose (diagnostics policy above).
 pub fn ime_indicator_failed(error: &str) -> String {
