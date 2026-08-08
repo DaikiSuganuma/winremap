@@ -3,7 +3,7 @@
 - 作成日: 2026-08-03
 - 作成: Claude Code（AI モデル: claude-opus-5[1m]）／レビュー・承認: オーナー
 - ステータス: 採用（2026-08-03 の受け入れ（[v0.8 §7](../03_acceptance-checklist.md)）で見つかった 2 件への手当て。[ADR 0068](0068-debug-console.md) が導入した自前コンソールの、詰め切れていなかった部分である）
-- 関連: [ADR 0068](0068-debug-console.md)（`--debug` の専用コンソール）、[ADR 0062](../../v0.6/decisions/0062-detach-console-when-resident.md)（端末を手放しても効き続ける）、[ADR 0029](../../v0.2/decisions/0029-attach-console-and-tray-log-window.md)（コンソールへの出力とログウィンドウ）、[ADR 0016](../../v0.1/decisions/0016-debug-log-post-thread-message.md)（フックからログへの経路）、[ADR 0070](0070-agent-led-acceptance.md)（この 2 件を見つけた受け入れの形）
+- 関連: [ADR 0068](0068-debug-console.md)（`--debug` の専用コンソール）、[ADR 0062](../../v0.6/decisions/0062-detach-console-when-resident.md)（端末を手放しても効き続ける）、[ADR 0029](../../v0.2/decisions/0029-attach-console-and-tray-log-window.md)（コンソールへの出力とログウィンドウ）、[ADR 0016](../../v0.1/decisions/0016-debug-key-logging.md)（フックからログへの経路）、[ADR 0070](0070-agent-led-acceptance.md)（この 2 件を見つけた受け入れの形）
 - 公式: [`SetConsoleMode`](https://learn.microsoft.com/en-us/windows/console/setconsolemode)（`ENABLE_QUICK_EDIT_MODE` は `ENABLE_EXTENDED_FLAGS` と併せて設定する）／[Low-level keyboard hook](https://learn.microsoft.com/en-us/windows/win32/winmsg/lowlevelkeyboardproc)（`LowLevelHooksTimeout` を超えた呼び出しは捨てられる）／[`std::io::Stdout`](https://doc.rust-lang.org/std/io/struct.Stdout.html)（`println!` は書き込み失敗で panic する）
 
 ## 背景

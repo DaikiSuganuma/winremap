@@ -3,7 +3,7 @@
 - 作成日: 2026-08-04
 - 作成: Claude Code（AI モデル: claude-opus-5[1m]）／レビュー・承認: オーナー
 - ステータス: 採用（2026-08-04 の受け入れ（[v0.8 §8](../03_acceptance-checklist.md) M-1）で見つかった症状に対する手当て。[ADR 0067](0067-ime-cursor-color.md) が導入したカーソルの色替えの、状態が取れなかった場合の扱いを決めていなかった部分である）
-- 関連: [ADR 0067](0067-ime-cursor-color.md)（IME をマウスカーソルの色で示す）、[ADR 0021](../../v0.1/decisions/0021-ime-indicator-trigger-keys.md)（状態を取り直す契機は前面変化とトグル候補キー）、[ADR 0023](../../v0.2/decisions/0023-ime-indicator-uwp-child-window.md)・[ADR 0033](../../v0.3/decisions/0033-ime-status-second-ui-thread.md)（どのウィンドウに聞くか）、[ADR 0070](0070-agent-led-acceptance.md)（この症状を見つけた受け入れの形）
+- 関連: [ADR 0067](0067-ime-cursor-color.md)（IME をマウスカーソルの色で示す）、[ADR 0021](../../v0.1/decisions/0021-ime-indicator-trigger-keys.md)（状態を取り直す契機は前面変化とトグル候補キー）、[ADR 0023](../../v0.1/decisions/0023-ime-indicator-query-target.md)・[ADR 0033](../../v0.2/decisions/0033-ime-status-across-input-threads.md)（どのウィンドウに聞くか）、[ADR 0070](0070-agent-led-acceptance.md)（この症状を見つけた受け入れの形）
 - 公式: [`SendMessageTimeout`](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessagetimeoutw)（`SMTO_ABORTIFHUNG` は相手スレッドが応答していなければ待たずに失敗する）／[`WM_IME_CONTROL`](https://learn.microsoft.com/en-us/windows/win32/intl/wm-ime-control)（`IMC_GETOPENSTATUS`）
 
 ## 背景

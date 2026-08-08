@@ -60,8 +60,13 @@
             instead of vanishing with the process. Close the window, or press
             <kbd>Enter</kbd>, when you are done.</p>
     <p class="mb-0">Closing that window while WinRemap is still running ends WinRemap — that is
-            what the flag is for. Redirecting the output (<code>winremap --debug &gt;
-            log.txt</code>) keeps the text going to the file and opens no window.</p>
+            what the flag is for. Redirecting the output writes the transcript to the file
+            and opens no window, but <strong>neither shell's <code>&gt;</code> can do
+            it</strong>: PowerShell closes the pipe as soon as WinRemap goes resident, and
+            <code>cmd</code> never hands its redirected handles to a GUI-subsystem child at
+            all — either way the file stays empty. Use
+            <code>Start-Process winremap.exe -ArgumentList '--debug' -RedirectStandardOutput
+            log.txt</code> (Git Bash's <code>&gt;</code> works too).</p>
     </div>
   </div>
 </section>
