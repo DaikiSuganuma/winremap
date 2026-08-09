@@ -162,9 +162,13 @@
   </div>
 
   <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Install from a package manager</h3>
-  <p>Once the manifest is accepted, winget works too — it pulls the same official
-  binaries from GitHub Releases:</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>winget install winremap</code></pre>
+  <p>winget works too — it pulls the same official binaries from GitHub Releases.
+  A manifest is submitted after every release, so it can trail the newest version
+  by a few days:</p>
+<pre class="bg-body-tertiary border rounded p-3"><code>winget install DaikiSuganuma.WinRemap</code></pre>
+  <p class="mb-0"><strong>Use the full id.</strong> The name <code>winremap</code> matches
+  the Microsoft Store listing as well, and winget refuses an ambiguous query. The Store
+  one is <code>winget install 9N6TQDXRX5WV</code>.</p>
 
   <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Portable use (no installer)</h3>
   <p>Prefer a single file? Download
