@@ -96,17 +96,19 @@ flowchart TD
    download — [SECURITY.md](SECURITY.md) has the two commands that verify a
    download instead of trusting it.
 
-   winget works too, once the manifest is accepted (it is submitted after
-   every release; the
+   winget works too (a manifest is submitted after every release, so it can
+   trail the newest version by a few days; the
    [Releases](https://github.com/DaikiSuganuma/winremap/releases) download
    always works right away):
 
    ```powershell
-   winget install winremap
+   winget install DaikiSuganuma.WinRemap
    ```
 
    It installs the same official binaries from GitHub Releases — see
-   [`packaging/`](packaging/) for the manifest.
+   [`packaging/`](packaging/) for the manifest. **Use the full id**: the name
+   `winremap` matches the Store listing as well, and winget refuses an
+   ambiguous query. `winget install 9N6TQDXRX5WV` is the Store one.
 
    Prefer a portable setup? Download the single `winremap.exe` instead, or
    build from source:

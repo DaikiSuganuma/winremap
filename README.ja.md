@@ -63,16 +63,20 @@ flowchart TD
    が出ることがあります。信じて実行する代わりに検証する手順（2 コマンド）を
    [SECURITY.md](SECURITY.md) に用意してあります。
 
-   winget からも入れられます（マニフェストの受理後。リリースごとに提出します。
+   winget からも入れられます（マニフェストはリリースごとに提出するため、
+   最新版に数日遅れることがあります。
    [Releases](https://github.com/DaikiSuganuma/winremap/releases)
    からのダウンロードは常に即利用可能です）:
 
    ```powershell
-   winget install winremap
+   winget install DaikiSuganuma.WinRemap
    ```
 
    GitHub Releases の同じ公式バイナリを入れます。マニフェストは
-   [`packaging/`](packaging/) を参照してください。
+   [`packaging/`](packaging/) を参照してください。**ID を省略しないでください** —
+   `winremap` という名前は Microsoft Store の掲載にも一致するため、winget が
+   「複数のパッケージが一致しました」として実行を断ります。Store 版を入れる
+   場合は `winget install 9N6TQDXRX5WV` です。
 
    ポータブル運用にしたい場合は単体の `winremap.exe` をダウンロードするか、
    ソースからビルドしてください:
