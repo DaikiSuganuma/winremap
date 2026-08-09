@@ -37,9 +37,11 @@ enabled = true                # default: false
   you can check at any moment: while the IME is on, the arrow and the text I-beam are
   drawn in your colour with a white border. It is independent of
   <code>enabled</code> — you can have the cursor without the panel. Off by default.</p>
-  <p>The cursor is the one thing an overlay cannot reach everywhere, so this works over
-  elevated windows too. The price is that it is <strong>a change to the whole session,
-  not just to WinRemap's own windows</strong>, and that leads to one thing worth
+  <p>The colour is <strong>a change to the whole session, not just to WinRemap's own
+  windows</strong>. That does not make it reach everywhere: the IME state behind it is
+  read by messaging the window in front, and Windows does not let a normal program
+  message an elevated one (UIPI), so neither the panel nor the colour appears while an
+  elevated window has the focus. The session-wide change leads to one thing worth
   knowing:</p>
   <div class="alert alert-warning" role="alert">
     <p class="mb-0"><strong>A coloured cursor with no WinRemap in the tray means WinRemap
@@ -48,9 +50,20 @@ enabled = true                # default: false
     repairing: <strong>start WinRemap again and the cursor goes back</strong>, and so does
     signing out and back in.</p>
   </div>
-  <p class="mb-0">Quitting from the tray, a crash WinRemap can still see, and closing the
+  <p>Quitting from the tray, a crash WinRemap can still see, and closing the
   <code>--debug</code> window all put the cursor back on the way out. Your own cursor
   theme and size are kept — the shape is recoloured, not replaced.</p>
+  <div class="alert alert-secondary" role="alert">
+    <p class="mb-0"><strong>Known issue: rarely, the tinted I-beam is not drawn at
+    all.</strong><br>
+    Not a cursor without its colour — nothing at all. The arrow is unaffected and the
+    panel still appears, and toggling the IME does not bring it back —
+    <strong>restarting WinRemap does</strong>.<br>
+    It happened three times on one machine during the v0.8 acceptance and has never
+    reproduced on demand, so the cause is still open.<br>
+    <code>--debug</code> records every cursor change; a report with those lines in it is
+    welcome.</p>
+  </div>
 </section>
 
 </main>{% endraw %}{% endblock %}

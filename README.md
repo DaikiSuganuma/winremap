@@ -376,6 +376,15 @@ nothing** — starting it from a shell is as quiet as starting it from Explorer.
   IME state is read by messaging the target window, and UIPI blocks that too,
   so neither the panel nor the colour appears while an elevated window is in
   front. Run WinRemap elevated only if you need any of this there.
+- **The coloured cursor is occasionally not drawn at all.** Rarely, and so far
+  only during ordinary use, the tinted I-beam stops appearing while the IME is
+  on: not a cursor without its colour, but nothing at all. The arrow is
+  unaffected, the IME panel keeps working, and toggling the IME does not bring
+  it back — **restarting WinRemap does**. It happened three times on one
+  machine during the v0.8 acceptance and has never reproduced on demand, so
+  the cause is still open. `--debug` records every cursor change, and that log
+  is what will identify it; a report with those lines in it is welcome. The
+  setting is off by default.
 - **No tap/hold or mark mode** yet; sequences are limited to two strokes.
 - Chords involving **Alt or Win** inject a masking key so the modifier lift
   does not pop the menu bar / Start menu; if a specific app still shows menu
