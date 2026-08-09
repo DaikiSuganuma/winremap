@@ -259,7 +259,18 @@ fn run(overlay: &overlay::Overlay) {
                 if settings.change_cursor_color
                     && let Some(open) = sample.open
                 {
-                    crate::cursor::apply(open, settings.cursor_color);
+                    let action = crate::cursor::apply(open, settings.cursor_color);
+                    if crate::hook::debug_enabled() {
+                        // Not the hook thread: logging here is allowed. The
+                        // line is what tells M-2 apart from a quiet moment —
+                        // this runs on every foreground change, so "again"
+                        // is the common case and has to be visible.
+                        crate::gui::log::tagged(
+                            crate::gui::log::Kind::Detail,
+                            i18n::t().log_tag_ime,
+                            &i18n::debug_cursor_action(action),
+                        );
+                    }
                 }
                 let shown = settings.enabled && is_on && (!last_on || sample.target != last_target);
                 if shown {
