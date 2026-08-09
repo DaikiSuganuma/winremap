@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-08-09
+
+### Added
+
+- **The mouse cursor can show whether the IME is on** (ADR 0067).
+  `change_cursor_color = true` under `[ime_indicator]` draws the arrow and the
+  text I-beam in `cursor_color` (default `#0078d4`) with a white border for as
+  long as the IME is on. It is independent of `enabled`, so you can have the
+  cursor without the panel, and unlike the panel it is not a flash you can
+  miss — it is there whenever you look. Your own cursor theme and size are
+  kept: the shape is recoloured, not replaced. The white border is not
+  decoration; the colour alone is 37% as bright as the white it replaces and
+  would be lost on a dark application, so the cursor is given two colours at
+  opposite ends of the brightness range.
+
+  This changes the cursor **for the whole session**, not just over WinRemap's
+  own windows, which is why it is off by default. It also means a cursor that
+  is still coloured with no WinRemap in the tray is WinRemap having been
+  killed — nothing to repair, and starting it again puts the cursor back.
+
+  Two limits worth knowing. It cannot follow the IME while an elevated window
+  is in front, for the same reason remapping cannot reach one (UIPI). And
+  rarely — three times on one machine during acceptance, never on demand —
+  the coloured I-beam stops being drawn at all until WinRemap is restarted;
+  the cause is not yet known, and `--debug` now records every cursor change so
+  a report can identify it.
+- **`--debug` opens a console window of its own** and keeps it after WinRemap
+  exits (ADR 0068). The log used to go to the terminal you started from, where
+  the shell's prompt repainted over it, and it could only be read while
+  WinRemap was alive — so the startup lines had scrolled past before the log
+  window could be opened, and the shutdown lines vanished with the process.
+  Now both can be read: the window is there from the first line of startup and
+  stays until you close it or press Enter. Closing that window while WinRemap
+  is running ends WinRemap, which is what the flag is for; the terminal you
+  launched from is free to close. Redirected output still goes to the
+  destination and opens no window.
+
+  `--help` and `--version` are deliberately unchanged: they still print to the
+  terminal you started from, where the shell's prompt may repaint over them.
+
 ## [0.7.0] - 2026-08-02
 
 ### Added
