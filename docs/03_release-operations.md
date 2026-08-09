@@ -121,6 +121,12 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 
 > 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
 
+> **2026-08-09 実施（v0.8.0。初回登録ではない通常の運用の 1 回目）**: [PR #414253](https://github.com/microsoft/winget-pkgs/pull/414253) を**新規に**出した（差し替えではない）。`manifests/d/DaikiSuganuma/WinRemap/0.8.0/` を足す形で、0.7.0 のマニフェストとの差は **7 行**（`PackageVersion` ×3・`ReleaseDate`・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`）。`ProductCode` は Inno の `AppId` が同じなので据え置き。提出前に 0. の DLL チェック（出力が空）、`winget validate`（成功）、**公開 URL から実際に落とした SHA256 が manifest と `SHA256SUMS` の両方に一致**することを確認した。
+>
+> **`wingetcreate submit` は使えなかった。** 「フォークをアップストリームと同期できませんでした」で止まり、`gh repo sync` も `merge-upstream` API も **`workflow` スコープが要る**として 422 を返す（上流のワークフローファイルが変わっているため）。**同期せずに出す方法で回避した** — fork の master からブランチを切り、Contents API でマニフェスト 3 本を置き、PR を作る。**新しいディレクトリを足すだけなので、fork の master が古くても競合しない。** 置いたあと、上流の内容と手元の control copy が**バイト単位で同じ**ことを `cmp` で確認している。
+>
+> **`packaging/winget/` の control copy は LF** である（提出済みの 0.7.0 は `wingetcreate` が書いた CRLF）。**新規ディレクトリなので差分ノイズは出ない**が、既存ファイルを書き換える形の提出をするときは 2026-08-02 の注意（PowerShell で書いて CRLF を保つ）が生きる。
+
 > **2026-08-06 マージ（初回登録の完了）**: [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) が **2026-08-05 21:59 UTC（JST では 08-06 06:59）にマージされた**（`d3dad85`）。**登録された最初のバージョンは 0.7.0** で、v0.4.0 の再提出から数えて **3 度の差し替えを経て 11 日**かかった。master の `manifests/d/DaikiSuganuma/WinRemap/0.7.0/` を照合し、`InstallerSha256` が Release の `SHA256SUMS` と一致すること、`InstallerUrl` が `v0.7.0/winremap-setup.exe` を指すこと、`Moniker` が `winremap`（README とヘルプサイトが載せている `winget install winremap` がこの形で通る）を確認した。
 >
 > **マージと索引の反映は別**である。マージ 5 分後の時点で `winget search DaikiSuganuma.WinRemap` はまだ見つけない。公開索引は `Microsoft.PreIndexed.Package` の CDN キャッシュで、マージ後のビルドを待つ必要がある（この日の索引の最終更新は 07:03:28 で、06:59 のマージより後だが中身はマージ前）。**「マージされた」と「利用者が入れられる」は同じ日でもずれる。**
