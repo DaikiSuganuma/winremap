@@ -397,6 +397,8 @@ enabled = true                # 既定: false
 # size = 96                   # 32〜256
 # opacity = 200               # 0〜255
 # show_app_name = true        # 「あ」の下に exe 名を出す
+# change_cursor_color = true  # IME がオンの間、マウスカーソルに色を付ける
+# cursor_color = "#0078d4"    # その色。既定は WinRemap の青
 </code></pre>
   <p>IME がオンになった瞬間、アクティブウィンドウの中央に半透明の
   <strong>「あ」</strong>パネルを一瞬表示します。<br>
@@ -405,6 +407,14 @@ enabled = true                # 既定: false
   <code>trigger_keys</code> を足してください。<br>
   表示のみで、WinRemap が IME を切り替える
   ことはありません。</p>
+  <p class="mb-0"><code>change_cursor_color</code> はもう 1 つの独立した表示です。<br>
+  IME がオンの間、矢印カーソルと文字入力の I ビームが <code>cursor_color</code> の色と
+  白い縁で描かれます。<br>
+  <code>enabled</code> とは独立しているのでパネルを出さずにカーソルだけ使え、
+  一瞬のパネルと違って見たいときにいつでも確かめられます。<br>
+  <strong>セッション全体</strong>のカーソルを変えるため既定は無効です —
+  それが何を意味するか、WinRemap が居なくなったあとも色が残っている場合の
+  読み方とあわせて<a href="ime.html">IME のページ</a>に書いてあります。</p>
 </section>
 
 <section id="keys" class="container py-4 border-bottom">
