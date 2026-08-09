@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
 PackageIdentifier: DaikiSuganuma.WinRemap
-PackageVersion: 0.7.0
+PackageVersion: 0.8.0
 PackageLocale: en-US
 Publisher: Daiki Suganuma
 PublisherUrl: https://github.com/DaikiSuganuma
@@ -33,6 +33,6 @@ Tags:
   - emacs
   - utility
   - rust
-ReleaseNotesUrl: https://github.com/DaikiSuganuma/winremap/releases/tag/v0.7.0
+ReleaseNotesUrl: https://github.com/DaikiSuganuma/winremap/releases/tag/v0.8.0
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0
