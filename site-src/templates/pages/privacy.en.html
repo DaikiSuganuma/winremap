@@ -1,0 +1,102 @@
+{# Required for the Microsoft Store listing (ADR 0060); the claims here
+   restate SECURITY.md and AGENTS.md invariant 6, which are what enforce
+   them. Kept from the hand-written page this was cut from. #}
+{% extends "base.html" %}
+
+{% block hero %}{% raw %}<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <h1 class="display-5 fw-bold">Privacy Policy</h1>
+    <p class="lead text-body-secondary mb-0">WinRemap collects nothing. This page says
+    exactly what that means, and how you can check it yourself.</p>
+  </div>
+</header>{% endraw %}{% endblock %}
+
+{% block content %}{% raw %}<main class="container py-4" style="max-width: 52rem;">
+
+<section class="mb-5">
+  <div class="alert alert-success d-flex gap-2" role="alert">
+    <i class="bi bi-shield-check flex-shrink-0"></i>
+    <div><strong>WinRemap collects, stores and transmits no personal data of any kind.</strong>
+    There is no account, no telemetry, no analytics, no crash reporting, and no
+    network code in the program at all.</div>
+  </div>
+  <p class="text-body-secondary">Last updated: 2026-07-29. WinRemap is free software
+  published by SUGANUMA Daiki under the
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a>.</p>
+</section>
+
+<section class="mb-5">
+  <h2 class="h4"><i class="bi bi-shield-lock me-2"></i>Why a key remapper needs to say this</h2>
+  <p>WinRemap works by installing a low-level keyboard hook, which means every key
+  you press passes through it. That is the same mechanism a keylogger uses. The
+  difference is entirely in what the program does with what it sees — so it is
+  fair to ask, and the answer should be checkable rather than merely promised.</p>
+  <p>WinRemap looks at each key event, decides whether one of your rules applies,
+  and either passes the event through or replaces it. Nothing is retained
+  afterwards.</p>
+</section>
+
+<section class="mb-5">
+  <h2 class="h4"><i class="bi bi-slash-circle me-2"></i>What WinRemap does not do</h2>
+  <ul>
+    <li><strong>No keystroke logging.</strong> What you type is never written to
+    disk, never kept in memory beyond the moment it is handled, and never shown
+    anywhere. The optional debug log records key <em>names</em> only (that
+    <code>Ctrl+H</code> was remapped to <code>Backspace</code>), is off by
+    default, and exists only in the log window and — with
+    <code>--debug</code> — a console window of WinRemap's own. It is never
+    written to a file.</li>
+    <li><strong>No network access.</strong> WinRemap contains no networking code.
+    It cannot phone home, check for updates, or send diagnostics, because there
+    is nothing in it that can open a connection. Adding such code is prohibited
+    by the project's own development rules.</li>
+    <li><strong>No accounts, no identifiers.</strong> Nothing to sign in to,
+    and no device or user identifier is generated or read.</li>
+    <li><strong>No advertising, no third-party SDKs.</strong></li>
+  </ul>
+</section>
+
+<section class="mb-5">
+  <h2 class="h4"><i class="bi bi-hdd me-2"></i>What is stored on your PC</h2>
+  <p>One file, which you write and control:</p>
+  <ul>
+    <li><code>%APPDATA%\winremap\config.toml</code> — your remapping rules.
+    Installed from the Microsoft Store, this lives in the package's private
+    folder under <code>%LOCALAPPDATA%\Packages\</code> instead; the settings
+    window always shows the actual location.</li>
+  </ul>
+  <p>The file stays on your computer. It is not synced, uploaded or read by
+  anything but WinRemap, and uninstalling removes the program without touching
+  it (the Store version removes its private copy, as Windows requires).</p>
+</section>
+
+<section class="mb-5">
+  <h2 class="h4"><i class="bi bi-patch-check me-2"></i>How to verify this yourself</h2>
+  <p>You do not have to take any of the above on trust.</p>
+  <ul>
+    <li><strong>Read the source.</strong> All of it is at
+    <a href="https://github.com/DaikiSuganuma/winremap">github.com/DaikiSuganuma/winremap</a>.
+    The rules that forbid keystroke logging and network code are written down in
+    <a href="https://github.com/DaikiSuganuma/winremap/blob/main/AGENTS.md">AGENTS.md</a>
+    and enforced in review.</li>
+    <li><strong>Check the binary is the source.</strong> Every GitHub release
+    ships a build-provenance attestation, so you can prove the download was
+    built from this repository — see
+    <a href="install.html">Install</a> and
+    <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>.</li>
+    <li><strong>Watch it on the wire.</strong> Point a firewall or a network
+    monitor at <code>winremap.exe</code>. It will never connect to anything.</li>
+  </ul>
+</section>
+
+<section class="mb-5">
+  <h2 class="h4"><i class="bi bi-envelope me-2"></i>Contact</h2>
+  <p>Questions about privacy, or a suspected vulnerability:
+  <a href="https://github.com/DaikiSuganuma/winremap/issues">open an issue</a>, or for
+  security matters use
+  <a href="https://github.com/DaikiSuganuma/winremap/security/advisories/new">private vulnerability reporting</a>.</p>
+  <p class="text-body-secondary">If this policy changes, the revision date above
+  changes with it and the history is visible in the repository.</p>
+</section>
+
+</main>{% endraw %}{% endblock %}

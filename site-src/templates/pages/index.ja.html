@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block hero %}{% raw %}<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <img src="../assets/kbd-enabled.svg" alt="WinRemap アイコン" width="96" height="96" class="mb-3">
+    <h1 class="display-5 fw-bold">WinRemap</h1>
+    <p class="lead text-body-secondary">Rust 製の Windows 用アプリ別キーリマッパー。<br>
+    選んだアプリでだけキーを置き換え。<br>
+    設定はシンプルな TOML ファイル 1 つ。</p>
+    <div class="d-flex justify-content-center mt-5 mb-3">
+      <a class="btn btn-primary btn-lg px-3" href="ms-windows-store://pdp/?ProductId=9N6TQDXRX5WV"><i class="bi bi-microsoft me-2"></i>Microsoft Store アプリで開く</a>
+    </div>
+    <p class="small text-body-secondary mb-3"><strong>Windows 専用です。<br></strong>このボタンは Store アプリに
+    引き渡すため、macOS・Linux・スマートフォンでは何も起きません。<br>
+    その場合は
+    <a href="https://apps.microsoft.com/detail/9N6TQDXRX5WV">ブラウザーでストアのページ</a>を開いてください。</p>
+    <div class="btn-group flex-wrap mt-5 mb-4" role="group" aria-label="Other download routes">
+      <a class="btn btn-outline-secondary" href="https://apps.microsoft.com/detail/9N6TQDXRX5WV"><i class="bi bi-box-arrow-up-right me-1"></i>ストアのページ</a>
+      <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap-setup.exe"><i class="bi bi-download me-1"></i>インストーラーをダウンロード</a>
+      <a class="btn btn-outline-secondary" href="https://github.com/DaikiSuganuma/winremap/releases/latest/download/winremap.exe"><i class="bi bi-file-earmark-binary me-1"></i>ポータブル版 exe</a>
+    </div>
+    <p class="small text-body-secondary mb-1"><strong>Store からの導入をおすすめします</strong> —
+    SmartScreen の警告が出ず、更新も自動で届きます。<br>
+    どちらも公式で、入るのは同じビルドです
+    (<a href="install.html">違い</a>)。</p>
+    <p class="small text-body-secondary mb-0">無料・オープンソース (MIT) · ネットワーク通信なし · キー入力を記録しない ·
+    <a href="https://github.com/DaikiSuganuma/winremap/releases">全リリース</a></p>
+  </div>
+</header>{% endraw %}{% endblock %}
+
+{% block content %}{% raw %}<main>
+
+<section id="docs" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-compass me-2"></i>目的別に選ぶ</h2>
+  <div class="row row-cols-1 row-cols-md-2 g-3">
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-box-arrow-in-down me-2"></i>インストールとクイックスタート</h3>
+          <p class="card-text text-body-secondary">ダウンロードして起動し、最初のアプリ別リマップを作ります。</p>
+          <a href="install.html" class="stretched-link">はじめる<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-gear me-2"></i>設定ガイド</h3>
+          <p class="card-text text-body-secondary"><code>config.toml</code> の全項目、キー記法の一覧表、記述例。</p>
+          <a href="config.html" class="stretched-link">ガイドを読む<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-record-circle me-2"></i>マクロ記憶</h3>
+          <p class="card-text text-body-secondary">その場かぎりの繰り返し編集のために、操作を記憶して再生します。</p>
+          <a href="macro.html" class="stretched-link">仕組みを見る<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-translate me-2"></i>IME 状態インジケーター</h3>
+          <p class="card-text text-body-secondary">IME がオンになった瞬間に「あ」パネルを表示し、入力モードを知らせます。</p>
+          <a href="ime.html" class="stretched-link">オプションを見る<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card h-100">
+        <div class="card-body">
+          <h3 class="h5 card-title"><i class="bi bi-question-circle me-2"></i>FAQ・困ったとき</h3>
+          <p class="card-text text-body-secondary">管理者権限のウィンドウ、ルールが効かないときの調べ方、Store 版と GitHub 版の違い、記号キー。</p>
+          <a href="faq.html" class="stretched-link">答えを読む<i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="about" class="container py-4">
+  <h2 class="mb-3"><i class="bi bi-shield-check me-2"></i>セキュリティと設計方針</h2>
+  <ul>
+    <li>WinRemap は<strong>キー入力を記録・保存しません</strong> — 単なる方針ではなく
+      リポジトリ規約として強制されています。</li>
+    <li><strong>ネットワーク通信コードは一切ありません</strong>: テレメトリも自動アップデートもなし。</li>
+    <li>フック処理はヒープ確保・ロック・I/O のない純 Rust。<br>
+    最悪レイテンシを低く保ち、
+      スクリプト型リマッパーで起きがちなフックのタイムアウト(切り離し)を回避します。</li>
+    <li>設計上の対象外: IME の<em>制御</em>(インジケーターは表示のみ)、クリップボード
+      ツール、ランチャー、macOS/Linux 対応(Linux には
+      <a href="https://github.com/xremap/xremap">xremap</a> があります)。</li>
+  </ul>
+</section>
+
+
+</main>{% endraw %}{% endblock %}

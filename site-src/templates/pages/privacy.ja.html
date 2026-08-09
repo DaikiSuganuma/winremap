@@ -1,0 +1,120 @@
+{# Required for the Microsoft Store listing (ADR 0060); the claims here
+   restate SECURITY.md and AGENTS.md invariant 6, which are what enforce
+   them. Kept from the hand-written page this was cut from. #}
+{% extends "base.html" %}
+
+{% block hero %}{% raw %}<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <h1 class="display-5 fw-bold">プライバシーポリシー</h1>
+    <p class="lead text-body-secondary mb-0">WinRemap は何も収集しません。<br>
+    それが具体的に
+    何を意味するのか、そしてご自身で確かめる方法を説明します。</p>
+  </div>
+</header>{% endraw %}{% endblock %}
+
+{% block content %}{% raw %}<main class="container py-4" style="max-width: 52rem;">
+
+<section class="mb-5">
+  <div class="alert alert-success d-flex gap-2" role="alert">
+    <i class="bi bi-shield-check flex-shrink-0"></i>
+    <div><strong>WinRemap はいかなる個人情報も収集・保存・送信しません。<br></strong>
+    アカウントも、テレメトリも、アクセス解析も、クラッシュレポートもありません。<br>
+    そもそもプログラム内にネットワーク通信を行うコードが 1 行もありません。</div>
+  </div>
+  <p class="text-body-secondary">最終更新: 2026-07-29。<br>
+  WinRemap は SUGANUMA Daiki が
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT ライセンス</a>で公開している
+  自由ソフトウェアです。</p>
+</section>
+
+<section class="mb-5">
+  <h2 class="h4"><i class="bi bi-shield-lock me-2"></i>キーリマッパーがこれを明言すべき理由</h2>
+  <p>WinRemap は低レベルキーボードフックを設置して動作します。<br>
+  つまり、<strong>あなたが押した
+  すべてのキーがこのプログラムを通過します</strong>。<br>
+  これはキーロガーが使うのと同じ仕組みです。<br>
+  違いは「見えたものをどう扱うか」だけにあります。<br>
+  だからこそ問われて当然であり、
+  その答えは約束ではなく検証できるものであるべきだと考えています。</p>
+  <p>WinRemap は各キーイベントについて、設定したルールが当てはまるかを判定し、そのまま通すか
+  別のキーに置き換えるかを決めます。<br>
+  処理が終わった後には何も残しません。</p>
+</section>
+
+<section class="mb-5">
+  <h2 class="h4"><i class="bi bi-slash-circle me-2"></i>WinRemap が行わないこと</h2>
+  <ul>
+    <li><strong>キー入力の記録を行いません。<br></strong>入力内容がディスクに書かれることは
+    ありません。<br>
+    処理した瞬間を超えてメモリに保持することも、どこかに表示することも
+    ありません。<br>
+    任意で有効にできるデバッグログが記録するのは<em>キー名</em>だけで
+    （「<code>Ctrl+H</code> を <code>Back</code> に置換した」という粒度）、既定では
+    無効です。<br>
+    ログウィンドウと、<code>--debug</code> を付けたときに開く
+    WinRemap 専用のコンソールウィンドウにのみ出力され、
+    ファイルには一切書き出しません。</li>
+    <li><strong>ネットワーク通信を行いません。<br></strong>WinRemap にはネットワーク関連の
+    コードが含まれていません。<br>
+    本体への通信も、更新確認も、診断情報の送信も、
+    <em>それを行う手段自体が存在しない</em>ため不可能です。<br>
+    そうしたコードの追加は、
+    このプロジェクトの開発規約で明示的に禁止しています。</li>
+    <li><strong>アカウントも識別子もありません。<br></strong>サインインする対象がなく、
+    端末や利用者を識別する ID を生成することも読み取ることもありません。</li>
+    <li><strong>広告も第三者 SDK も含みません。</strong></li>
+  </ul>
+</section>
+
+<section class="mb-5">
+  <h2 class="h4"><i class="bi bi-hdd me-2"></i>PC 上に保存されるもの</h2>
+  <p>あなた自身が書き、管理するファイルが 1 つだけです。</p>
+  <ul>
+    <li><code>%APPDATA%\winremap\config.toml</code> — リマップのルール。<br>
+    Microsoft Store から導入した場合は、パッケージ専用フォルダー
+    （<code>%LOCALAPPDATA%\Packages\</code> 配下）に置かれます。<br>
+    実際の場所は
+    設定ウィンドウに常に表示されます。</li>
+  </ul>
+  <p>このファイルはお使いのコンピューター上に留まります。<br>
+  同期もアップロードもされず、
+  WinRemap 以外が読むこともありません。<br>
+  アンインストールしてもこのファイルは削除されません
+  （Store 版は Windows の仕様に従い、パッケージ専用フォルダー内の複製を削除します）。</p>
+</section>
+
+<section class="mb-5">
+  <h2 class="h4"><i class="bi bi-patch-check me-2"></i>ご自身で検証する方法</h2>
+  <p>以上を信用していただく必要はありません。</p>
+  <ul>
+    <li><strong>ソースコードを読む。<br></strong>すべて
+    <a href="https://github.com/DaikiSuganuma/winremap">github.com/DaikiSuganuma/winremap</a>
+    にあります。<br>
+    キー入力の記録とネットワーク通信を禁じる規約は
+    <a href="https://github.com/DaikiSuganuma/winremap/blob/main/AGENTS.md">AGENTS.md</a>
+    に明文化され、レビューで担保しています。</li>
+    <li><strong>配布物がそのソースから作られたことを確かめる。<br></strong>各リリースには
+    ビルド来歴（build provenance attestation）が付属しており、ダウンロードした
+    バイナリがこのリポジトリからビルドされたことを証明できます。<br>
+    手順は
+    <a href="install.html">インストール</a>と
+    <a href="https://github.com/DaikiSuganuma/winremap/blob/main/SECURITY.md">SECURITY.md</a>
+    を参照してください。</li>
+    <li><strong>通信を監視する。<br></strong>ファイアウォールやネットワークモニターで
+    <code>winremap.exe</code> を観察してください。<br>
+    どこにも接続しません。</li>
+  </ul>
+</section>
+
+<section class="mb-5">
+  <h2 class="h4"><i class="bi bi-envelope me-2"></i>お問い合わせ</h2>
+  <p>プライバシーに関するご質問は
+  <a href="https://github.com/DaikiSuganuma/winremap/issues">Issue</a> へ。<br>
+  脆弱性の疑いについては
+  <a href="https://github.com/DaikiSuganuma/winremap/security/advisories/new">非公開の脆弱性報告</a>
+  をご利用ください。</p>
+  <p class="text-body-secondary">本ポリシーを変更した場合は上記の更新日を改めます。<br>
+  変更の履歴はリポジトリで確認できます。</p>
+</section>
+
+</main>{% endraw %}{% endblock %}

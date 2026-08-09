@@ -12,6 +12,7 @@
 #![windows_subsystem = "windows"]
 
 mod clock;
+mod cursor;
 mod gui;
 mod hook;
 mod i18n;
@@ -35,12 +36,21 @@ use winremap::config;
 fn main() {
     // Before any output, so even an early failure can reach the terminal.
     notify::attach_parent_console();
+    // Before anything can fail: the cursor tint is session-wide state, so
+    // the paths that still run code on the way down have to put it back
+    // (ADR 0067).
+    cursor::install_crash_restore();
     if let Err(e) = run() {
         // `{:#}` keeps anyhow's context chain, which is what makes a config
         // error actionable ("failed to load ...: line 12: ...").
         notify::error(&format!("{e:#}"));
+        // A `--debug` console belongs to this process, so it would close with
+        // it — taking the message just printed with it (ADR 0068).
+        notify::wait_for_debug_console();
         std::process::exit(1);
     }
+    // Same for a clean exit: the shutdown transcript is the point of the flag.
+    notify::wait_for_debug_console();
 }
 
 fn run() -> anyhow::Result<()> {
@@ -49,6 +59,14 @@ fn run() -> anyhow::Result<()> {
     // help text parse_args may print.
     i18n::init(extract_lang(&args)?);
     let cli = parse_args(&args)?;
+    // `--debug` streams to a console of WinRemap's own, opened here so that
+    // the very first line of startup lands in it — the shell's console is
+    // shared with a prompt that repaints over the log, and the log window
+    // cannot be opened until startup is over (ADR 0068). A redirected run
+    // keeps its redirect and gets no window.
+    if cli.debug {
+        notify::open_debug_console();
+    }
     // Absolute from the start: the settings window's address bar shows the
     // parent folder and lists its .toml files for switching (ADR 0050), and
     // a relative `--config x.toml` has no parent to show or read.
@@ -109,6 +127,12 @@ fn run() -> anyhow::Result<()> {
     hook::REMAP_TABLE.store(Some(Arc::new(table)));
     gui::mark_config_loaded();
 
+    // Unconditional, and before anything can tint again: a cursor left over
+    // from a run that was killed is the one thing this feature cannot clear
+    // by itself, and startup is when nothing can legitimately be tinted yet
+    // (ADR 0067 decision 5). Costs one call when the feature is off.
+    cursor::restore();
+
     sender::init_scan_codes();
     // Seed the cache before hooking so the first keystrokes resolve against
     // the correct application instead of an empty name.
@@ -128,7 +152,8 @@ fn run() -> anyhow::Result<()> {
     // is going to get: let its console go, or closing that terminal would take
     // a working WinRemap with it (ADR 0062). Late on purpose — every failure
     // above this line still reaches the terminal it was reported from.
-    // `--debug` is the exception, since its log has nowhere else to stream.
+    // `--debug` is the exception: it has a console of its own by now, and
+    // that one stays for the whole run (ADR 0068).
     if !cli.debug {
         notify::detach_console();
     }

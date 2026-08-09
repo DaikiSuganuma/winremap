@@ -63,6 +63,13 @@ pub(super) struct RawImeIndicator {
     /// Show the target app's exe name under the glyph (ADR 0024).
     #[serde(default)]
     pub(super) show_app_name: Option<bool>,
+    /// Tint the mouse cursor while the IME is on (ADR 0067).
+    #[serde(default)]
+    pub(super) change_cursor_color: Option<bool>,
+    /// The tint as `#rrggbb`. Spanned so a bad spelling is reported with a
+    /// line and column like every other config error.
+    #[serde(default)]
+    pub(super) cursor_color: Option<Spanned<String>>,
 }
 
 #[derive(Deserialize)]

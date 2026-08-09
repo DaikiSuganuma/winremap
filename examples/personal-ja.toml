@@ -45,7 +45,11 @@ enabled = true # 表示を有効にする
 trigger_keys = ["C-Space"] # 切替の検知キー
 size = 256                 # 画面に表示する大きさ。32〜256
 show_app_name = true       # パネルの下に対象アプリの exe 名を表示（ADR 0024）
-
+# IME がオンの間、マウスカーソルの色を変える（ADR 0067）。パネルとは独立で、
+# 色は cursor_color（既定 #0078d4 = WinRemap のアイコンの青）。セッション全体の
+# カーソルを置き換えるので、色が付いたままトレイに WinRemap が居なければ
+# 異常終了である。
+change_cursor_color = true
 
 #
 # --- 全アプリに Emacs バインドを適用（独自のキー処理を持つアプリは除外） ---

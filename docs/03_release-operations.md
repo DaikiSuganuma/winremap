@@ -7,6 +7,9 @@
 - 更新: 2026-07-29（Claude Code / claude-opus-5[1m]）— **§4 Microsoft Store を追加**。v0.6.0 以降、**1 回のリリースで更新するチャネルは 2 つ**になった
 - 更新: 2026-07-30（Claude Code / claude-opus-5[1m]）— v0.6.0 の Store 提出と winget 差し替えの実施記録を §3・§4.2 に追記
 - 更新: 2026-07-31（Claude Code / claude-opus-5[1m]）— v0.6.0 の**認定通過**を §4.2 に記録。P-8 が通り、v0.6 の受け入れが閉じた
+- 更新: 2026-08-03（Claude Code / claude-opus-5[1m]）— §1 に**自動側の所要時間と人の作業への影響**を書く旨を追加。最新チェックリストの参照を v0.8 に更新
+- 更新: 2026-08-04（Claude Code / claude-opus-5[1m]）— v0.7.0 の**認定通過**を §4.2 に記録。あわせて §4.2 手順 5 に**受け入れ P-9 → P-8 の順序制約**を明記した
+- 更新: 2026-08-06（Claude Code / claude-opus-5[1m]）— winget の**初回登録がマージされた**ことを §3 に記録。以後この節は「初回登録」ではなく**通常の版上げ**の手順になる
 
 ---
 
@@ -48,8 +51,9 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
 
    **v0.5 以降は「そのバージョンの 1 枚」だけを見ればよい。** v0.1〜v0.3 の約 200 項目は v0.5 で「自動で通す／手で通す／もう通さない」に仕分けてあり、手で通すものは [v0.5 チェックリスト §4](./v0.5/03_acceptance-checklist.md) の**手動最小集合 H-1〜H-9**（30〜40 分）に集約されている。各バージョンのチェックリストはこれを継承したうえで固有項目を足す形で作る。
 
-   - 最新: [v0.6 受け入れチェックリスト](./v0.6/03_acceptance-checklist.md)（H-1〜H-9 ＋ MSIX 固有の P-1〜P-7）
+   - 最新: [v0.8 受け入れチェックリスト](./v0.8/03_acceptance-checklist.md)（C-1〜C-5 ＋ M-1〜M-6 ＋ H-1〜H-10 ＋ MSIX 固有の P-1〜P-9）。**v0.8 以降、手動の項目は Claude Code との対話で進める**（`/acceptance`。[ADR 0069](./v0.8/decisions/0069-interactive-acceptance-harness.md)・[ADR 0070](./v0.8/decisions/0070-agent-led-acceptance.md)）
    - 自動側: `cargo test` と `tests\ui\run-vm-ui-test.ps1`（[05_ui-test-automation.md](./05_ui-test-automation.md)）
+   - **自動側は人の作業を邪魔しうる。所要時間とあわせて、そのバージョンのチェックリスト §1 に表で書く**（v0.8 で追加）。とくに**前面ウィンドウ・マウスカーソル・IME を触る検査**（	ests\acceptance\probe-ime-cursor.ps1 など）は、**回す前に断り、席を外している時間にまとめて回す** — 邪魔になるだけでなく、**人が前面を動かすと検査のほうが誤る**ので測り直しになる（2026-08-03 の実施で判明）
    - 過去分（仕分けの根拠として参照する）: [v0.1](./v0.1/03_acceptance-checklist.md)・[v0.2](./v0.2/03_acceptance-checklist.md)・[v0.3](./v0.3/03_acceptance-checklist.md)・[v0.4](./v0.4/03_acceptance-checklist.md)
 2. **CHANGELOG**: `Unreleased` の内容を新バージョン見出し（例 `## [0.1.0] - 2026-07-XX`）に切り出す
 3. **バージョン**: `Cargo.toml` の `version` が**リリースする番号になっているか確認**する。番号を上げるのは開発の開始時であって、ここではない（[04_git-branching.md](04_git-branching.md) §2.6）。上がっていなければこの時点で上げる
@@ -117,6 +121,18 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 
 > 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
 
+> **2026-08-06 マージ（初回登録の完了）**: [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) が **2026-08-05 21:59 UTC（JST では 08-06 06:59）にマージされた**（`d3dad85`）。**登録された最初のバージョンは 0.7.0** で、v0.4.0 の再提出から数えて **3 度の差し替えを経て 11 日**かかった。master の `manifests/d/DaikiSuganuma/WinRemap/0.7.0/` を照合し、`InstallerSha256` が Release の `SHA256SUMS` と一致すること、`InstallerUrl` が `v0.7.0/winremap-setup.exe` を指すこと、`Moniker` が `winremap`（README とヘルプサイトが載せている `winget install winremap` がこの形で通る）を確認した。
+>
+> **マージと索引の反映は別**である。マージ 5 分後の時点で `winget search DaikiSuganuma.WinRemap` はまだ見つけない。公開索引は `Microsoft.PreIndexed.Package` の CDN キャッシュで、マージ後のビルドを待つ必要がある（この日の索引の最終更新は 07:03:28 で、06:59 のマージより後だが中身はマージ前）。**「マージされた」と「利用者が入れられる」は同じ日でもずれる。**
+>
+> **反映を確認したら、4 か所の但し書きを消す** — `README.md`（Install の節）・`README.ja.md`（同）・`site-src/templates/pages/install.en.html`・`install.ja.html` の「マニフェストの受理後」「Once the manifest is accepted」。Store の「認定通過後に公開されます」（§4.2 手順 5）と同じ性質の記述である。**サイトは `site-src/` を直して `build.ps1` で `site/` を作り直す**（[AGENTS.md](../AGENTS.md) 9）。
+>
+> **次のリリース（0.8.0）からは初回登録ではない。** 「審査中に 2 本目を出さない」という 3 度繰り返した判断はもう要らず、版ごとに新規 PR を出す通常の運用になる。差し替えではなく `manifests/d/DaikiSuganuma/WinRemap/<version>/` を**新しく足す**形である。
+
+> **2026-08-02 実施（v0.7.0）**: [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) は**依然として OPEN**（初回登録の審査待ちが 3 版にまたがっている）。0.5.0・0.6.0 と**同じ判断を 3 度目**に繰り返し、新規 PR を出さずに中身を 0.7.0 へ差し替えた。**初回登録されるバージョンは 0.7.0 になる。** 差分はディレクトリのリネームと **7 行**（`PackageVersion` ×3・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`・`ReleaseDate`）。`ProductCode` は Inno の `AppId` を変えていないので据え置き。提出前に **公開後の URL から `winremap-setup.exe` を実際に落として SHA256 が manifest と `SHA256SUMS` の両方に一致すること**を確認し、`winget validate` は提出物と `packaging/` の control copy の両方で通した。0. の DLL チェックも出力が空であることを確認済み。PR のタイトルを 0.7.0 に直し、経緯をコメントに残した。
+>
+> **次に同じ作業をするときの注意（2026-08-02 に踏んだ罠）**: 提出済みマニフェストは **CRLF** である。**Git Bash の `sed -i` を使わないこと** — 改行が LF に変換され、6 行のはずの差分が全行差分になる。PowerShell で `[IO.File]::ReadAllText` → `.Replace()` → `[IO.File]::WriteAllText`（`UTF8Encoding($false)`）と書けば CRLF が保たれる。fork のクローンは HTTPS だと非対話環境で push できないので、`git remote set-url origin git@github.com:...` に直す。
+>
 > **winget 初回登録の状況（2026-07-26 更新）**: v0.3.0 の提出（[PR #405731](https://github.com/microsoft/winget-pkgs/pull/405731)）は上記 0. の依存が原因で検証に失敗した。リリース済みバイナリは差し替えられないため、この PR は取り下げ、初回登録は v0.4.0 でやり直すことにした（オーナー決定 2026-07-23。経緯は[作業ノート](./v0.4/notes/20260723_winget-0.3.0-validation.md)）。
 >
 > **2026-07-30 実施**: [PR #407875](https://github.com/microsoft/winget-pkgs/pull/407875) は v0.6.0 公開時点でまだ OPEN（モデレーター承認待ち）だったため、v0.5.0 と**同じ判断を繰り返し**、新規 PR を出さずに中身を 0.6.0 に差し替えた。**初回登録されるバージョンは 0.6.0 になる。** 差分はディレクトリのリネームと 6 行のみ（`PackageVersion` ×3・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`）。`ReleaseDate` は 0.5.0 の提出日と v0.6.0 の公開日が同じ 2026-07-29 なので変更なし。`ProductCode` も Inno の `AppId` を変えていないので据え置き。提出前に `winremap-setup.exe` を **URL から実際に落として SHA256 が manifest と `SHA256SUMS` の両方に一致すること**を確認し、`winget validate` は提出物と `packaging/` の control copy の両方で通した。PR のタイトルも 0.6.0 に直し、経緯をコメントに残した。
@@ -174,8 +190,16 @@ Partner Center の製品は登録済みで、**これらの値は変えてはな
 5. **公開後に確認する**（本バージョンの目的そのもの）:
    - `https://apps.microsoft.com/detail/9N6TQDXRX5WV` が開くこと
    - **Store からインストールしたときに SmartScreen の警告が出ないこと**
-   - 「認定通過後に公開されます」の但し書きを文書から消す（**6 か所**。[v0.6 開発計画 §4.3](./v0.6/01_development-plan.md) に一覧）
+   - 「認定通過後に公開されます」の但し書きを文書から消す（**6 か所**。[v0.6 開発計画 §4.3](./v0.6/01_development-plan.md) に一覧。v0.6.0 の通過時に削除済み）
 
+   > **受け入れの P-9 を P-8 より先にやること**（2026-08-04 に気づいた順序制約）。P-8 は**アンインストールして新規インストールする**項目なので、先に通すと **P-9 が要求する「前の版が入っている状態」が消える**。Store は旧バージョンを配らないため、**その版の更新経路はもう一度は測れない**。**P-9 →（アンインストール）→ P-8** の 1 回きりである。
+
+> **2026-08-04（v0.7.0 認定通過）**: パートナー センターから公開の連絡があった。**提出（08-02）から 2 日**。落ちた申請を同じバージョン番号で出し直せるか（§4.3）は、**今回も落ちなかったので依然として未確認**である。受け入れの **P-8・P-9 の Store 側は同日時点で未実施**（オーナー判断で後日）。この時点の機械には Store 版 **0.6.0** が入ったままで（`Get-AppxPackage` の `SignatureKind` が `Store`）、**P-9 の前提は生きている**。上の順序制約に従って P-9 から行うこと。
+
+> **2026-08-02（v0.7.0）**: `packaging\msix\out\winremap-0.7.0.msix`（4.15 MB・**未署名**・`Identity/@Version` = `0.7.0.0`・Publisher は Partner Center の `CN=38CDEE8D-…` のまま）を作成した。パッケージの中身を開いて `AppxSignature.p7x` が無いことと Identity の 3 項目を確認済み。4.1 の順序制約も満たしている（Release 公開済み、`privacy.html` が 200）。**同日オーナーが Partner Center へ提出した。認定待ち。** 掲載情報の変更点は [v0.7 の差分ノート](./v0.7/notes/20260802_store-listing-0.7.0.md)（**書き換えるのは「このバージョンの新機能」と「主な機能」の 1 行だけ**）。
+>
+> **`cargo build` が「アクセスが拒否されました」で落ちたら、WinRemap 自身が `target\release\winremap.exe` から常駐している。** トレイから終了してから流し直す（2026-08-02 に遭遇）。
+>
 > **2026-07-30 実施（v0.6.0）**: オーナーが `packaging\msix\out\winremap-0.6.0.msix`（4.3 MB・未署名・バージョン `0.6.0.0`）を Partner Center へ提出した。提出前に 4.1 の順序制約は満たしている（`privacy.html` が日英とも 200）。
 >
 > **2026-07-31 認定通過**: ストアページが公開され、`https://apps.microsoft.com/detail/9N6TQDXRX5WV` が 200 を返すようになった。オーナーが**ストアから実際にインストールし、SmartScreen の警告が出ないことを確認した**（[受け入れ](./v0.6/03_acceptance-checklist.md) **P-8**）。**これで v0.6 の受け入れが閉じた。** 手順 5 の但し書き削除（6 か所）も実施済み。**提出から公開まで 1 日**だった。

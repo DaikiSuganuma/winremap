@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- Created: 2026-07-21 by Claude Code (model: claude-opus-4-8). English is the
-     primary version; keep site/ja/config.html in sync (AGENTS.md workflow 7). -->
+<!-- Generated from site-src/ by Zola (ADR 0066). Do not edit site/ by hand:
+     the next build overwrites it. Edit site-src/ and run site-src/build.ps1. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -352,11 +352,20 @@ enabled = true                # default: false
 # size = 96                   # 32–256
 # opacity = 200               # 0–255
 # show_app_name = true        # exe name under the glyph
+# change_cursor_color = true  # colour the mouse cursor while the IME is on
+# cursor_color = "#0078d4"    # that colour; default WinRemap's blue
 </code></pre>
   <p>Flashes a translucent <strong>「あ」</strong> panel at the centre of the active window
   when the IME turns on. Standard IME keys are detected already; add
   <code>trigger_keys</code> for a custom toggle such as the Windows 11 IME's Ctrl+Space
   option. Display only — WinRemap never switches the IME.</p>
+  <p class="mb-0"><code>change_cursor_color</code> is a second, independent display: while
+  the IME is on, the arrow and the text I-beam are drawn in
+  <code>cursor_color</code> with a white border. It works without
+  <code>enabled</code>, and unlike the panel it is not a flash you can miss.
+  It changes the cursor for the <strong>whole session</strong>, so it is off by
+  default — <a href="ime.html">the IME page</a> explains what that means, including
+  how to read a cursor that is still coloured after WinRemap is gone.</p>
 </section>
 
 <section id="keys" class="container py-4 border-bottom">

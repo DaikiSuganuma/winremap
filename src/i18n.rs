@@ -182,6 +182,7 @@ pub struct Texts {
     pub tooltip_reload_failed: &'static str,
     pub remapping_active: &'static str,
     pub already_running: &'static str,
+    pub debug_console_wait: &'static str,
     pub debug_none: &'static str,
     pub debug_foreground_unknown: &'static str,
     pub debug_source_remap: &'static str,
@@ -301,6 +302,7 @@ static EN: Texts = Texts {
     tooltip_reload_failed: "WinRemap — config reload FAILED (previous config still active)",
     remapping_active: "remapping active. Use the tray icon to reload or quit.",
     already_running: "WinRemap is already running (check the task tray)",
+    debug_console_wait: "--- WinRemap has exited. Close this window, or press Enter. ---",
     debug_none: "(none)",
     debug_foreground_unknown: "could not be determined (possibly an elevated window)",
     debug_source_remap: "remap",
@@ -420,6 +422,7 @@ static JA: Texts = Texts {
     tooltip_reload_failed: "WinRemap — 設定の再読み込みに失敗（前の設定で動作中）",
     remapping_active: "リマップ稼働中。再読み込み・終了はトレイアイコンから。",
     already_running: "WinRemap は既に起動しています（タスクトレイを確認してください）",
+    debug_console_wait: "--- WinRemap は終了しました。このウィンドウを閉じるか、Enter を押してください ---",
     debug_none: "（なし）",
     debug_foreground_unknown: "取得できませんでした（管理者権限ウィンドウの可能性）",
     debug_source_remap: "置換",
@@ -798,6 +801,50 @@ pub fn debug_ime_query(open: Option<bool>, shown: bool, via_child: bool) -> Stri
                 ""
             };
             format!("状態={state} → {action}{via}")
+        }
+    }
+}
+
+/// What the last [`crate::cursor::apply`] did, for the debug log.
+///
+/// The distinction that matters is "installed" versus "reinstalled": the
+/// caller runs on every foreground change, so an already-installed tint is
+/// handed to `SetSystemCursor` again and again. v0.8 acceptance M-2 needs to
+/// know which of those happened when the I-beam went invisible.
+pub fn debug_cursor_action(action: crate::cursor::Action) -> String {
+    use crate::cursor::Kind;
+    let rebuilt = action.rebuilt;
+    let (replaced, failed) = (action.replaced, action.failed);
+    match lang() {
+        Lang::En => {
+            let what = match action.kind {
+                Kind::Idle => return "cursor: nothing to do".into(),
+                Kind::Restored => return "cursor: tint removed".into(),
+                Kind::Installed => "tint installed",
+                Kind::Reinstalled => "tint installed again (was already on)",
+            };
+            let built = if rebuilt { ", cursors rebuilt" } else { "" };
+            let bad = if failed > 0 {
+                format!(", {failed} failed")
+            } else {
+                String::new()
+            };
+            format!("cursor: {what} — {replaced} replaced{bad}{built}")
+        }
+        Lang::Ja => {
+            let what = match action.kind {
+                Kind::Idle => return "カーソル: 何もしない".into(),
+                Kind::Restored => return "カーソル: 着色を外した".into(),
+                Kind::Installed => "着色した",
+                Kind::Reinstalled => "着色し直した（すでに着色済み）",
+            };
+            let built = if rebuilt { "・作り直し" } else { "" };
+            let bad = if failed > 0 {
+                format!("・失敗 {failed}")
+            } else {
+                String::new()
+            };
+            format!("カーソル: {what} — 差し替え {replaced}{bad}{built}")
         }
     }
 }

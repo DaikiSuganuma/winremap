@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- Created: 2026-07-31 by Claude Code (model: claude-opus-5[1m]). English is the
-     primary version; keep the other language in sync (AGENTS.md workflow 7). -->
+<!-- Generated from site-src/ by Zola (ADR 0066). Do not edit site/ by hand:
+     the next build overwrites it. Edit site-src/ and run site-src/build.ps1. -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -20,8 +20,8 @@
 <link rel="stylesheet" href="../style.css">
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/kbd-enabled-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="../assets/kbd-enabled-16.png">
-<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/">
-<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/">
+<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/faq.html">
+<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/faq.html">
 <!-- Follow the OS light/dark setting (Bootstrap 5.3 switches on data-bs-theme).
      Inline and self-contained — the site loads no third-party scripts. -->
 <script>
@@ -143,15 +143,23 @@
             出ます (このオプションを付けない場合は何も出力しません)。<br>
             入力した文章そのものが
             ログに出ることはなく、ログがディスクに保存されることもありません。</p>
-    <p><code>--debug</code> を使うときの注意です。<br>
-            WinRemap は自前のコンソールを持たないため、シェルは終了を待ちません。<br>
-            すぐにプロンプトが戻り、そのプロンプトがログの上に描き直されるので、
-            <strong>文字が重なって見えます</strong>。<br>
-            シェルに待たせれば重なりません:</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>Start-Process winremap.exe -ArgumentList '--debug' -NoNewWindow -Wait</code></pre>
-    <p class="mb-0">停止は <kbd>Ctrl</kbd>+<kbd>C</kbd> かトレイからの終了です。<br>
-            ログウィンドウならこの問題は起きず、<code>--debug</code> も要りません
-            (開くだけでログが有効になります)。</p>
+    <p><code>--debug</code> を付けると、WinRemap 専用のコンソールウィンドウが開きます。<br>
+            他に書き込む相手が居ないので<strong>文字が重なりません</strong>。<br>
+            起動の 1 行目から出ます
+            (ログウィンドウは起動が終わってからしか開けないので、そこは見られません)。<br>
+            そして<strong>WinRemap が終了したあとも残ります</strong>ので、
+            終了時のログも読めます。<br>
+            読み終わったらウィンドウを閉じるか <kbd>Enter</kbd> を押してください。</p>
+    <p class="mb-0">動作中にこのウィンドウを閉じると WinRemap も終了します
+            (このオプションはそういう用途のものです)。<br>
+            出力をリダイレクトした場合は、ウィンドウを開かずそのファイルへ書き出します。<br>
+            ただし<strong>どちらのシェルの <code>&gt;</code> でも受け取れません</strong>。
+            PowerShell は WinRemap が常駐に入った時点でパイプを閉じてしまい、
+            <code>cmd</code> のほうはリダイレクト先のハンドルを
+            GUI サブシステムの子プロセスに渡さないためです
+            (どちらもファイルは空になります)。<br>
+            <code>Start-Process winremap.exe -ArgumentList '--debug' -RedirectStandardOutput
+            log.txt</code> をお使いください (Git Bash の <code>&gt;</code> でも受け取れます)。</p>
     </div>
   </div>
 </section>
@@ -293,19 +301,18 @@
 
 <footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
   <div class="container">
-  <p class="text-center mb-4 lh-lg"><a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.ja.md">README (日本語)</a>
-      |
-      <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a>
+  <p class="text-center mb-4 lh-lg"><a href="index.html">ヘルプ</a>
       |
       <a href="privacy.html">プライバシー</a>
       |
-      <a href="https://github.com/DaikiSuganuma/winremap">ソースコード</a>
+      <a href="https://github.com/DaikiSuganuma/winremap">ソース</a>
       |
-      <a href="../" lang="en">English help</a></p>
+      <a href="https://github.com/DaikiSuganuma/winremap/issues">問題を報告</a>
+      |
+      <a href="../faq.html" lang="en">English</a></p>
   <p class="text-center small mb-1">WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</p>
-  <p class="text-center small mb-0">トレイメニューのアイコンは <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>(MIT)を使用しています —
-      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">ライセンス表示</a>。<br>
-      本サイトは <a href="https://getbootstrap.com/">Bootstrap</a>(MIT)で構築しています。</p>
+  <p class="text-center small mb-0"><a href="https://getbootstrap.com/">Bootstrap</a> と
+      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>（MIT）で構築しています。</p>
   </div>
 </footer>
 

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block hero %}{% raw %}<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <h1 class="display-5 fw-bold">IME status indicator <span class="badge text-bg-secondary align-middle fs-6">optional</span></h1>
+    <p class="lead text-body-secondary mb-0">Know your input mode before you type. Back to the
+    <a href="index.html">help index</a>.</p>
+  </div>
+</header>{% endraw %}{% endblock %}
+
+{% block content %}{% raw %}<main>
+
+<section id="ime" class="container py-4">
+  <p>Independent of remapping, WinRemap can flash a translucent
+  <strong>「あ」</strong> panel at the center of the active window the moment the IME
+  turns on — or when you focus a window whose IME is on — so you always know your
+  input mode before typing. Display only: WinRemap never switches the IME.</p>
+<pre class="bg-body-tertiary border rounded p-3"><code>[ime_indicator]
+enabled = true                # default: false
+# trigger_keys = ["C-Space"]  # if you toggle the IME with Ctrl+Space
+# duration_ms = 800           # 100–5000
+# size = 96                   # 32–256
+# opacity = 200               # 0–255
+# show_app_name = true        # exe name under the glyph
+# change_cursor_color = true  # colour the mouse cursor while the IME is on
+# cursor_color = "#0078d4"    # the colour, default WinRemap's blue
+</code></pre>
+  <p>Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are detected
+  out of the box; add <code>trigger_keys</code> if you use a custom toggle like the
+  Windows 11 IME's Ctrl+Space option. The panel never takes focus or input, and a problem
+  in the indicator never affects remapping.</p>
+</section>
+
+<section id="cursor" class="container py-4">
+  <h2 class="h4">Colouring the mouse cursor</h2>
+  <p><code>change_cursor_color = true</code> turns the panel's one-off flash into something
+  you can check at any moment: while the IME is on, the arrow and the text I-beam are
+  drawn in your colour with a white border. It is independent of
+  <code>enabled</code> — you can have the cursor without the panel. Off by default.</p>
+  <p>The colour is <strong>a change to the whole session, not just to WinRemap's own
+  windows</strong>. That does not make it reach everywhere: the IME state behind it is
+  read by messaging the window in front, and Windows does not let a normal program
+  message an elevated one (UIPI), so neither the panel nor the colour appears while an
+  elevated window has the focus. The session-wide change leads to one thing worth
+  knowing:</p>
+  <div class="alert alert-warning" role="alert">
+    <p class="mb-0"><strong>A coloured cursor with no WinRemap in the tray means WinRemap
+    was killed.</strong> The colour is only ever applied while the IME is on, so a colour
+    left behind cannot be mistaken for normal. Nothing is broken and nothing needs
+    repairing: <strong>start WinRemap again and the cursor goes back</strong>, and so does
+    signing out and back in.</p>
+  </div>
+  <p>Quitting from the tray, a crash WinRemap can still see, and closing the
+  <code>--debug</code> window all put the cursor back on the way out. Your own cursor
+  theme and size are kept — the shape is recoloured, not replaced.</p>
+  <div class="alert alert-secondary" role="alert">
+    <p class="mb-0"><strong>Known issue: rarely, the tinted I-beam is not drawn at
+    all.</strong><br>
+    Not a cursor without its colour — nothing at all. The arrow is unaffected and the
+    panel still appears, and toggling the IME does not bring it back —
+    <strong>restarting WinRemap does</strong>.<br>
+    It happened three times on one machine during the v0.8 acceptance and has never
+    reproduced on demand, so the cause is still open.<br>
+    <code>--debug</code> records every cursor change; a report with those lines in it is
+    welcome.</p>
+  </div>
+</section>
+
+</main>{% endraw %}{% endblock %}

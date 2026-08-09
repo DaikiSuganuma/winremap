@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- Created: 2026-07-22 by Claude Code (model: claude-opus-4-8). Japanese
-     translation of site/ime.html — keep in sync with the English original. -->
+<!-- Generated from site-src/ by Zola (ADR 0066). Do not edit site/ by hand:
+     the next build overwrites it. Edit site-src/ and run site-src/build.ps1. -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -103,12 +103,52 @@ enabled = true                # 既定: false
 # size = 96                   # 32〜256
 # opacity = 200               # 0〜255
 # show_app_name = true        # 「あ」の下に exe 名を表示
+# change_cursor_color = true  # IME がオンの間、マウスカーソルに色を付ける
+# cursor_color = "#0078d4"    # その色。既定は WinRemap の青
 </code></pre>
   <p>変換/無変換・半角/全角・かな・IME On/Off などの標準キーは設定なしで検知されます。<br>
   Windows 11 IME の「Ctrl + Space で IME をオン/オフ」のような割り当てを使っている場合は
   <code>trigger_keys</code> を追加してください。<br>
   パネルはフォーカスや入力を一切奪わず、
   インジケーター側の問題がリマップ動作に影響することはありません。</p>
+</section>
+
+<section id="cursor" class="container py-4">
+  <h2 class="h4">マウスカーソルに色を付ける</h2>
+  <p><code>change_cursor_color = true</code> にすると、一瞬のパネルとは別に、
+  <strong>いつでも確かめられる</strong>表示が加わります。<br>
+  IME がオンの間、矢印カーソルと文字入力の I ビームが、指定の色と白い縁で描かれます。<br>
+  <code>enabled</code> とは独立しているので、パネルを出さずにカーソルだけ使えます。<br>
+  既定は無効です。</p>
+  <p>これは <strong>WinRemap のウィンドウの中だけでなく、セッション全体を変える設定</strong>です。<br>
+  ただし、どこでも効くわけではありません — IME の状態は前面のウィンドウへメッセージを
+  送って読み取っており、通常権限のプログラムから管理者権限のウィンドウへは送れません
+  (UIPI)。<br>
+  管理者権限のウィンドウが前面のあいだは、パネルも色も出ません。<br>
+  セッション全体を変えることから、1 つ知っておいていただきたいことがあります。</p>
+  <div class="alert alert-warning" role="alert">
+    <p class="mb-0"><strong>カーソルに色が付いたままで、トレイに WinRemap が居ない場合、
+    それは WinRemap が強制終了させられたということです。</strong><br>
+    色が付くのは IME がオンのときだけなので、残った色を通常の状態と見間違えることは
+    ありません。<br>
+    壊れているわけではなく、直す操作も要りません —
+    <strong>WinRemap をもう一度起動すればカーソルは元に戻ります</strong>。<br>
+    サインアウトして入り直しても戻ります。</p>
+  </div>
+  <p>トレイからの終了、WinRemap 自身が気づける異常終了、
+  <code>--debug</code> のウィンドウを閉じた場合は、いずれも終了時に元へ戻します。<br>
+  独自のカーソルテーマやサイズはそのままです — 形を差し替えるのではなく、着色しています。</p>
+  <div class="alert alert-secondary" role="alert">
+    <p class="mb-0"><strong>既知の問題:
+    まれに、色付きの I ビームがまったく描かれなくなることがあります。</strong><br>
+    色が消えるのではなく、何も描かれません。矢印のほうは正常で、パネルも出ますが、
+    IME を切り替えても戻りません —
+    <strong>WinRemap を起動し直すと戻ります</strong>。<br>
+    v0.8 の受け入れで 1 台の機械に 3 回起きましたが、狙って再現できたことは
+    一度もなく、原因は未特定です。<br>
+    <code>--debug</code> はカーソルの差し替えを毎回記録するので、
+    遭遇された場合はそのログを添えて報告いただけると助かります。</p>
+  </div>
 </section>
 
 </main>

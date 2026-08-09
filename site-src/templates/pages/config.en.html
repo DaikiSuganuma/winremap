@@ -1,0 +1,547 @@
+{% extends "base.html" %}
+
+{% block hero %}{% raw %}<header class="hero text-center py-5" id="top">
+  <div class="container">
+    <h1 class="display-5 fw-bold">Configuration guide</h1>
+    <p class="lead text-body-secondary mb-0">Everything <code>config.toml</code> can say, with worked examples.
+    For installing and using WinRemap, see the <a href="index.html">help page</a>.</p>
+  </div>
+</header>{% endraw %}{% endblock %}
+
+{% block content %}{% raw %}<main>
+
+<section id="shape" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-file-earmark-text me-2"></i>The shape of a config file</h2>
+  <p>The file lives at <code>%APPDATA%\winremap\config.toml</code> unless you pass
+  <code>--config &lt;path&gt;</code>. It is <a href="https://toml.io/">TOML</a>, and it has
+  two kinds of content: a few optional settings sections, and any number of
+  <code>[[keymap]]</code> blocks.</p>
+  <p class="text-body-secondary">Installed from the <strong>Microsoft Store</strong>, the file
+  sits in the package's own folder instead — the settings window always names the folder it is
+  really using, and opens it in Explorer for you
+  (<a href="install.html#install">the difference between the two channels</a>).</p>
+
+<pre class="bg-body-tertiary border rounded p-3"><code># ---- settings (all optional) ----
+[macro]
+delay_ms = 8
+
+[ime_indicator]
+enabled = true
+
+# ---- keymaps: as many as you like ----
+[[keymap]]
+name = "global-emacs"          # a label for you and the settings window
+application = ["*"]            # which apps this block applies to
+exclude = ["windowsterminal.exe"]
+
+[keymap.remap]                 # the rules themselves
+"C-p" = "Up"
+"C-n" = "Down"
+
+[[keymap]]
+name = "jetbrains"
+application = ["phpstorm64.exe", "idea64.exe"]
+
+[keymap.remap]
+"C-h" = "Back"
+</code></pre>
+
+  <p>Two things about TOML that catch people out here:</p>
+  <ul>
+    <li><code>[[keymap]]</code> has double brackets because it is a <em>list</em> — each
+      one starts a new block. <code>[keymap.remap]</code> has single brackets because it is
+      a table inside the block above it.</li>
+    <li>Every rule's left side is <strong>quoted</strong>. <code>"C-h" = "Back"</code>, not
+      <code>C-h = "Back"</code> — the hyphen would otherwise not be a legal bare key.</li>
+  </ul>
+
+  <div class="alert alert-info d-flex gap-2" role="alert">
+    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+    <div>Comments are yours to keep. WinRemap reads the comment written beside a
+    rule and shows it next to that rule in the settings window, so notes to yourself survive
+    where you can see them.</div>
+  </div>
+
+  <p>After editing, right-click the tray icon and pick <strong>Reload config</strong>.
+  If the file has a mistake, WinRemap reports it and <em>keeps running the previous
+  config</em> — a typo can never leave you without a keyboard setup.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Editing it without leaving WinRemap</h3>
+  <p>You do not have to open the file at all. Right-click the tray icon, pick
+  <strong>Settings</strong>, and press <strong>Edit</strong>: names, target apps,
+  exclusions and rules become fields, keymaps can be added, deleted and reordered,
+  and the general settings sit on sliders and checkboxes.</p>
+  <ul>
+    <li>Key-notation fields say what they read as while you type — <code>A-x u</code>
+    shows "Alt+x, then u" — and flag what they cannot parse, suggesting a key name
+    when yours is close to a real one.</li>
+    <li><strong>Save</strong> runs the same validation the command line does. If
+    anything is wrong, nothing is written and the problems are listed with their
+    line numbers.</li>
+    <li>A valid save is written atomically and reloaded, so the new rules are in
+    effect immediately.</li>
+    <li><strong>Everything you did not edit stays exactly as it was</strong> —
+    comments, blank lines, the order of your rules, your spelling, and the file's
+    line endings. Deleting a rule takes its line and the comment on it; comments
+    written above it move to the rule that follows.</li>
+    <li>If the file changed outside WinRemap while you were editing, Save asks
+    instead of overwriting. Closing with unsaved changes asks too.</li>
+  </ul>
+  <p class="mb-0">Not sure what to write in <code>application</code>? Press
+  <strong>Capture the foreground app</strong>, bring the app you mean to the front
+  within three seconds, and its exe name lands on the list.</p>
+</section>
+
+<section id="apps" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-bullseye me-2"></i>Targeting applications</h2>
+  <p>Every <code>[[keymap]]</code> starts by saying which applications it applies to.</p>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-top">
+      <thead><tr><th>Key</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>application</code></td>
+          <td>A list of exe names, matched case-insensitively against the foreground app —
+            <code>["notepad.exe", "chrome.exe"]</code>. Or <code>["*"]</code> for every app.
+            Mixing <code>"*"</code> with names is an error rather than a guess.</td>
+        </tr>
+        <tr>
+          <td><code>exclude</code></td>
+          <td>Exe names this block does <em>not</em> apply to. Only allowed together with
+            <code>["*"]</code> — excluding from a list you wrote yourself would just mean
+            writing a shorter list.</td>
+        </tr>
+        <tr>
+          <td><code>name</code></td>
+          <td>Optional label. It appears in the settings window and in error messages, so
+            naming blocks pays off as soon as you have more than two.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Which block wins</h3>
+  <p>When more than one block could apply, <strong>an app-specific block beats a
+  <code>"*"</code> block</strong>, regardless of the order they appear in the file. Within
+  the same class, the first match wins.</p>
+
+<pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
+application = ["*"]
+[keymap.remap]
+"C-h" = "Back"          # everywhere...
+
+[[keymap]]
+application = ["code.exe"]
+[keymap.remap]
+"C-h" = "C-h"           # ...except VS Code, where C-h stays C-h
+</code></pre>
+
+  <p>Only one rule ever fires. If you bind the same input in two blocks that both apply,
+  the settings window shows a column naming the other block — that clash is invisible
+  when reading either one alone.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Finding the exe name</h3>
+  <p>Right-click the tray icon, pick <strong>Show log</strong>, then switch to the app you
+  want to target. The <code>[window]</code> line prints the exact string to put in
+  <code>application</code>, and which of your keymaps reach it — the full path is on the
+  detail line under it. It is always the file name only — a path does not match.</p>
+
+  <pre class="bg-body-tertiary p-3 rounded"><code>18:01:51.471 [window]   application = "notepad.exe" — matching keymaps: emacs-keys</code></pre>
+</section>
+
+<section id="rules" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-arrow-left-right me-2"></i>Rules</h2>
+  <p>Inside <code>[keymap.remap]</code>, the left side is what you press and the right side
+  is what the application receives.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Chord rules and bare-key rules</h3>
+  <p>Which one you get depends on whether the left side has a modifier. The difference
+  matters more than it looks.</p>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-top">
+      <thead><tr><th></th><th>Chord rule</th><th>Bare-key rule</th></tr></thead>
+      <tbody>
+        <tr>
+          <th scope="row" class="fw-normal text-body-secondary">Looks like</th>
+          <td><code>"C-h" = "Back"</code></td>
+          <td><code>"CapsLock" = "LCtrl"</code></td>
+        </tr>
+        <tr>
+          <th scope="row" class="fw-normal text-body-secondary">Matches</th>
+          <td>That <em>exact</em> modifier set. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd>
+            does <strong>not</strong> trigger a <code>C-h</code> rule.</td>
+          <td>The key alone, whatever modifiers are held. <kbd>Ctrl</kbd>+<kbd>CapsLock</kbd>
+            still becomes <kbd>Ctrl</kbd>+<kbd>Ctrl</kbd>.</td>
+        </tr>
+        <tr>
+          <th scope="row" class="fw-normal text-body-secondary">Modifiers</th>
+          <td>Replaced to match the output. The app receives a plain Backspace even though
+            Ctrl is physically down. The output may carry its own:
+            <code>"C-i" = "S-Tab"</code>.</td>
+          <td>Left alone. The output must therefore be a single key with no modifiers.</td>
+        </tr>
+        <tr>
+          <th scope="row" class="fw-normal text-body-secondary">Use it for</th>
+          <td>Emacs-style bindings, per-app fixes, anything where the modifier is part of what
+            you pressed.</td>
+          <td>Swapping a physical key: CapsLock→Ctrl, Muhenkan→something useful.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The two coexist. A block can swap <code>CapsLock</code> for <code>LCtrl</code> and
+  still special-case <code>C-CapsLock</code>, because the chord rule is checked first.</p>
+
+  <div class="alert alert-warning d-flex gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+    <div>A modifier key cannot be the <em>input</em> of a rule
+    (<code>"LCtrl" = ...</code> is rejected). Modifiers are what chords are built from; they
+    are consumed before any lookup happens. They are fine as outputs.</div>
+  </div>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Prefix keys (two-stroke sequences)</h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>"A-x u" = "C-z"      # Alt+X, then U    →  undo
+"A-x C-s" = "C-s"    # Alt+X, then Ctrl+S  →  save
+</code></pre>
+  <p>Write two chords separated by a space. The first is swallowed and WinRemap waits —
+  with <strong>no timeout</strong>, exactly as Emacs does. The next keystroke completes the
+  binding.</p>
+  <p>If the second stroke is not one you defined, it is <strong>discarded</strong> rather
+  than passed through, so a mistyped sequence never leaks a stray character into your
+  document. The first chord must have a modifier: a bare prefix would swallow ordinary
+  typing.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Macros</h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>"C-t" = ["C-Right", "C-Left", "C-S-Right"]   # up to 8 commands
+</code></pre>
+  <p>An array output taps each command once, in order. The whole run is injected as a
+  single batch, so your own typing cannot interleave with it. A macro fires once per
+  press — holding the key does not repeat it.</p>
+  <p>If an app drops some of the strokes (the WinUI Notepad does), see
+  <code>[macro] delay_ms</code> below.</p>
+</section>
+
+<section id="sections" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-sliders me-2"></i>Settings sections</h2>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i><code>[macro]</code></h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>[macro]
+delay_ms = 8            # 0–15, default 0
+
+record_start = "S-F10"  # macro recording — see the help page
+# record_stop = "S-F11" # omit it and the start key stops it too
+record_play  = "F10"
+</code></pre>
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-top">
+      <thead><tr><th>Key</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>delay_ms</code></td>
+          <td>Pause between the commands of a macro, in milliseconds (0–15). Leave it at 0
+            unless an app is dropping strokes; 8 is enough for the WinUI Notepad. It paces
+            replayed recordings too. The <code>--macro-delay</code> command-line flag overrides
+            it for experiments.</td>
+        </tr>
+        <tr>
+          <td><code>record_start</code><br><code>record_stop</code><br><code>record_play</code></td>
+          <td>Keys for <a href="macro.html">macro recording</a>. Recording is off until
+            you name <code>record_start</code> and <code>record_play</code>;
+            <code>record_stop</code> defaults to the start key, which makes it a toggle. These
+            keys are taken before any keymap lookup, so binding one of them in
+            <code>[keymap.remap]</code> as well is an error.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="alert alert-info d-flex gap-2" role="alert">
+    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+    <div>The v0.1 spelling — a top-level <code>macro_delay_ms</code> — still
+    works. Setting both is an error rather than a silent winner, so you always know which
+    one is in effect.</div>
+  </div>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i><code>[ime_indicator]</code></h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>[ime_indicator]
+enabled = true                # default: false
+# trigger_keys = ["C-Space"]  # if you toggle the IME with Ctrl+Space
+# duration_ms = 800           # 100–5000
+# size = 96                   # 32–256
+# opacity = 200               # 0–255
+# show_app_name = true        # exe name under the glyph
+# change_cursor_color = true  # colour the mouse cursor while the IME is on
+# cursor_color = "#0078d4"    # that colour; default WinRemap's blue
+</code></pre>
+  <p>Flashes a translucent <strong>「あ」</strong> panel at the centre of the active window
+  when the IME turns on. Standard IME keys are detected already; add
+  <code>trigger_keys</code> for a custom toggle such as the Windows 11 IME's Ctrl+Space
+  option. Display only — WinRemap never switches the IME.</p>
+  <p class="mb-0"><code>change_cursor_color</code> is a second, independent display: while
+  the IME is on, the arrow and the text I-beam are drawn in
+  <code>cursor_color</code> with a white border. It works without
+  <code>enabled</code>, and unlike the panel it is not a flash you can miss.
+  It changes the cursor for the <strong>whole session</strong>, so it is off by
+  default — <a href="ime.html">the IME page</a> explains what that means, including
+  how to read a cursor that is still coloured after WinRemap is gone.</p>
+</section>
+
+<section id="keys" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-keyboard me-2"></i>Key notation</h2>
+  <p>Rules use the Emacs-style notation familiar from Keyhac/fakeymacs: modifier prefixes
+  plus a key name, e.g. <code>C-h</code>, <code>A-S-F5</code>, <code>W-Space</code>.
+  Everything is case-insensitive, and prefix order does not matter — <code>C-S-h</code>
+  and <code>S-C-h</code> are the same chord.</p>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-top">
+      <thead><tr><th>Prefix</th><th>Modifier</th></tr></thead>
+      <tbody>
+        <tr><td><code>C-</code></td><td>Ctrl (either side)</td></tr>
+        <tr><td><code>A-</code></td><td>Alt (either side)</td></tr>
+        <tr><td><code>S-</code></td><td>Shift (either side)</td></tr>
+        <tr><td><code>W-</code></td><td>Win (either side)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-top">
+      <thead><tr><th>Group</th><th>Key names</th></tr></thead>
+      <tbody>
+        <tr><td>Letters / digits</td><td><code>a</code>–<code>z</code>, <code>0</code>–<code>9</code></td></tr>
+        <tr><td>Function</td><td><code>F1</code>–<code>F24</code></td></tr>
+        <tr><td>Editing</td><td><code>Back</code> (<code>Backspace</code>, <code>BS</code>), <code>Tab</code>, <code>Enter</code> (<code>Return</code>), <code>Esc</code> (<code>Escape</code>), <code>Space</code>, <code>Insert</code> (<code>Ins</code>), <code>Delete</code> (<code>Del</code>)</td></tr>
+        <tr><td>Navigation</td><td><code>PageUp</code> (<code>PgUp</code>), <code>PageDown</code> (<code>PgDn</code>), <code>Home</code>, <code>End</code>, <code>Left</code>, <code>Up</code>, <code>Right</code>, <code>Down</code></td></tr>
+        <tr><td>Lock</td><td><code>CapsLock</code></td></tr>
+        <tr><td>Symbols</td><td><strong>The character printed on the key</strong> (<code>;</code>, <code>/</code>, <code>-</code>, <code>[</code>, …). Aliases: <code>Oem1</code>–<code>Oem8</code>, <code>Oem102</code>, <code>OemPlus</code>, <code>OemComma</code>, <code>OemMinus</code>, <code>OemPeriod</code></td></tr>
+        <tr><td>Modifiers as output keys</td><td><code>LCtrl</code>, <code>RCtrl</code>, <code>LShift</code>, <code>RShift</code>, <code>LAlt</code>, <code>RAlt</code>, <code>LWin</code>, <code>RWin</code>, <code>Apps</code> (<code>Menu</code>) — output side only</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Not supported: modifier keys on the input side of a rule.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Symbol keys follow your keyboard</h3>
+  <p>Write a symbol key as <strong>the character printed on it</strong>.
+  <code>"C-;" = "Enter"</code> means the key engraved <code>;</code>.</p>
+
+  <p>Which key that is genuinely differs between keyboards: one and the same key prints
+  <code>;</code> on a US layout and <code>:</code> on a Japanese one. WinRemap does not
+  assume — <strong>it asks Windows when it loads your config</strong>. So the same file
+  picks the key that matches <strong>what is engraved on the keyboard in front of you</strong>.</p>
+
+  <div class="alert alert-warning">
+    <p class="mb-2"><strong>A character that needs Shift is written with it.</strong></p>
+    <p class="mb-2">On a US keyboard <code>@</code> is <kbd>Shift</kbd>+<kbd>2</kbd>, so the
+    rule is <code>"C-S-2"</code>, not <code>"C-@"</code>. WinRemap will not quietly add the
+    Shift for you; it says so, with the spelling to use:</p>
+    <pre class="bg-body-tertiary border rounded p-2 mb-2"><code>`@` needs Shift on this keyboard; write `S-2` instead</code></pre>
+    <p class="mb-0">On a Japanese keyboard <code>@</code> is a key of its own, so
+    <code>"C-@"</code> is exactly right there. <strong>Different layout, different
+    spelling</strong> — because the keyboards really are different, and hiding that would
+    cost you more than knowing it.</p>
+  </div>
+
+  <p>To carry one config <strong>between machines with different keyboards</strong>, use the
+  aliases: <code>"C-OemMinus"</code> names the same key on any layout. They are also the only
+  way to reach a key with nothing printed on it (<code>Oem8</code>), or to pick between two
+  keys that print the same character — a US layout has <code>\</code> on two of them.</p>
+
+  <p class="text-body-secondary">Changed keyboards? Choose <strong>Reload config</strong> from
+  the tray menu; the question is asked again each time the config is read. The key-notation
+  panel in the settings window (<i class="bi bi-keyboard"></i>) lists
+  <strong>the symbol keys of the keyboard you have attached right now</strong>.</p>
+</section>
+
+<section id="recipes" class="container py-4 border-bottom">
+  <h2 class="mb-3"><i class="bi bi-code-square me-2"></i>Worked examples</h2>
+  <p>Each of these is a complete, self-contained block you can paste into your config.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>CapsLock as another Ctrl</h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
+name = "capslock"
+application = ["*"]
+
+[keymap.remap]
+"CapsLock" = "LCtrl"
+</code></pre>
+  <p>A bare-key rule, so it holds whatever else you are pressing. CapsLock stops toggling
+  caps entirely — it <em>is</em> Ctrl now, including when held for a chord.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Ctrl+H as Backspace, except where the terminal needs it</h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
+name = "backspace"
+application = ["*"]
+exclude = ["windowsterminal.exe", "mintty.exe"]  # these send their own 0x08
+
+[keymap.remap]
+"C-h" = "Back"
+</code></pre>
+  <p>The problem WinRemap was written for. In an editor <kbd>Ctrl</kbd>+<kbd>H</kbd> usually
+  opens Find &amp; Replace; here it deletes one character instead. Terminals are excluded
+  because they already do the right thing.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Emacs cursor movement everywhere</h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
+name = "emacs-motion"
+application = ["*"]
+exclude = ["windowsterminal.exe", "emacs.exe"]
+
+[keymap.remap]
+"C-p" = "Up"
+"C-n" = "Down"
+"C-b" = "Left"
+"C-f" = "Right"
+"C-a" = "Home"
+"C-e" = "End"
+"C-d" = "Delete"
+"C-k" = ["S-End", "C-x"]     # kill to end of line, into the clipboard
+"C-y" = "C-v"                # yank
+</code></pre>
+  <p>Note <code>C-k</code>: a macro, because "kill line" is two operations — select to the
+  end of the line, then cut. Exclude apps that already speak Emacs, or you will fight
+  them.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>One app that needs the opposite</h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
+name = "vscode"
+application = ["code.exe"]
+
+[keymap.remap]
+"C-p" = "C-p"     # VS Code's quick-open: hand it back untouched
+</code></pre>
+  <p>An app-specific block beats the <code>"*"</code> block above without needing to be
+  written after it. Mapping a chord to itself is the idiom for "this app is an
+  exception".</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Emacs-style prefix commands</h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
+name = "prefix"
+application = ["*"]
+
+[keymap.remap]
+"A-x u" = "C-z"        # Alt+X U  →  undo
+"A-x s" = "C-s"        # Alt+X S  →  save
+"A-x C-c" = "A-F4"     # Alt+X Ctrl+C  →  close the window
+</code></pre>
+  <p>Anything you press after <kbd>Alt</kbd>+<kbd>X</kbd> that is not listed is discarded,
+  so a slip never types into your document.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Selecting a word with one key</h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>[[keymap]]
+name = "select-word"
+application = ["*"]
+
+[keymap.remap]
+"C-t" = ["C-Right", "C-Left", "C-S-Right"]
+</code></pre>
+  <p>Jump past the word, back to its start, then select to its end — which lands the caret
+  on a whole word no matter where in it you started. Up to 8 commands per macro.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Recording a one-off repetitive edit</h3>
+<pre class="bg-body-tertiary border rounded p-3"><code>[macro]
+delay_ms = 8
+record_start = "S-F10"   # Shift+F10 starts, and stops
+record_play  = "F10"     # F10 replays
+</code></pre>
+  <p>For edits not worth a permanent rule: press <kbd>Shift</kbd>+<kbd>F10</kbd>, do the
+  work once, press it again, then press <kbd>F10</kbd> down the rest of the file. The
+  recording holds 20 commands, lives in memory only, and is gone when WinRemap exits.
+  See <a href="macro.html">macro recording</a> for what it does and does not
+  capture.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>A starting file</h3>
+  <p>Two examples ship with WinRemap and are worth reading end to end:
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/minimal.toml">minimal.toml</a>
+  (one rule, for checking that WinRemap is alive) and
+  <a href="https://github.com/DaikiSuganuma/winremap/blob/main/examples/emacs.toml">emacs.toml</a>
+  (a full fakeymacs-style set).</p>
+</section>
+
+<section id="errors" class="container py-4">
+  <h2 class="mb-3"><i class="bi bi-exclamation-octagon me-2"></i>When the config is wrong</h2>
+  <p>Every problem is reported at once, each with a line number, so one pass through the
+  file fixes them all. A failed reload keeps the previous working config.</p>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-top">
+      <thead><tr><th>What it says</th><th>What it means</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>unknown key `Bogus`</code></td>
+          <td>The name is not in the <a href="#keys">key notation</a> table. If it is a
+            symbol, your keyboard does not print it on any key — check the panel in the
+            settings window for the ones it does.</td>
+        </tr>
+        <tr>
+          <td><code>`@` needs Shift on this keyboard; write `S-2` instead</code></td>
+          <td>That character is on a key's shifted face. Write it with the Shift, exactly as
+            the message spells it (<a href="#keys">symbol keys</a>).</td>
+        </tr>
+        <tr>
+          <td><code>modifier key `LCtrl` cannot be a remap input</code></td>
+          <td>A modifier alone cannot be the left side of a rule. It can be an output.</td>
+        </tr>
+        <tr>
+          <td><code>a bare-key rule's target may not have modifiers</code></td>
+          <td>The left side had no modifier, so this is a bare-key rule, and those leave the
+            modifier state alone. Add a modifier to the left side to make it a chord rule.</td>
+        </tr>
+        <tr>
+          <td><code>duplicates an earlier rule for the same key</code></td>
+          <td>Two rules in one block resolve to the same chord — <code>"C-h"</code> and
+            <code>"c-H"</code> are the same thing.</td>
+        </tr>
+        <tr>
+          <td><code>is already used as a sequence prefix</code></td>
+          <td>The same chord is both a plain rule and the first stroke of a sequence. WinRemap
+            cannot tell whether to fire it or wait for a second key.</td>
+        </tr>
+        <tr>
+          <td><code>`exclude` requires application = ["*"]</code></td>
+          <td>You listed apps and then excluded some. Just write the shorter list.</td>
+        </tr>
+        <tr>
+          <td><code>is also remapped in `…`; recording keys are always taken first</code></td>
+          <td>A recording key is also bound in a keymap. That rule could never fire, and
+            nothing in the file would show it — so it is rejected instead.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Still stuck? The tray's <strong>Show log</strong> window prints what WinRemap does
+  with each keystroke, and the <strong>Settings</strong> window shows the config actually
+  in effect — which is the fastest way to see that a reload did not happen.</p>
+
+  <h3 class="h5 mt-4"><i class="bi bi-circle-fill me-2 small"></i>Reading the log</h3>
+  <p>Every line carries the time to the millisecond and a tag saying which stream it
+  belongs to. <code>[decided]</code> is one line per key; tick <strong>Every event</strong>
+  for the whole stream — <code>[input]</code> for the presses and releases that arrived,
+  <code>[injected]</code> for everything WinRemap sent in reply. Everything is recorded
+  either way, so ticking the box explains the keys you already pressed.</p>
+
+  <pre class="bg-body-tertiary p-3 rounded"><code>18:01:51.517 [input]     n ↓
+             [decided]   C-n → remapped to Down
+             [injected]    LCtrl ↑ (modifier adjust)
+             [injected]    Down ↓ (remap)</code></pre>
+
+  <p>Where a key or a chord carries an ASCII control code, the log says so:
+  <code>C-h (BS 0x08)</code>, <code>Enter (CR 0x0D)</code>. Letters and digits never show a
+  code — WinRemap logs keys, not what you typed.</p>
+
+  <div class="alert alert-secondary">
+    <strong>Ctrl+H, Backspace and terminals.</strong> A terminal sends DEL <code>0x7f</code>
+    for the Backspace <em>key</em> and BS <code>0x08</code> for Ctrl+H, and an application
+    may bind the two to different things — which is the problem WinRemap was written for.
+    Remapping <code>C-h</code> to <code>Back</code> makes your terminal send
+    <code>0x7f</code> for both. The log shows <code>BS 0x08</code> on both sides because
+    that is the code Windows itself gives the Backspace key; the <code>0x7f</code> is the
+    terminal's own doing, further down the line.
+  </div>
+</section>
+
+</main>{% endraw %}{% endblock %}

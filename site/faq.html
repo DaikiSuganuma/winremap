@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- Created: 2026-07-31 by Claude Code (model: claude-opus-5[1m]). English is the
-     primary version; keep the other language in sync (AGENTS.md workflow 7). -->
+<!-- Generated from site-src/ by Zola (ADR 0066). Do not edit site/ by hand:
+     the next build overwrites it. Edit site-src/ and run site-src/build.ps1. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -20,8 +20,8 @@
 <link rel="stylesheet" href="style.css">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/kbd-enabled-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/kbd-enabled-16.png">
-<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/">
-<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/">
+<link rel="alternate" hreflang="en" href="https://daikisuganuma.github.io/winremap/faq.html">
+<link rel="alternate" hreflang="ja" href="https://daikisuganuma.github.io/winremap/ja/faq.html">
 <!-- Follow the OS light/dark setting (Bootstrap 5.3 switches on data-bs-theme).
      Inline and self-contained — the site loads no third-party scripts. -->
 <script>
@@ -133,14 +133,20 @@
             WinRemap with <code>winremap.exe --debug</code> and the same lines go there instead;
             without that flag it prints nothing. Debug output never includes typed text and is
             never written to disk.</p>
-    <p>One thing to know about <code>--debug</code>: WinRemap opens no console of its
-            own, so your shell does not wait for it. The prompt comes straight back and then
-            repaints itself on top of the log, and the two overwrite each other. Keep the shell out
-            of the way by making it wait:</p>
-<pre class="bg-body-tertiary border rounded p-3"><code>Start-Process winremap.exe -ArgumentList '--debug' -NoNewWindow -Wait</code></pre>
-    <p class="mb-0">Stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd> or from the tray. The log window never
-            has this problem, and it does not need <code>--debug</code> — opening it turns the log
-            on by itself.</p>
+    <p><code>--debug</code> opens a console window of WinRemap's own. Nothing else writes to it, so
+            nothing overwrites the log; it is there from the first line of startup, which the log
+            window cannot show you because it can only be opened once startup is over; and
+            <strong>it stays after WinRemap exits</strong>, so the shutdown lines can be read
+            instead of vanishing with the process. Close the window, or press
+            <kbd>Enter</kbd>, when you are done.</p>
+    <p class="mb-0">Closing that window while WinRemap is still running ends WinRemap — that is
+            what the flag is for. Redirecting the output writes the transcript to the file
+            and opens no window, but <strong>neither shell's <code>&gt;</code> can do
+            it</strong>: PowerShell closes the pipe as soon as WinRemap goes resident, and
+            <code>cmd</code> never hands its redirected handles to a GUI-subsystem child at
+            all — either way the file stays empty. Use
+            <code>Start-Process winremap.exe -ArgumentList '--debug' -RedirectStandardOutput
+            log.txt</code> (Git Bash's <code>&gt;</code> works too).</p>
     </div>
   </div>
 </section>
@@ -263,19 +269,18 @@
 
 <footer id="site-footer" class="border-top py-4 bg-body-tertiary text-body-secondary" data-bs-theme="dark">
   <div class="container">
-  <p class="text-center mb-4 lh-lg"><a href="privacy.html">Privacy</a>
+  <p class="text-center mb-4 lh-lg"><a href="index.html">Help</a>
+      |
+      <a href="privacy.html">Privacy</a>
       |
       <a href="https://github.com/DaikiSuganuma/winremap">Source</a>
       |
       <a href="https://github.com/DaikiSuganuma/winremap/issues">Report an issue</a>
       |
-      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/README.md">README</a>
-      |
-      <a href="ja/" lang="ja">日本語版ヘルプ</a></p>
+      <a href="ja/faq.html" lang="ja">日本語版</a></p>
   <p class="text-center small mb-1">WinRemap — <a href="https://github.com/DaikiSuganuma/winremap/blob/main/LICENSE">MIT License</a> · © 2026 Daiki Suganuma</p>
-  <p class="text-center small mb-0">Tray menu icons from <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a> (MIT) —
-      <a href="https://github.com/DaikiSuganuma/winremap/blob/main/THIRD-PARTY-NOTICES.md">notices</a>.
-      This site is built with <a href="https://getbootstrap.com/">Bootstrap</a> (MIT).</p>
+  <p class="text-center small mb-0">Built with <a href="https://getbootstrap.com/">Bootstrap</a> and
+      <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a> (MIT).</p>
   </div>
 </footer>
 

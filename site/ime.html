@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- Created: 2026-07-22 by Claude Code (model: claude-opus-4-8). English is the
-     primary version; keep site/ja/ime.html in sync (AGENTS.md workflow 6). -->
+<!-- Generated from site-src/ by Zola (ADR 0066). Do not edit site/ by hand:
+     the next build overwrites it. Edit site-src/ and run site-src/build.ps1. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -102,11 +102,48 @@ enabled = true                # default: false
 # size = 96                   # 32–256
 # opacity = 200               # 0–255
 # show_app_name = true        # exe name under the glyph
+# change_cursor_color = true  # colour the mouse cursor while the IME is on
+# cursor_color = "#0078d4"    # the colour, default WinRemap's blue
 </code></pre>
   <p>Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are detected
   out of the box; add <code>trigger_keys</code> if you use a custom toggle like the
   Windows 11 IME's Ctrl+Space option. The panel never takes focus or input, and a problem
   in the indicator never affects remapping.</p>
+</section>
+
+<section id="cursor" class="container py-4">
+  <h2 class="h4">Colouring the mouse cursor</h2>
+  <p><code>change_cursor_color = true</code> turns the panel's one-off flash into something
+  you can check at any moment: while the IME is on, the arrow and the text I-beam are
+  drawn in your colour with a white border. It is independent of
+  <code>enabled</code> — you can have the cursor without the panel. Off by default.</p>
+  <p>The colour is <strong>a change to the whole session, not just to WinRemap's own
+  windows</strong>. That does not make it reach everywhere: the IME state behind it is
+  read by messaging the window in front, and Windows does not let a normal program
+  message an elevated one (UIPI), so neither the panel nor the colour appears while an
+  elevated window has the focus. The session-wide change leads to one thing worth
+  knowing:</p>
+  <div class="alert alert-warning" role="alert">
+    <p class="mb-0"><strong>A coloured cursor with no WinRemap in the tray means WinRemap
+    was killed.</strong> The colour is only ever applied while the IME is on, so a colour
+    left behind cannot be mistaken for normal. Nothing is broken and nothing needs
+    repairing: <strong>start WinRemap again and the cursor goes back</strong>, and so does
+    signing out and back in.</p>
+  </div>
+  <p>Quitting from the tray, a crash WinRemap can still see, and closing the
+  <code>--debug</code> window all put the cursor back on the way out. Your own cursor
+  theme and size are kept — the shape is recoloured, not replaced.</p>
+  <div class="alert alert-secondary" role="alert">
+    <p class="mb-0"><strong>Known issue: rarely, the tinted I-beam is not drawn at
+    all.</strong><br>
+    Not a cursor without its colour — nothing at all. The arrow is unaffected and the
+    panel still appears, and toggling the IME does not bring it back —
+    <strong>restarting WinRemap does</strong>.<br>
+    It happened three times on one machine during the v0.8 acceptance and has never
+    reproduced on demand, so the cause is still open.<br>
+    <code>--debug</code> records every cursor change; a report with those lines in it is
+    welcome.</p>
+  </div>
 </section>
 
 </main>

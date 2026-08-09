@@ -33,6 +33,14 @@ pub struct IndicatorSettings {
     pub trigger_keys: Vec<KeyCombo>,
     /// Show the target application's exe name under the glyph (ADR 0024).
     pub show_app_name: bool,
+    /// Tint the mouse cursor while the IME is on (ADR 0067). Off by default:
+    /// this one replaces cursors for the whole session, not just inside
+    /// WinRemap, so it is not something to switch on for somebody.
+    pub change_cursor_color: bool,
+    /// The tint as R/G/B. Applied to the cursor's own shape rather than
+    /// replacing it, so the black outline stays black and the white body
+    /// takes this colour.
+    pub cursor_color: (u8, u8, u8),
 }
 
 impl Default for IndicatorSettings {
@@ -44,6 +52,26 @@ impl Default for IndicatorSettings {
             opacity: 200,
             trigger_keys: Vec::new(),
             show_app_name: false,
+            change_cursor_color: false,
+            // WinRemap's own blue, the one in the application icon: distinct
+            // from the black-and-white the cursors start as, readable on both
+            // light and dark backgrounds, and legible as "this is WinRemap"
+            // rather than as an arbitrary colour.
+            cursor_color: (0x00, 0x78, 0xD4),
         }
     }
+}
+
+/// Parses `#rrggbb` (or `rrggbb`) into R/G/B.
+///
+/// Deliberately the only accepted spelling: colour names would need a table
+/// that is either short enough to disappoint or long enough to argue about,
+/// and this value is written once.
+pub fn parse_hex_color(text: &str) -> Option<(u8, u8, u8)> {
+    let digits = text.strip_prefix('#').unwrap_or(text);
+    if digits.len() != 6 || !digits.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let byte = |i: usize| u8::from_str_radix(&digits[i..i + 2], 16).ok();
+    Some((byte(0)?, byte(2)?, byte(4)?))
 }

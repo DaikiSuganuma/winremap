@@ -1,0 +1,24 @@
+# Zola configuration for the help site (ADR 0066).
+#
+# The published files live in ../site/ and are committed. Build them with
+# site-src/build.ps1 — it runs `zola build` and then flattens Zola's
+# `page.html/index.html` directories into `page.html` files, because the site
+# has been published at those URLs since v0.1 and they are linked from the
+# README, the release notes and the Store listing.
+base_url = "https://daikisuganuma.github.io/winremap"
+
+# English is the primary version; Japanese is the translation, under /ja/ —
+# the same layout the hand-written site had.
+default_language = "en"
+
+# Nothing links to these and the hand-written site had neither, so what is
+# committed under site/ stays exactly the pages.
+generate_sitemap = false
+generate_robots_txt = false
+
+# The pages are hand-written HTML moved into templates, not Markdown: this
+# site is a layout, and round-tripping it through Markdown would change what
+# it renders. Zola is here for the shell — one <head>, one nav, one footer —
+# which is what was duplicated across 14 files.
+
+[languages.ja]

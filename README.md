@@ -67,7 +67,9 @@ flowchart TD
   Nothing is ever written to disk
 - **IME status indicator** (opt-in): the moment the IME turns on, a
   translucent "あ" panel flashes at the center of the active window so you
-  always know the input mode — display only; WinRemap never switches the IME
+  always know the input mode — and the mouse cursor can carry the state too,
+  for the times you look after the flash is gone. Display only; WinRemap
+  never switches the IME
 - **Japanese and English UI**, auto-detected from the system language
   (`--lang en|ja` to override)
 - **Single binary, no runtime dependencies**
@@ -239,6 +241,8 @@ a translucent "あ" panel flashes at the center of the active window.
 [ime_indicator]
 enabled = true                # default: false
 # trigger_keys = ["C-Space"]  # if you toggle the IME with Ctrl+Space
+# change_cursor_color = true  # colour the mouse cursor while the IME is on
+# cursor_color = "#0078d4"    # the colour, default WinRemap's blue
 ```
 
 Standard IME keys (Henkan/Muhenkan, Zenkaku/Hankaku, Kana, IME On/Off) are
@@ -249,6 +253,21 @@ default 200) tune the panel, and `show_app_name = true` adds the target
 app's exe name under the glyph (never the window title). The panel never
 takes focus or input, taskbar/desktop clicks are ignored, and a problem in
 the indicator never affects remapping.
+
+`change_cursor_color = true` turns that one-off flash into something you can
+check at any moment: while the IME is on, the arrow and the text I-beam are
+drawn in `cursor_color` with a white border. It is independent of `enabled`,
+so you can have the cursor without the panel. Elevated windows are the one
+place it does not follow — see Limitations. Off by default, because it changes
+the cursor **for the whole session** rather than only inside WinRemap — which
+is worth one paragraph of its own:
+
+> **A coloured cursor with no WinRemap in the tray means WinRemap was
+> killed.** The colour is only ever applied while the IME is on, so a colour
+> left behind cannot be mistaken for normal. Nothing needs repairing: start
+> WinRemap again and the cursor goes back, and so does signing out and back
+> in. Quitting from the tray, a crash WinRemap can still see, and closing the
+> `--debug` window all restore it on the way out.
 
 Every option, the full key-notation table and worked examples live in the
 [configuration guide](https://daikisuganuma.github.io/winremap/config.html);
@@ -352,8 +371,20 @@ nothing** — starting it from a shell is as quiet as starting it from Explorer.
 ## Limitations
 
 - **Windows with elevated privileges** (admin) do not receive events from a
-  non-elevated hook (UIPI, User Interface Privilege Isolation). Run WinRemap
-  elevated only if you need remapping there.
+  non-elevated hook (UIPI, User Interface Privilege Isolation). The IME
+  indicator and the coloured cursor are blind there for the same reason: the
+  IME state is read by messaging the target window, and UIPI blocks that too,
+  so neither the panel nor the colour appears while an elevated window is in
+  front. Run WinRemap elevated only if you need any of this there.
+- **The coloured cursor is occasionally not drawn at all.** Rarely, and so far
+  only during ordinary use, the tinted I-beam stops appearing while the IME is
+  on: not a cursor without its colour, but nothing at all. The arrow is
+  unaffected, the IME panel keeps working, and toggling the IME does not bring
+  it back — **restarting WinRemap does**. It happened three times on one
+  machine during the v0.8 acceptance and has never reproduced on demand, so
+  the cause is still open. `--debug` records every cursor change, and that log
+  is what will identify it; a report with those lines in it is welcome. The
+  setting is off by default.
 - **No tap/hold or mark mode** yet; sequences are limited to two strokes.
 - Chords involving **Alt or Win** inject a masking key so the modifier lift
   does not pop the menu bar / Start menu; if a specific app still shows menu
@@ -363,13 +394,22 @@ nothing** — starting it from a shell is as quiet as starting it from Explorer.
 - Do not run WinRemap together with other keyboard-hook software (Keyhac,
   AutoHotkey, ...) remapping the same keys — stacked low-level hooks have
   undefined ordering.
-- Started from a terminal with `--debug`, WinRemap prints to that terminal but
-  does not hold it: the prompt returns immediately and output arrives
-  interleaved with it. Closing that terminal also closes WinRemap — a `--debug`
-  session streams its log there, so it stays attached to the console and
-  Windows kills everything attached when the window goes. Without `--debug`
-  nothing is printed and WinRemap lets the console go once it is up, so it
-  keeps running after the terminal closes.
+- `--debug` opens a console window of its own and keeps it after WinRemap is
+  done, so the startup and shutdown lines can both be read; closing that
+  window ends WinRemap. The terminal you launched from is free to close.
+  Without `--debug` nothing is printed and WinRemap lets that console go once
+  it is up, so it keeps running after the terminal closes. `--help` and
+  `--version` still print to the launching terminal, where the shell's prompt
+  may repaint over them.
+- Redirecting `--debug` writes the transcript to the destination instead of
+  opening a window, but **neither shell's `>` can do it**. PowerShell's closes
+  the pipe as soon as WinRemap goes resident, because it does not wait for a
+  GUI-subsystem process; `cmd`'s never reaches WinRemap at all, because cmd
+  redirects by swapping its own standard handles rather than passing
+  `STARTF_USESTDHANDLES`, and Windows does not hand those to a GUI-subsystem
+  child — so a window opens and the file stays empty. Use
+  `Start-Process winremap.exe -ArgumentList '--debug' -RedirectStandardOutput log.txt`
+  (Git Bash's `>` works too).
 - A launcher that puts its children in a job object with kill-on-close (some
   IDE terminals do) still takes WinRemap down with it, whatever the flags.
 - IME **control** is out of scope by design (the optional indicator only
