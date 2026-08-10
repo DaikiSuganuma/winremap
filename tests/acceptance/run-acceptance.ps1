@@ -10,7 +10,7 @@
 #   run-acceptance.ps1 <checklist>                    # 一覧（既定）
 #   run-acceptance.ps1 <checklist> -Resume            # 未記録＋測れない／不合格
 #   run-acceptance.ps1 <checklist> -Show C-1,M-2      # 手順と通過条件
-#   run-acceptance.ps1 <checklist> -Prepare M         # 設定の配置と起動
+#   run-acceptance.ps1 <checklist> -Prepare H         # 設定の配置と起動
 #   run-acceptance.ps1 -Teardown                      # 実運用の設定を戻す
 #   run-acceptance.ps1 <checklist> -Record ans.txt    # 記録欄へ追記
 #   run-acceptance.ps1 -Environment                   # 環境の 1 行
@@ -37,7 +37,7 @@ param(
     # Print the full 手順 / 通過条件 / 前回 of these items — what the agent
     # reads out to the person.
     [string[]]$Show,
-    # Put the acceptance configuration in place for an item prefix (C/M/S/P)
+    # Put the acceptance configuration in place for an item prefix (C/H/M/S/P)
     # and print the steps that stay with the person.
     [string]$Prepare,
     # Put the live configuration back. Safe to run at any time, including
@@ -234,8 +234,40 @@ function Stop-HarnessProcess {
 function Start-HarnessProcess {
     if (-not (Test-Path $Exe)) { throw "$Exe が無い。`cargo build --release` を先に" }
     Stop-HarnessProcess
-    Start-Process -FilePath (Resolve-Path -LiteralPath $Exe).ProviderPath
-    "  受け入れ用の設定で $Exe を起動した"
+    $path = (Resolve-Path -LiteralPath $Exe).ProviderPath
+    Start-Process -FilePath $path
+    # The path of what is *running*, not of what we asked to run. Three
+    # separate misreadings in v0.8 came from observing the wrong binary: H-1
+    # against a config that never reached the app (08-08), the M-2 A〜D split
+    # against a WinRemap nobody had started (08-09), and P-1 against the
+    # GitHub build because the Start menu shows two identically named entries
+    # (08-10). Saying it out loud is what lets the person catch it.
+    $started = @()
+    foreach ($attempt in 1..20) {
+        $started = Get-HarnessProcess
+        if ($started.Count -gt 0) { break }
+        Start-Sleep -Milliseconds 100
+    }
+    # Seeing it once is not enough. When another WinRemap already holds the
+    # single-instance mutex the one just launched exits by itself, and it stays
+    # in the process list for about half a second on the way out — long enough
+    # to report success for something already dying (measured 2026-08-10, with
+    # a packaged WinRemap resident). So look again after it has had time to go.
+    if ($started.Count -gt 0) {
+        Start-Sleep -Milliseconds 1000
+        $started = Get-HarnessProcess
+    }
+    if ($started.Count -gt 0) {
+        "  受け入れ用の設定で起動した: $($started[0].Path)"
+        return
+    }
+    # Most likely another WinRemap holds the single-instance mutex, so the one
+    # just launched exited by itself. Whatever the cause, the person is about
+    # to be asked to look at something that is not running.
+    "  [人] 起動したはずの $path が動いていない — 受け入れを始めないこと"
+    foreach ($other in @(Get-Process winremap -ErrorAction SilentlyContinue | Where-Object Path)) {
+        "  [人] いま動いているのは $($other.Path)"
+    }
 }
 
 # What can be set up safely, by item prefix. Anything destructive stays in
@@ -250,6 +282,16 @@ $script:prep = @{
         Manual = @(
             'ターミナル（Windows Terminal / PowerShell / cmd のどれか）を開いておく',
             'どのターミナルで見たかを報告に入れること（重なりの原因は相手側の再描画だった）'
+        )
+    }
+    'H' = @{
+        Name   = '手動最小集合'
+        Enter  = { Use-Config 'manual-minimum.toml'; Start-HarnessProcess }
+        Manual = @(
+            'H-1 を測るターミナル（PHPStorm の内蔵ターミナル・Zed・Windows Terminal など）を開いておく',
+            'トレイ →「ログを表示」でログウィンドウを開いておく — C-h が 1 文字消えるだけでは判定できない。シェル側の Emacs キーバインドでも同じことが起きる（2026-08-10 の P-7）。「[判定] C-h … → Back … に置換」の行が出ることと、C-a で行頭へ動くことを見る',
+            'H-6（インストーラー経路）だけはこの準備の対象外 — 測るのはインストール済みの winremap.exe であって、この準備が起動する target\release のものではない',
+            'H-3（見た目）はライトとダークの両方で見る。テーマの切り替えは Windows の設定側で行う'
         )
     }
     'M' = @{
@@ -363,7 +405,7 @@ if ($Teardown) {
 if ($Prepare) {
     $prefix = $Prepare.Split('-')[0].ToUpper()
     if (-not $script:prep.ContainsKey($prefix)) {
-        throw "$prefix の準備は用意されていない（C / M / S / P）"
+        throw "$prefix の準備は用意されていない（C / H / M / S / P）"
     }
     $section = $script:prep[$prefix]
     "=== $($section.Name) の準備 ==="
