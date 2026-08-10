@@ -28,7 +28,7 @@ use winremap::config::comments::{ConfigComments, KeymapComments};
 use winremap::config::draft::{self, ConfigDraft, KeymapDraft, RuleDraft};
 use winremap::ime_indicator_settings::{
     IndicatorSettings, MAX_INDICATOR_DURATION_MS, MAX_INDICATOR_SIZE, MIN_INDICATOR_DURATION_MS,
-    MIN_INDICATOR_SIZE,
+    MIN_INDICATOR_SIZE, parse_hex_color,
 };
 use winremap::keymap::{
     AppFilter, KeyCombo, KeyParseError, Keymap, MAX_MACRO_DELAY_MS, Output, RemapTable,
@@ -1433,6 +1433,80 @@ fn general_edit_ui(ui: &mut egui::Ui, draft: &mut ConfigDraft) {
             key_names_help(ui, "key-names-triggers");
         });
     }
+
+    // Outside the `enabled` block on purpose. The tint is independent of the
+    // panel (ADR 0067) — it works with `enabled = false`, and acceptance M-6
+    // is the item that checks exactly that. Nesting it here would tell the
+    // reader the panel has to be switched on first, which is not true.
+    let mut tint = draft
+        .ime
+        .change_cursor_color
+        .unwrap_or(defaults.change_cursor_color);
+    if ui
+        .checkbox(&mut tint, texts.config_ime_change_cursor_color)
+        .changed()
+    {
+        draft.ime.change_cursor_color = Some(tint);
+    }
+    if tint {
+        ui.horizontal(|ui| {
+            ui.label(texts.config_ime_cursor_color);
+            ui.label(egui::RichText::new("cursor_color").monospace().weak());
+            color_cell(ui, &mut draft.ime.cursor_color, defaults.cursor_color);
+        });
+    }
+}
+
+/// A `#rrggbb` edit cell: the box — warn-bordered when it does not parse —
+/// followed by a swatch of the colour it resolves to. `#rrggbb` is the only
+/// spelling the config takes ([`parse_hex_color`]), so a typo is worth showing
+/// rather than silently becoming the default at load time. An empty box is
+/// not a typo: it means the key is absent, which is the default colour.
+fn color_cell(ui: &mut egui::Ui, text: &mut String, fallback: (u8, u8, u8)) {
+    let trimmed = text.trim();
+    let parsed = if trimmed.is_empty() {
+        Some(fallback)
+    } else {
+        parse_hex_color(trimmed)
+    };
+    ui.scope(|ui| {
+        if parsed.is_none() {
+            let visuals = ui.visuals_mut();
+            let warn = visuals.warn_fg_color;
+            visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, warn);
+            visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, warn);
+        }
+        ui.add(
+            egui::TextEdit::singleline(text)
+                .font(egui::TextStyle::Monospace)
+                .desired_width(100.0),
+        );
+    });
+    match parsed {
+        // Painted rather than written as a block character: the bundled fonts
+        // are not guaranteed to carry one, and a tofu box would read as a bug.
+        Some((r, g, b)) => {
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::hover());
+            if ui.is_rect_visible(rect) {
+                ui.painter().rect_filled(
+                    rect,
+                    egui::CornerRadius::same(2),
+                    egui::Color32::from_rgb(r, g, b),
+                );
+            }
+        }
+        None => {
+            let warn = ui.visuals().warn_fg_color;
+            ui.label(
+                egui::RichText::new(format!(
+                    "\u{26a0} {}",
+                    i18n::t().config_ime_cursor_color_hint
+                ))
+                .color(warn)
+                .small(),
+            );
+        }
+    }
 }
 
 /// The permanent bottom band (v0.4 screen design §5): the version — its one
@@ -1980,6 +2054,26 @@ fn ime_ui(ui: &mut egui::Ui, settings: &IndicatorSettings, comments: &ConfigComm
             ),
             (texts.config_ime_triggers, "trigger_keys", triggers),
         ]);
+    }
+
+    // Outside the `enabled` block on purpose. The tint is independent of the
+    // panel (ADR 0067) — it works with `enabled = false`, and acceptance M-6
+    // is the item that checks exactly that. Folding it in with the panel's
+    // appearance would tell the reader it needs the panel switched on.
+    rows.push((
+        texts.config_ime_change_cursor_color,
+        "change_cursor_color",
+        on_off(settings.change_cursor_color),
+    ));
+    if settings.change_cursor_color {
+        let (r, g, b) = settings.cursor_color;
+        rows.push((
+            texts.config_ime_cursor_color,
+            "cursor_color",
+            // The spelling the config accepts, so what is shown can be typed
+            // back in (`parse_hex_color` takes `#rrggbb` and nothing else).
+            format!("#{r:02x}{g:02x}{b:02x}"),
+        ));
     }
 
     let rows: Vec<(&str, &str, String, Option<&str>)> = rows

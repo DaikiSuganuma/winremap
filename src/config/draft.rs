@@ -75,6 +75,12 @@ pub struct ImeIndicatorDraft {
     pub show_app_name: Option<bool>,
     /// Comma-separated, like a macro output.
     pub trigger_keys: String,
+    /// Independent of `enabled` (ADR 0067), so it is edited whether or not
+    /// the panel is switched on.
+    pub change_cursor_color: Option<bool>,
+    /// `#rrggbb` as written. Kept as text for the same reason the numbers
+    /// are: a half-typed colour has to survive the frame it is typed in.
+    pub cursor_color: String,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -152,6 +158,11 @@ pub fn parse(source: &str) -> Result<ConfigDraft, toml_edit::TomlError> {
             trigger_keys: section
                 .get("trigger_keys")
                 .map(output_text)
+                .unwrap_or_default(),
+            change_cursor_color: section.get("change_cursor_color").and_then(Item::as_bool),
+            cursor_color: section
+                .get("cursor_color")
+                .map(scalar_text)
                 .unwrap_or_default(),
         };
     }
@@ -349,6 +360,11 @@ fn apply_general(doc: &mut DocumentMut, original: &ConfigDraft, edited: &ConfigD
             original.ime.show_app_name,
             edited.ime.show_app_name,
         ),
+        (
+            "change_cursor_color",
+            original.ime.change_cursor_color,
+            edited.ime.change_cursor_color,
+        ),
     ];
     for (key, orig, new) in bools {
         if orig == new {
@@ -383,6 +399,21 @@ fn apply_general(doc: &mut DocumentMut, original: &ConfigDraft, edited: &ConfigD
             }
         } else {
             set_scalar(ensure_table(doc, "ime_indicator"), key, number_value(new));
+        }
+    }
+
+    if edited.ime.cursor_color != original.ime.cursor_color {
+        let new = edited.ime.cursor_color.trim();
+        if new.is_empty() {
+            if let Some(section) = doc.get_mut("ime_indicator").and_then(Item::as_table_mut) {
+                section.remove("cursor_color");
+            }
+        } else {
+            set_scalar(
+                ensure_table(doc, "ime_indicator"),
+                "cursor_color",
+                Value::from(new),
+            );
         }
     }
 
@@ -1148,6 +1179,43 @@ CapsLock = "LCtrl"
             saved.contains("trigger_keys = [\"C-Space\", \"W-Space\"]  # 切替\n"),
             "{saved}"
         );
+    }
+
+    #[test]
+    fn the_cursor_tint_round_trips_through_the_draft() {
+        // The settings window carried neither of these until v0.9, so a config
+        // that used them could be opened and saved without the window ever
+        // showing them (owner report 2026-08-10). Reading them is what makes
+        // them editable; writing them is what makes an edit stick.
+        let source =
+            "[ime_indicator]\nchange_cursor_color = true  # 色\ncursor_color = \"#0078d4\"\n";
+        let original = parse(source).expect("parses");
+        assert_eq!(original.ime.change_cursor_color, Some(true));
+        assert_eq!(original.ime.cursor_color, "#0078d4");
+
+        let mut edited = original.clone();
+        edited.ime.cursor_color = "#ff8800".to_owned();
+        let saved = apply(source, &original, &edited).expect("applies");
+        assert!(saved.contains("cursor_color = \"#ff8800\""), "{saved}");
+        // The comment on the neighbouring key is untouched, as everywhere else.
+        assert!(
+            saved.contains("change_cursor_color = true  # 色"),
+            "{saved}"
+        );
+    }
+
+    #[test]
+    fn the_cursor_tint_survives_an_edit_that_does_not_touch_it() {
+        // What saved v0.8 from losing data: `apply` only writes keys whose
+        // draft value changed, so keys the draft did not carry stayed put.
+        // Now that the draft does carry them, that has to keep holding.
+        let source = "[ime_indicator]\nenabled = true\nchange_cursor_color = true\ncursor_color = \"#0078d4\"\n";
+        let original = parse(source).expect("parses");
+        let mut edited = original.clone();
+        edited.ime.enabled = Some(false);
+        let saved = apply(source, &original, &edited).expect("applies");
+        assert!(saved.contains("change_cursor_color = true"), "{saved}");
+        assert!(saved.contains("cursor_color = \"#0078d4\""), "{saved}");
     }
 
     #[test]

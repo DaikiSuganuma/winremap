@@ -72,7 +72,11 @@ LoadImageW(user32, IDC_IBEAM, ...)                           -> 0  (GetLastError
 
 ### 2.3 設定ウィンドウに `change_cursor_color` と `cursor_color` が出ない（**オーナー報告 2026-08-10**）
 
-**v0.8 の目玉の設定が、設定ウィンドウの `[ime_indicator]` にひとつも表示されていない。** [`src/gui/config_window.rs`](../../src/gui/config_window.rs) の `ime_ui()` が並べる行は `enabled` / `duration_ms` / `size` / `opacity` / `show_app_name` / `trigger_keys` の 6 つで、**`change_cursor_color` と `cursor_color` が抜けている**。値そのものは [`IndicatorSettings`](../../src/ime_indicator_settings.rs) に入って動いており、**表示だけが落ちている**。
+**v0.8 の目玉の設定が、設定ウィンドウの `[ime_indicator]` にひとつも出ていない。** 表示（`ime_ui()`）が並べる行は `enabled` / `duration_ms` / `size` / `opacity` / `show_app_name` / `trigger_keys` の 6 つで、**`change_cursor_color` と `cursor_color` が抜けている**。
+
+**当初「表示だけの落ち」と書いたが、それは誤りだった**（2026-08-10 に実装しながら判明）。[`ImeIndicatorDraft`](../../src/config/draft.rs) が**そもそも 2 つのフィールドを持っていない**ので、**読み取りも編集も保存も通っていない**。設定ウィンドウで編集できる設定の一覧から、丸ごと外れていた。
+
+> **設定が消える事故にはなっていなかった。** `apply()` は**下書きの値が変わったキーだけ**を `toml_edit` で書き換えるので、下書きが知らないキーには触れない。**知らないことが、たまたま守っていた。** それに依存し続けないよう、v0.9 では下書きに載せたうえで「触らない編集で残る」ことをテストで固定する。
 
 **利用者から見ると「設定ウィンドウで見えない設定」である。** README とヘルプサイトと `02_config-spec.md` には書いてあるので、**文書にはあるのに画面には無い**という、Phase D の D-2 と同じ形の食い違いになっている。
 
@@ -86,7 +90,7 @@ LoadImageW(user32, IDC_IBEAM, ...)                           -> 0  (GetLastError
 3. **空のカーソルを元に作らない。** 自己再生産を断つ
 4. **失敗を黙って捨てない。** いまの `continue` と `let _ =` をログに出す（v0.8 で足した `apply()` の戻り値と同じ形）
 5. **`probe-ime-cursor.ps1` に「着色 → 復元 → 着色」を繰り返す項目**を足し、繰り返しの中で空にならないことを見る
-6. **設定ウィンドウに `change_cursor_color` と `cursor_color` の行を足す**（2.3）。**`enabled` で隠さない。** `cursor_color` は `#rrggbb` の形で見せる（[`parse_hex_color`](../../src/ime_indicator_settings.rs) が受け付ける唯一の綴りである）。i18n のラベルは日英とも足す
+6. **設定ウィンドウに `change_cursor_color` と `cursor_color` を通す**（2.3）。**表示だけでなく、下書き・編集・保存の 4 つとも**である。**`enabled` で隠さない。** `cursor_color` は `#rrggbb` の形で見せる（[`parse_hex_color`](../../src/ime_indicator_settings.rs) が受け付ける唯一の綴りである）。i18n のラベルは日英とも足す（**実施済み 2026-08-10**。テスト 3 件を含む）
 
 ### 完了条件
 
