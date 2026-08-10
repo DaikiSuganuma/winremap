@@ -2,3 +2,15 @@
 # generated collapses it in GitHub's diff view and keeps it out of the
 # language statistics — the source to review is site-src/.
 site/** linguist-generated=true
+
+# TOML is embedded into the binary with include_str! (config::DEFAULT_CONFIG)
+# and seeded by the installer, so the checkout's line endings become the bytes
+# a user's first-run config is made of. Without this, a machine with
+# core.autocrlf=true builds a WinRemap that writes CRLF while one with
+# autocrlf=false writes LF — which is exactly what happened to 0.8.0: the
+# GitHub build (CI, windows-latest) wrote 1730 bytes and the Store build (a
+# local checkout) wrote 1695, the difference being one byte per line. Same
+# tag, same source, different bytes. Pinned rather than left to the machine
+# because SECURITY.md tells readers both channels are built from the same
+# source (found 2026-08-10; v0.8 acceptance §7).
+*.toml text eol=lf
