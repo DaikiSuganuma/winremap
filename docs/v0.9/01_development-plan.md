@@ -146,9 +146,11 @@ Store 版を「設定 → アプリ → スタートアップ」で見ると、*
 
 ### タスク
 
-1. `packaging/msix/assets/` に `Square44x44Logo.targetsize-{16,24,32,48,256}_altform-unplated.png` を足す（既存の `targetsize-*` と同じ画像でよい）
-2. `build.ps1` がそれらを layout へ運ぶことを確かめる
+1. `packaging/msix/assets/` に `Square44x44Logo.targetsize-{16,24,32,48,256}_altform-unplated.png` を足す（既存の `targetsize-*` と同じ画像でよい）— **実施済み 2026-08-10。** 生成は [`examples/msix_assets.rs`](../../examples/msix_assets.rs) に足した（手で置くと SVG が変わったとき取り残される）
+2. `build.ps1` がそれらを layout へ運ぶことを確かめる — **実施済み 2026-08-10。** `-Pack` を通し、`makeappx` の出力で 5 枚とも payload に入ることを確認した（`winremap-0.9.0.msix`、`Identity/@Version` = `0.9.0.0`）。`build.ps1` は `Assets` を再帰コピーするので**変更は不要だった**
 3. **パッケージを実際に入れて、スタートアップ一覧とタスクバーで見る**（P-* の受け入れに項目を足す）
+
+> **3 は v0.8 の P-4・P-5 より後でなければならない**（2026-08-10 に気づいた順序制約）。`build.ps1 -Register` は**同じ Identity** を登録するので、**いま入っている Store 版 0.8.0 を置き換える**。P-4（スタートアップ）と P-5（アンインストール）は**その Store 版を測る項目**なので、先に登録すると測れなくなる。**P-9 → P-8 とまったく同じ形の一方通行**である。
 
 ### 完了条件
 
