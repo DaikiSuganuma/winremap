@@ -101,6 +101,42 @@ if ($SelfSign) {
 $xml.Save($manifestPath)
 Write-Host "  version $cargoVersion.0, publisher $($xml.Package.Identity.Publisher)"
 
+# --- Package Resource Index ------------------------------------------------
+# Without this, every qualified asset name in Assets\ is dead weight.
+#
+# The manifest names one file (`Assets\Square44x44Logo.png`); the variants that
+# carry `scale-`, `targetsize-` and `_altform-unplated` are found through the
+# package's resource index, not by looking in the folder. A package with no
+# resources.pri therefore uses the literal file and nothing else - which is why
+# adding the five unplated PNGs on 2026-08-10 changed nothing on screen, and
+# why Settings > Apps > Startup still drew the plated (blue-on-blue) form
+# (owner report, 2026-08-11).
+#
+# The official walkthrough puts this step immediately after "add target-based
+# unplated assets", in those words: "If you create target-based assets ... you'll
+# have to generate a new PRI file."
+# https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-manual-conversion
+#
+# priconfig.xml lives outside the layout on purpose: makepri indexes the folder
+# it is given, and a config file sitting in there becomes a package resource.
+Write-Host 'Indexing resources (makepri)...' -ForegroundColor Cyan
+$makepri = Get-SdkTool 'makepri.exe'
+$priConfig = Join-Path $here 'out\priconfig.xml'
+New-Item -ItemType Directory -Force -Path (Split-Path $priConfig) | Out-Null
+& $makepri createconfig /cf $priConfig /dq en-US /o | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "makepri createconfig failed ($LASTEXITCODE)" }
+& $makepri new /pr $layout /cf $priConfig /of (Join-Path $layout 'resources.pri') /o | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "makepri new failed ($LASTEXITCODE)" }
+# Read the index back and insist the unplated candidates are in it. "The file
+# is in the folder" was the check that passed on 2026-08-10 while the icon was
+# still wrong; this is the question that was actually being asked.
+$priDump = Join-Path $here 'out\resources-dump.xml'
+& $makepri dump /if (Join-Path $layout 'resources.pri') /of $priDump /o | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "makepri dump failed ($LASTEXITCODE)" }
+$unplated = ([regex]::Matches((Get-Content $priDump -Raw), 'altform-unplated')).Count
+if ($unplated -eq 0) { throw 'resources.pri carries no altform-unplated candidate - the unplated assets would be ignored' }
+Write-Host "  resources.pri: $((Get-Item (Join-Path $layout 'resources.pri')).Length) bytes, altform-unplated x $unplated"
+
 # --- Register --------------------------------------------------------------
 if ($Register) {
     $devMode = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' `

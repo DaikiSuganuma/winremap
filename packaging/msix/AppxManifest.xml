@@ -61,12 +61,21 @@
       uap10:TrustLevel="mediumIL"
       uap10:RuntimeBehavior="packagedClassicApp">
 
+      <!-- BackgroundColor is not "transparent". That value means "use the
+           user's accent colour" for the *plated* rendering, and the logo is
+           blue: on a machine with a blue accent the plate and the logo are
+           the same colour, and the icon reads as a solid blue square (owner
+           report 2026-08-09, and again 2026-08-11 after the unplated assets
+           and resources.pri were both in place). Unplated surfaces such as
+           the taskbar ignore this value; Settings > Apps > Startup does not.
+           White because the logo is a mid-blue on transparency, so this is
+           the side of the contrast range it is not on. -->
       <uap:VisualElements
         DisplayName="WinRemap"
         Description="A per-application key remapper for Windows"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png"
-        BackgroundColor="transparent">
+        BackgroundColor="#FFFFFF">
         <uap:DefaultTile ShortName="WinRemap" />
       </uap:VisualElements>
 
