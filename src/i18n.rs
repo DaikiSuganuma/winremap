@@ -831,6 +831,7 @@ pub fn debug_cursor_action(action: crate::cursor::Action) -> String {
                 Kind::Restored => return "cursor: tint removed".into(),
                 Kind::Installed => "tint installed",
                 Kind::Reinstalled => "tint installed again (was already on)",
+                Kind::Failed => "no cursor could be tinted",
             };
             let built = if rebuilt { ", cursors rebuilt" } else { "" };
             let bad = if failed > 0 {
@@ -846,6 +847,7 @@ pub fn debug_cursor_action(action: crate::cursor::Action) -> String {
                 Kind::Restored => return "カーソル: 着色を外した".into(),
                 Kind::Installed => "着色した",
                 Kind::Reinstalled => "着色し直した（すでに着色済み）",
+                Kind::Failed => "1 つも着色できなかった",
             };
             let built = if rebuilt { "・作り直し" } else { "" };
             let bad = if failed > 0 {
@@ -854,6 +856,111 @@ pub fn debug_cursor_action(action: crate::cursor::Action) -> String {
                 String::new()
             };
             format!("カーソル: {what} — 差し替え {replaced}{bad}{built}")
+        }
+    }
+}
+
+/// Which cursor a [`crate::cursor::Trouble`] is about.
+fn cursor_noun(id: windows::Win32::UI::WindowsAndMessaging::SYSTEM_CURSOR_ID) -> &'static str {
+    use windows::Win32::UI::WindowsAndMessaging::{OCR_IBEAM, OCR_NORMAL};
+    match (lang(), id) {
+        (Lang::En, OCR_NORMAL) => "the arrow",
+        (Lang::En, OCR_IBEAM) => "the I-beam",
+        (Lang::En, _) => "a cursor",
+        (Lang::Ja, OCR_NORMAL) => "矢印",
+        (Lang::Ja, OCR_IBEAM) => "I ビーム",
+        (Lang::Ja, _) => "カーソル",
+    }
+}
+
+/// How many pristine cursors this run is holding, said at startup.
+///
+/// The positive case is worth a line of its own: what went wrong for two
+/// versions was that the restore's first step failed every time and said
+/// nothing, so there was no way to ask whether the safety net was armed.
+pub fn debug_cursor_snapshot(kept: usize, of: usize) -> String {
+    match lang() {
+        Lang::En if kept == of => format!("cursor: {kept} pristine copies held for restoring"),
+        Lang::En => format!(
+            "cursor: only {kept} of {of} pristine copies could be held; \
+             the rest fall back to SPI_SETCURSORS"
+        ),
+        Lang::Ja if kept == of => format!("カーソル: 復元用に素の複製を {kept} 個持ちました"),
+        Lang::Ja => format!(
+            "カーソル: 素の複製を {of} 個中 {kept} 個しか持てませんでした。\
+             残りは SPI_SETCURSORS に頼ります"
+        ),
+    }
+}
+
+/// A cursor failure that used to be swallowed (ADR 0073 decision 5).
+///
+/// These say what the owner can otherwise only see the consequence of — a
+/// cursor that is not coloured, or one that stayed coloured. The `why` is a
+/// Win32 call name and stays in English in both languages, like every other
+/// diagnostic.
+pub fn debug_cursor_trouble(trouble: crate::cursor::Trouble) -> String {
+    use crate::cursor::Trouble;
+    let en = matches!(lang(), Lang::En);
+    match trouble {
+        Trouble::NoSnapshot { id, why } => {
+            let what = cursor_noun(id);
+            if en {
+                format!(
+                    "cursor: no pristine copy of {what} could be taken ({why}); \
+                     restoring falls back to SPI_SETCURSORS alone"
+                )
+            } else {
+                format!(
+                    "カーソル: {what}の複製を採れませんでした（{why}）。\
+                     復元は SPI_SETCURSORS だけで行います"
+                )
+            }
+        }
+        Trouble::RestoreFailed { id, why } => {
+            let what = cursor_noun(id);
+            if en {
+                format!("cursor: {what} could not be put back ({why})")
+            } else {
+                format!("カーソル: {what}を戻せませんでした（{why}）")
+            }
+        }
+        Trouble::ReloadFailed => {
+            if en {
+                "cursor: SPI_SETCURSORS failed; a tint may be left in the session".into()
+            } else {
+                "カーソル: SPI_SETCURSORS が失敗しました。着色が残っているかもしれません".into()
+            }
+        }
+        Trouble::SourceEmpty { id } => {
+            let what = cursor_noun(id);
+            if en {
+                format!(
+                    "cursor: {what} has nothing drawn in it, so it was not tinted \
+                     (tinting an empty cursor produces another empty one)"
+                )
+            } else {
+                format!(
+                    "カーソル: {what}に描かれている画素がないので、着色しませんでした\
+                     （空のカーソルを元にすると、また空ができます）"
+                )
+            }
+        }
+        Trouble::ResultEmpty { id } => {
+            let what = cursor_noun(id);
+            if en {
+                format!("cursor: the tint built for {what} was empty and was thrown away")
+            } else {
+                format!("カーソル: {what}の着色が空になったので、入れずに捨てました")
+            }
+        }
+        Trouble::BuildFailed { id, why } => {
+            let what = cursor_noun(id);
+            if en {
+                format!("cursor: the tint for {what} could not be built ({why})")
+            } else {
+                format!("カーソル: {what}の着色を作れませんでした（{why}）")
+            }
         }
     }
 }

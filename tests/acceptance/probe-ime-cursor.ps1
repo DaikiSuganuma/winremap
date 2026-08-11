@@ -481,6 +481,36 @@ $state = Set-Ime 0
 $off = Wait-TintOwning { param($t) $t -eq 0 }
 Check "restores-when-the-ime-goes-off" ($state -eq 0 -and $off -eq 0) "IME reports $state; blue-leaning pixels: $off; in front: $(Get-FrontName)"
 
+# The same thing, over and over (ADR 0073 decision 6).
+#
+# Every check above measures one transition, and M-2 was never a first
+# transition: the tint went on correctly, the owner kept working, and some
+# time later the I-beam was drawn with no pixels at all. Once that happened
+# it stayed — `tinted` reads the cursor the session currently has, and an
+# empty one recolours to another empty one, so every later toggle reproduced
+# it. A single on-and-off cannot see either half of that. This can.
+#
+# Both questions are asked each round, because they fail differently: the
+# system cursor table can hold a perfectly good tint while what is drawn over
+# the text is empty (that is exactly what 2026-08-08 looked like).
+$rounds = 3
+$trouble = @()
+foreach ($round in 1..$rounds) {
+    [void](Set-Ime 1)
+    [void](Wait-TintOwning { param($t) $t -gt 0 })
+    $beam = Measure-Cursor 32513
+    $drawn = Measure-Drawn $script:target
+    $drawnPixels = if ($null -eq $drawn) { -1 } else { $drawn.Visible }
+    if ($beam.Blue -le 0 -or $drawnPixels -le 0) {
+        $trouble += "round ${round}: registered I-beam blue $($beam.Blue), drawn pixels $drawnPixels"
+    }
+    [void](Set-Ime 0)
+    $off = Wait-TintOwning { param($t) $t -eq 0 }
+    if ($off -ne 0) { $trouble += "round ${round}: $off blue-leaning pixels still there with the IME off" }
+}
+Check "repeated-toggles-never-empty-the-tint" ($trouble.Count -eq 0) $(
+    if ($trouble.Count) { $trouble -join '; ' } else { "$rounds rounds, tinted and restored every time" })
+
 # The design's headline claim: killed while tinted, the tint stays. That is
 # what makes "tinted, and no WinRemap in the tray" mean "it died" (ADR 0067).
 [void](Set-Ime 1)
