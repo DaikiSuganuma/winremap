@@ -523,6 +523,12 @@ MSIX の自動起動は P-8 の入れ直しで既定（`State=0`）に戻って�
 | P-4 | 通過 | 設定 → アプリ → スタートアップの一覧に WinRemap が 2 つ並んでおり、GitHub 版（表示名が全部小文字の winremap）はオフ、Store 版は既定のオフだった。Store 版だけをオンにしてサインアウト／サインイン。常駐していることを確認し、黒い窓は出ず、「WinRemap は既に起動しています」のダイアログも出なかった（＝サインインで起動したのは Store 版の 1 つだけ）。測る前に、WinRemapStartup が State=0 / UserEnabledStartupOnce=0（一度もオンにされていない）であることも機械で確認している |
 | P-5 | 通過 | Get-AppxPackage -Name SUGANUMADaiki.WinRemap \| Remove-AppxPackage を実行し、タスクトレイから消えることを確認。3 点は機械でも確かめた。①Get-AppxPackage が空 ②%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0 が消えている ③%APPDATA%\winremap が config.toml と personal-ja.toml ごと残っている。スタートメニューの WinRemap もインストーラー版（%LOCALAPPDATA%\Programs\WinRemap\winremap.exe）の 1 つだけになり、2026-08-10 に P-1 を取り違えさせた「同じ名前が 2 つ並ぶ」状態が解消した |
 
+#### 2026-08-11 — キーボード: Japanese（00000411） / WinRemap 0.9.0 / Microsoft Windows 11 Pro（26200）（対話: 人が実キーボードで確認し、AI エージェントが記録）
+
+| 項目 | 結果 | 記録 |
+|---|---|---|
+| H-6 | 未実施 | オーナー決定（2026-08-11）。08-08 の判断（インストーラーはリリース時にどのみち作るので、そのときに P-1〜P-9 とまとめて回す）を継続する。その判断の根拠だった「M-2 が不合格で、リリースまでにもう一巡することが確定している」は、M-2 が v0.9 Phase A で直り v0.9 の受け入れを一巡することでそのまま生きている。ここでインストールと再サインインを挟む値打ちが無い。なお測ろうと思えば測れる状態ではある（インストーラー版 0.8.0 が %LOCALAPPDATA%\Programs\WinRemap に入ったままで、スタートアップのショートカットは無効）。やる場合は P-4 とは別の回にすること — 同じサインインで両方のチャネルを自動起動させると、単一インスタンスのダイアログが出て交絡する |
+
 <!-- harness:end -->
 
 ---
