@@ -184,15 +184,26 @@ Move-Item -Force $env:APPDATA\winremap\config.toml.bak $env:APPDATA\winremap\con
 
 **「嘘になっていないか」を見る**のであって、文章の巧拙を見るのではない。
 
+**実挙動が変わったとき、直す場所は README とヘルプサイト（`site-src/`）の 2 つある。** v0.8 では**同じ落ち方を 3 回**した（FAQ のリダイレクトの記述・`ime.html` の管理者権限の記述・`config.html` に新しい設定が無い件）。3 回とも README は直っていて、`site-src/` への反映だけが漏れていた。**README が直っているからサイトも直っている、と読まない。**
+
 | 見るもの | 確認 |
 |---|---|
 | `README.md` / `README.ja.md` | IME インジケーターの節に **`change_cursor_color` / `cursor_color`** がある。**「色が残り、トレイに居ない ＝ 異常終了」**の読み方と、**何もしなくてよい**ことが書いてある。機能の一覧にカーソルの一言がある |
 | ヘルプサイト `ime.html`（日英） | 同じ 3 点（設定・`enabled` と独立・異常終了の読み方）がある。**警告ブロックで扱われている** |
+| ヘルプサイト `config.html`（日英） | **この版で増えた設定が載っている**（下記のコマンドで数え上げる）。README が「Every option」として指すページであり、**ここに無い設定は利用者から見れば存在しない**。v0.8 では `change_cursor_color` / `cursor_color` がこのページにだけ無かった |
 | ヘルプサイト `faq.html`（日英、faq3） | `--debug` の説明が**専用コンソール**のものになっている。**v0.7 で足した回避策（`Start-Process … -NoNewWindow -Wait`）が消えている**（不要になったため） |
 | ヘルプサイト全体 | **`site/` を直接編集していない**こと（`site-src\build.ps1 -Check` が緑）。言語切り替えリンクが**同じページの対訳**を指す（v0.7 で見つけた FAQ の不具合の確認） |
 | [02_config-spec.md](../v0.1/02_config-spec.md) §6 | `change_cursor_color`・`cursor_color` の行があり、**既定値が実装と一致**している（`#0078d4`） |
 | `examples/*.toml` | `personal-ja.toml` の `change_cursor_color` が**現在の名前**である（v0.8 開発中に `cursor` から改名した） |
-| リンク切れ | 下記が何も出力しないこと |
+| リンク切れ | 下記の**リンク切れの検査**が何も出力しないこと |
+
+**この版で増えた設定を数え上げる**（`config.html` と `02_config-spec.md` の確認に使う）。設定名を受け付けているのは `src/config/raw.rs` の構造体であり（`deny_unknown_fields` が付いているので、ここに無い名前は読み込みで弾かれる）、**前の版のタグとの差分がそのまま「増えた・改名した設定」の一覧**になる。
+
+```powershell
+git diff v0.7.0..HEAD -- src\config\raw.rs   # ← 前の版のタグに読み替える
+```
+
+**リンク切れの検査:**
 
 ```powershell
 Get-ChildItem docs -Recurse -Filter *.md | ForEach-Object {
