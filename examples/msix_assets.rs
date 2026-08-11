@@ -33,7 +33,12 @@ const SCALES: &[u32] = &[100, 125, 150, 200, 400];
 /// Start menu, taskbar and Alt+Tab ask the 44x44 logo for exact pixel sizes
 /// instead of a scale factor. Without these, Windows downsamples the 44px
 /// bitmap and the keycaps blur together.
-const TARGET_SIZES: &[u32] = &[16, 24, 32, 48, 256];
+/// **44 is not optional.** It is the one size the official walkthrough names
+/// outright: "for each 44x44 image, create a copy … append
+/// `.targetsize-44_altform-unplated`". The 2026-08-10 set went 16/24/32/48/256
+/// and skipped it, and the icon stayed a blue square
+/// (<https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-manual-conversion>).
+const TARGET_SIZES: &[u32] = &[16, 24, 32, 44, 48, 256];
 
 /// The same sizes again, under the name the *unplated* surfaces look for.
 ///
@@ -45,6 +50,13 @@ const TARGET_SIZES: &[u32] = &[16, 24, 32, 48, 256];
 /// colour, and a blue logo on a blue plate reads as a blue square with nothing
 /// in it (v0.8 acceptance P-4, owner report 2026-08-09). Same pixels as the
 /// plated file; only the name is doing the work.
+///
+/// **The name only does that work once the package has a `resources.pri`.**
+/// Every qualifier here — `scale-`, `targetsize-`, `_altform-` — is resolved
+/// through the package's resource index, and a package without one falls back
+/// to the literal file named in the manifest. Writing these files in
+/// 2026-08-10 changed nothing on screen for exactly that reason; see the
+/// `makepri` step in `packaging/msix/build.ps1`.
 const UNPLATED: &str = "_altform-unplated";
 
 fn main() {
