@@ -43,7 +43,7 @@ enabled = true # 表示を有効にする
 # ここでは Windows 11 IME の「Ctrl + Space を使用して IME のオン/オフを
 # 切り替える」オプションに合わせて C-Space を追加している（ADR 0021）。
 trigger_keys = ["C-Space"] # 切替の検知キー
-size = 256                 # 画面に表示する大きさ。32〜256
+size = 100                 # 画面に表示する大きさ。32〜256
 show_app_name = true       # パネルの下に対象アプリの exe 名を表示（ADR 0024）
 # IME がオンの間、マウスカーソルの色を変える（ADR 0067）。パネルとは独立で、
 # 色は cursor_color（既定 #0078d4 = WinRemap のアイコンの青）。セッション全体の
@@ -104,6 +104,7 @@ application = ["chrome.exe", "msedge.exe", "firefox.exe"]
 [keymap.remap]
 "C-t" = "C-t" # 新しいタブを維持（単語選択マクロより優先）
 "C-w" = "C-w" # タブを閉じるを維持（切り取りより優先）
+"C-r" = "C-f"
 
 
 #
@@ -134,7 +135,7 @@ application = ["WindowsTerminal.exe", "zed.exe", "phpstorm64.exe"]
 #
 [[keymap]]
 name = "explorer-keys"
-application = ["explorer.exe"]
+application = ["explorer.exe", "excel.exe"]
 
 [keymap.remap]
 "C-2" = "F2" # ファイル名を編集（よく使うのにキー位置が遠いため）
