@@ -287,6 +287,17 @@ Get-ChildItem docs -Recurse -Filter *.md | ForEach-Object {
 | 日付 | 範囲 | 結果 |
 |---|---|---|
 | 2026-08-11 | **自動側のみ**（手動項目は未実施） | **全部緑。** `cargo fmt --check` / `clippy --all-targets -D warnings`（警告 0）／`cargo test` **142 件**／`site-src\build.ps1 -Check`（23 ファイル一致）／`probe-ime-cursor.ps1` **10/10**／VM の UI テスト **10 件・121/121**（同日 14:34 の実行。下記） |
+| 2026-08-13 | **自動側を回し直した**（手動側に入る回。手動項目はこの時点で未実施） | **全部緑。** `cargo fmt --check` ／ `clippy --all-targets -D warnings`（警告 0）／`cargo test` **142 件**（109 + 25 + 8）／`site-src\build.ps1 -Check`（23 ファイル一致）／**VM の UI テスト 10 件・121/121（この回の実行）**／`probe-ime-cursor.ps1` **10/10**。下記 |
+
+### 2026-08-13（自動側の回し直し）
+
+**VM を実際に回し直した。** 2026-08-11 の欄が「手動側を回す回にもう一度取ること」と保留していたぶんである。**10 件・121/121**（`00-uia-actuation` 5 ／`00-cli-smoke` 8 ／`00-regression` 14 ／`00-log-view` 26 ／`01-settings-window` 12 ／`02-config-display` 14 ／`03-tray-actions` 11 ／`04-log-window` 9 ／`05-remap-notepad` 10 ／`06-foreground-line` 12）。**「たまたま通った」ではないことが、これで言える。**
+
+**`element-count` は今回も 54 だった**（`plain UIA sees 43`）。しきい値 `>= 40` のままなので、[§1](#この版で自動側に増えたもの) に書いたとおり**行が 1 つ静かに消えても緑である**。この版では直していない。
+
+**`target\release\winremap.exe` が常駐していてビルドが止まった。** `failed to remove file … アクセスが拒否されました (os error 5)`。**オーナー自身が使っているビルド版**だったので、落とさずに終了を依頼した。**自動側を回す前に「配布ビルドが常駐していないこと」を確かめると速い** — 手動側もこのバイナリで行うので、どのみち一度終了させることになる。
+
+**`probe-ime-cursor.ps1` は 10/10。** 実測はおよそ 44 秒で [§1](#1-毎リリースの手順) の表のとおりだった。**M-2 について言えることは 2026-08-11 と変わらない** — 繰り返しの中で空にならないことの証拠であって、数日使ったうえでの報告の代わりにはならない。
 
 ### 2026-08-11（自動側）
 
