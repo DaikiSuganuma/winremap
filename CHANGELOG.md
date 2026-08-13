@@ -39,6 +39,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were measured and ruled out, and it has never been reproduced on demand. This
   change stops the symptom reaching you and makes the next occurrence say so in
   `--debug` instead of passing in silence.
+- **A tint that only half went on now says so** (ADR 0075). WinRemap recolours
+  two cursors, the arrow and the I-beam. When one of them could not be built it
+  was quietly dropped, and the log reported the other one going on as a
+  success — *tint installed — 1 replaced*, no failure named. During 0.9.0's own
+  acceptance that is exactly what happened: the I-beam went unbuilt at startup
+  and the arrow alone carried the colour for twenty minutes, with nothing
+  anywhere saying why. The count is now taken as "everything that did not go
+  on", so no path can slip past it, and the reason a cursor is missing is
+  repeated each time the IME is switched on rather than said once, at startup,
+  into a log nobody had opened yet.
+
+  **This is what 0.9.0 is for.** The empty cursor above is refused, as
+  designed — but the refusal has to be legible, and it was not.
 - **Restoring the cursor works now.** It was written in two stages, and the
   first one — reloading the stock shapes out of `user32.dll` — **had never once
   run since the feature shipped in 0.8.0**. Windows 11 answers

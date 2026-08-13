@@ -62,6 +62,17 @@ static PRISTINE: Mutex<Vec<(SYSTEM_CURSOR_ID, isize)>> = Mutex::new(Vec::new());
 struct Prepared {
     color: (u8, u8, u8),
     cursors: Vec<(SYSTEM_CURSOR_ID, isize)>,
+    /// The ones that could not be built for this colour, and why.
+    ///
+    /// Remembered rather than only reported, because the build runs **once
+    /// per colour** — normally within seconds of startup. v0.9 acceptance,
+    /// M-2, 2026-08-13: the I-beam failed to build in that window, and by the
+    /// time the log window was opened twenty minutes later the line saying so
+    /// had never been stored ([`crate::gui::log`] drops what it is given
+    /// while no window is open). The tint then ran half-installed for the
+    /// rest of the run with nothing anywhere to say why. Kept so
+    /// [`apply`] can say it again to whoever is looking now.
+    missing: Vec<Trouble>,
 }
 
 /// Something here went wrong in a way that used to be dropped on the floor.
@@ -273,7 +284,16 @@ pub struct Action {
     pub rebuilt: bool,
     /// Cursors handed to `SetSystemCursor`.
     pub replaced: u8,
-    /// Cursors that could not be copied or installed.
+    /// Everything [`REPLACED`] names that did not get installed, **however it
+    /// went missing** — derived from `replaced` rather than counted up from
+    /// the failures seen along the way.
+    ///
+    /// It was counted up until v0.9, and that is how a half-installed tint
+    /// came to read as a success: a cursor whose tint could not be built was
+    /// dropped from the prepared set by a `filter_map`, so the install loop
+    /// never saw it and never counted it. The log said `2 replaced` when both
+    /// went on and `1 replaced` — with no failure — when one did. Deriving it
+    /// cannot miss a path, because it does not know about paths.
     pub failed: u8,
 }
 
@@ -329,28 +349,44 @@ pub fn apply(on: bool, color: (u8, u8, u8)) -> Action {
         if INSTALLED.load(Ordering::Relaxed) {
             restore();
         }
-        let cursors: Vec<_> = REPLACED
-            .iter()
-            .filter_map(|(id, name)| tinted(*id, *name, color).map(|cur| (*id, cur.0 as isize)))
-            .collect();
+        let mut cursors = Vec::new();
+        let mut missing = Vec::new();
+        for (id, name) in &REPLACED {
+            match tinted(*id, *name, color) {
+                Ok(cur) => cursors.push((*id, cur.0 as isize)),
+                Err(trouble) => {
+                    report(trouble);
+                    missing.push(trouble);
+                }
+            }
+        }
         // Nothing built means nothing to remember. Caching the empty result
         // would keep this colour un-tintable until the config changed it,
         // whereas the failures worth catching are the transient ones — M-2
-        // came and went four times in normal use. `tinted` has already said
-        // why on its way out, so a retry is not a silent one.
-        *slot = (!cursors.is_empty()).then_some(Prepared { color, cursors });
+        // came and went four times in normal use.
+        *slot = (!cursors.is_empty()).then_some(Prepared {
+            color,
+            cursors,
+            missing,
+        });
         rebuilt = true;
     }
     let Some(prepared) = slot.as_ref() else {
-        return Action {
-            kind: Kind::Failed,
-            rebuilt,
-            replaced: 0,
-            failed: REPLACED.len() as u8,
-        };
+        return outcome(0, rebuilt, was_installed);
     };
+    // Said again on every fresh install, because once was not enough: the
+    // build happens at most once per colour and its report can land while
+    // nothing is listening. A toggle of the IME is a deliberate act a few
+    // times a minute at most, and this only speaks at all while the tint is
+    // genuinely incomplete — so "open the log and switch the IME on" is now
+    // a way to ask why. Not on `Reinstalled`: that runs on every foreground
+    // change, which would turn an explanation into noise (ADR 0016).
+    if !was_installed {
+        for trouble in &prepared.missing {
+            report(*trouble);
+        }
+    }
     let mut replaced = 0u8;
-    let mut failed = 0u8;
     for (id, cursor) in &prepared.cursors {
         // A copy per call: SetSystemCursor takes ownership and destroys what
         // it is given, so handing it the stored handle would leave the
@@ -358,7 +394,6 @@ pub fn apply(on: bool, color: (u8, u8, u8)) -> Action {
         // SAFETY: the stored handles come from CreateIconIndirect below and
         // are alive for the life of the process.
         let Ok(copy) = (unsafe { CopyIcon(HICON(*cursor as *mut _)) }) else {
-            failed += 1;
             report(Trouble::BuildFailed {
                 id: *id,
                 why: "CopyIcon",
@@ -369,13 +404,10 @@ pub fn apply(on: bool, color: (u8, u8, u8)) -> Action {
         // one of the documented OCR_* constants. Ownership passes here.
         match unsafe { SetSystemCursor(HCURSOR(copy.0), *id) } {
             Ok(()) => replaced += 1,
-            Err(_) => {
-                failed += 1;
-                report(Trouble::BuildFailed {
-                    id: *id,
-                    why: "SetSystemCursor",
-                });
-            }
+            Err(_) => report(Trouble::BuildFailed {
+                id: *id,
+                why: "SetSystemCursor",
+            }),
         }
     }
     // Only claim the tint is on if some of it went on. Claiming it wrongly
@@ -384,6 +416,14 @@ pub fn apply(on: bool, color: (u8, u8, u8)) -> Action {
     // there never gets taken off. `was_installed` keeps the second case
     // right when a re-install fails.
     INSTALLED.store(was_installed || replaced > 0, Ordering::Relaxed);
+    outcome(replaced, rebuilt, was_installed)
+}
+
+/// What to report for an [`apply`] that installed `replaced` of [`REPLACED`].
+///
+/// Pure, and separate from `apply`, so the one thing that went wrong in v0.9
+/// can be tested: a tint that only half went on has to be *visible* as such.
+fn outcome(replaced: u8, rebuilt: bool, was_installed: bool) -> Action {
     Action {
         kind: match (replaced, was_installed) {
             (0, _) => Kind::Failed,
@@ -392,7 +432,7 @@ pub fn apply(on: bool, color: (u8, u8, u8)) -> Action {
         },
         rebuilt,
         replaced,
-        failed,
+        failed: (REPLACED.len() as u8).saturating_sub(replaced),
     }
 }
 
@@ -479,7 +519,7 @@ fn drawn_pixels(icon: HICON) -> Option<usize> {
 
 /// Builds a recoloured copy of one of the system's cursors, or says why it
 /// could not (ADR 0073 decision 5 — this used to be five silent `?`s).
-fn tinted(id: SYSTEM_CURSOR_ID, name: PCWSTR, color: (u8, u8, u8)) -> Option<HCURSOR> {
+fn tinted(id: SYSTEM_CURSOR_ID, name: PCWSTR, color: (u8, u8, u8)) -> Result<HCURSOR, Trouble> {
     // LR_SHARED: this handle belongs to the system and must not be
     // destroyed. LR_DEFAULTSIZE gives the size the system cursor is at, so
     // the replacement matches on a high-DPI display.
@@ -488,10 +528,10 @@ fn tinted(id: SYSTEM_CURSOR_ID, name: PCWSTR, color: (u8, u8, u8)) -> Option<HCU
     let raw: HANDLE =
         match unsafe { LoadImageW(None, name, IMAGE_CURSOR, 0, 0, LR_SHARED | LR_DEFAULTSIZE) } {
             Ok(raw) => raw,
-            Err(_) => return build_failed(id, "LoadImageW"),
+            Err(_) => return Err(build_failed(id, "LoadImageW")),
         };
     let Some(decoded) = decode(HICON(raw.0), color) else {
-        return build_failed(id, "the cursor could not be read");
+        return Err(build_failed(id, "the cursor could not be read"));
     };
     let Decoded {
         width,
@@ -503,8 +543,7 @@ fn tinted(id: SYSTEM_CURSOR_ID, name: PCWSTR, color: (u8, u8, u8)) -> Option<HCU
     // falls back to the AND mask when it finds no alpha — so an empty one
     // feeds itself. This is where that loop is cut.
     if pixels.iter().all(|px| px >> 24 == 0) {
-        report(Trouble::SourceEmpty { id });
-        return None;
+        return Err(Trouble::SourceEmpty { id });
     }
 
     let pixels = outlined(width, height, &pixels);
@@ -513,8 +552,7 @@ fn tinted(id: SYSTEM_CURSOR_ID, name: PCWSTR, color: (u8, u8, u8)) -> Option<HCU
     // cursor whose every pixel is less than half opaque has no solid shape
     // to keep and no solid neighbour to draw a border around.
     if pixels.iter().all(|px| px >> 24 == 0) {
-        report(Trouble::ResultEmpty { id });
-        return None;
+        return Err(Trouble::ResultEmpty { id });
     }
     let bits = and_mask(width, height, &pixels);
     // SAFETY: a 1bpp monochrome bitmap; `bits` is sized to its stride (rows
@@ -529,7 +567,7 @@ fn tinted(id: SYSTEM_CURSOR_ID, name: PCWSTR, color: (u8, u8, u8)) -> Option<HCU
         )
     });
     let Some(section) = dib_section(width, height, &pixels) else {
-        return build_failed(id, "CreateDIBSection");
+        return Err(build_failed(id, "CreateDIBSection"));
     };
     let colored = Bitmap(section);
     let icon_info = ICONINFO {
@@ -542,16 +580,17 @@ fn tinted(id: SYSTEM_CURSOR_ID, name: PCWSTR, color: (u8, u8, u8)) -> Option<HCU
     // SAFETY: both bitmaps are live and of the same size; fIcon = false asks
     // for a cursor, which is what the hotspots are for.
     match unsafe { CreateIconIndirect(&icon_info) } {
-        Ok(icon) => Some(HCURSOR(icon.0)),
-        Err(_) => build_failed(id, "CreateIconIndirect"),
+        Ok(icon) => Ok(HCURSOR(icon.0)),
+        Err(_) => Err(build_failed(id, "CreateIconIndirect")),
     }
 }
 
-/// Says why a tint could not be built, and hands back the `None` the caller
-/// is about to return.
-fn build_failed(id: SYSTEM_CURSOR_ID, why: &'static str) -> Option<HCURSOR> {
-    report(Trouble::BuildFailed { id, why });
-    None
+/// Names the Win32 call that would not do its part.
+///
+/// Only the failures with a call to name go through here; an empty source or
+/// an empty result are their own [`Trouble`] and say so themselves.
+fn build_failed(id: SYSTEM_CURSOR_ID, why: &'static str) -> Trouble {
+    Trouble::BuildFailed { id, why }
 }
 
 /// Puts a white border around the cursor's solid shape, and drops whatever
@@ -858,5 +897,37 @@ mod tests {
                 .all(|(i, px)| i == 4 || *px == 0xFFFF_FFFF),
             "all eight neighbours should be the white border: {out:08x?}"
         );
+    }
+
+    /// **This is the v0.9 acceptance failure, in one assertion.** The I-beam's
+    /// tint could not be built, so it never reached the install loop, so
+    /// nothing counted it: the log said the tint went on and named no
+    /// failure, while half the cursors on screen were plain. Whether a cursor
+    /// goes missing while being built, copied or installed is not something
+    /// the count is allowed to care about.
+    #[test]
+    fn a_tint_that_only_half_went_on_is_counted_as_a_failure() {
+        let half = outcome(1, false, false);
+        assert_eq!(half.replaced, 1);
+        assert_eq!(half.failed, 1, "the cursor that did not go on is missing");
+        assert_eq!(half.kind, Kind::Installed, "what did go on, went on");
+    }
+
+    /// The other side of it: a whole tint must not report a phantom failure,
+    /// or the line above stops meaning anything.
+    #[test]
+    fn a_whole_tint_reports_nothing_failed() {
+        let whole = outcome(REPLACED.len() as u8, true, false);
+        assert_eq!(whole.failed, 0);
+        assert!(whole.rebuilt);
+    }
+
+    /// And none at all is still `Failed` — the case ADR 0073 decision 3 added
+    /// so that installing nothing could not read as installing something.
+    #[test]
+    fn no_cursor_at_all_is_a_failure_of_every_cursor() {
+        let none = outcome(0, false, true);
+        assert_eq!(none.kind, Kind::Failed);
+        assert_eq!(none.failed, REPLACED.len() as u8);
     }
 }
