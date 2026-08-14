@@ -378,14 +378,17 @@ nothing** — starting it from a shell is as quiet as starting it from Explorer.
   IME state is read by messaging the target window, and UIPI blocks that too,
   so neither the panel nor the colour appears while an elevated window is in
   front. Run WinRemap elevated only if you need any of this there.
-- **The coloured cursor is occasionally not drawn at all.** Rarely, and so far
-  only during ordinary use, the tinted I-beam stops appearing while the IME is
-  on: not a cursor without its colour, but nothing at all. The arrow is
-  unaffected, the IME panel keeps working, and toggling the IME does not bring
-  it back — **restarting WinRemap does**. It happened three times on one
-  machine during the v0.8 acceptance and has never reproduced on demand, so
-  the cause is still open. `--debug` records every cursor change, and that log
-  is what will identify it; a report with those lines in it is welcome. The
+- **The coloured cursor occasionally goes on only halfway, or not at all.**
+  Rarely, and so far only during ordinary use, the tinted I-beam fails to
+  appear while the IME is on. The arrow is unaffected, the IME panel keeps
+  working, and **restarting WinRemap clears it**. It happened three times on
+  one machine during the v0.8 acceptance, as a cursor with nothing drawn in
+  it, and once during the v0.9 acceptance, as a tint that never went on. It
+  has never reproduced on demand, so the cause is still open. 0.9.0 stops an
+  empty cursor from ever being installed, so the older form — where toggling
+  the IME would not bring it back — no longer happens. When a cursor cannot be
+  tinted, `--debug` now records how many were missed and why, and repeats it
+  every time the IME goes on; a report with those lines in it is welcome. The
   setting is off by default.
 - **No tap/hold or mark mode** yet; sequences are limited to two strokes.
 - Chords involving **Alt or Win** inject a masking key so the modifier lift
