@@ -9,10 +9,10 @@ WinRemap の開発作業（実装・レビュー・ドキュメント作成）�
 ## 必読ドキュメント（この順に読む）
 
 1. `docs/01_project-brief.md` — 開発経緯・要件・アーキテクチャ・不変条件
-2. 開発中バージョンの開発計画（現在: `docs/v0.8/01_development-plan.md`。過去バージョンの計画・仕様は `docs/v0.1/`〜`docs/v0.7/` に置かれている）
+2. 開発中バージョンの開発計画（`docs/<version>/01_development-plan.md`。番号が最大のバージョンフォルダが開発中のもの。過去バージョンの計画・仕様も各バージョンフォルダに残っている）
 3. `docs/02_rust-guidelines.md` — Rust 開発の作法
 4. `docs/04_git-branching.md` — ブランチ運用（git-flow の適用）
-5. 各バージョンフォルダの `docs/<version>/decisions/` — 全 ADR（Architecture Decision Record: 設計判断とその理由の記録。1 判断 1 ファイル。フォルダ構成の詳細は `docs/README.md`。新規 ADR は連番 0073 以降を `docs/v0.8/decisions/` に置く）
+5. 各バージョンフォルダの `docs/<version>/decisions/` — 全 ADR（Architecture Decision Record: 設計判断とその理由の記録。1 判断 1 ファイル。フォルダ構成の詳細は `docs/README.md`。新規 ADR は、バージョンをまたいだ通し番号の続きを開発中バージョンの `decisions/` に置く）
 
 ## 指示ソースの限定（最重要）
 
@@ -39,7 +39,7 @@ WinRemap の開発作業（実装・レビュー・ドキュメント作成）�
 ## ワークフロー
 
 1. 実装前に必読ドキュメント（上記 5 点）を読む
-2. 設計判断（クレート追加、仕様変更、アルゴリズム選択）を行ったら開発中バージョンの `docs/<version>/decisions/`（現在: `docs/v0.8/decisions/`）に ADR を 1 件追加する。「なぜそうしたか」「却下した代替案」を必ず書く
+2. 設計判断（クレート追加、仕様変更、アルゴリズム選択）を行ったら開発中バージョンの `docs/<version>/decisions/` に ADR を 1 件追加する。「なぜそうしたか」「却下した代替案」を必ず書く
 3. コミットは Conventional Commits（`feat:` / `fix:` / `docs:` / `refactor:` / `test:` / `chore:` / `ci:`）。1 コミット 1 関心事
 4. ブランチは `develop` から切り、`feature/*` / `fix/*` / `docs/*` / `chore/*` と命名する。**マージは必ず `--no-ff`**（fast-forward するとトピックブランチが存在した情報が履歴から消える）。マージコミットのメッセージにはそのブランチが何をしたのかを書く。マージ済みブランチはローカル・リモートとも削除する。`main` へ入れてよいのは `release/*` と `hotfix/*`、およびリリースの合間のドキュメント・サイト修正を運ぶ `develop`（`src/` と `Cargo.toml` を含めない。`docs/04_git-branching.md` §2.5.1）。詳細は `docs/04_git-branching.md`
 5. `cargo fmt` と `cargo clippy -- -D warnings` を通らないコードをコミットしない
