@@ -33,7 +33,31 @@ const SCALES: &[u32] = &[100, 125, 150, 200, 400];
 /// Start menu, taskbar and Alt+Tab ask the 44x44 logo for exact pixel sizes
 /// instead of a scale factor. Without these, Windows downsamples the 44px
 /// bitmap and the keycaps blur together.
-const TARGET_SIZES: &[u32] = &[16, 24, 32, 48, 256];
+/// **44 is not optional.** It is the one size the official walkthrough names
+/// outright: "for each 44x44 image, create a copy … append
+/// `.targetsize-44_altform-unplated`". The 2026-08-10 set went 16/24/32/48/256
+/// and skipped it, and the icon stayed a blue square
+/// (<https://learn.microsoft.com/en-us/windows/msix/desktop/desktop-to-uwp-manual-conversion>).
+const TARGET_SIZES: &[u32] = &[16, 24, 32, 44, 48, 256];
+
+/// The same sizes again, under the name the *unplated* surfaces look for.
+///
+/// Settings → Apps → Startup, the taskbar and a few other places draw the icon
+/// without a backplate and ask for `_altform-unplated`. **When it is missing
+/// they do not fall back to the plain file — they fall back to the plated
+/// rendering**, which is the logo drawn on top of a solid plate. This package
+/// sets `BackgroundColor="transparent"`, so that plate is the user's accent
+/// colour, and a blue logo on a blue plate reads as a blue square with nothing
+/// in it (v0.8 acceptance P-4, owner report 2026-08-09). Same pixels as the
+/// plated file; only the name is doing the work.
+///
+/// **The name only does that work once the package has a `resources.pri`.**
+/// Every qualifier here — `scale-`, `targetsize-`, `_altform-` — is resolved
+/// through the package's resource index, and a package without one falls back
+/// to the literal file named in the manifest. Writing these files in
+/// 2026-08-10 changed nothing on screen for exactly that reason; see the
+/// `makepri` step in `packaging/msix/build.ps1`.
+const UNPLATED: &str = "_altform-unplated";
 
 fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -57,6 +81,9 @@ fn main() {
     for size in TARGET_SIZES {
         let path = out.join(format!("Square44x44Logo.targetsize-{size}.png"));
         write_png(&svg, &path, *size);
+        count += 1;
+        let unplated = out.join(format!("Square44x44Logo.targetsize-{size}{UNPLATED}.png"));
+        write_png(&svg, &unplated, *size);
         count += 1;
     }
 

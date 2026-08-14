@@ -467,6 +467,21 @@ fn the_default_config_is_valid() {
 }
 
 #[test]
+fn default_config_is_embedded_with_lf_endings() {
+    // The bytes of this constant are the bytes of every user's first config,
+    // and they come from whatever the checkout put on disk at build time. A
+    // machine with core.autocrlf=true would embed CRLF and ship a different
+    // file than one without — which is what split 0.8.0 (CI wrote 1730 bytes,
+    // a local build 1695). .gitattributes pins the endings; this fails the
+    // build if that pin ever stops holding, because nothing else would show it.
+    assert!(
+        !DEFAULT_CONFIG.contains('\r'),
+        "DEFAULT_CONFIG carries CR — the checkout converted line endings, \
+         so this build would write a different config than a LF one"
+    );
+}
+
+#[test]
 fn create_default_writes_a_loadable_config() {
     // %APPDATA%\winremap does not exist on a first run either.
     let dir = scratch_dir("create");

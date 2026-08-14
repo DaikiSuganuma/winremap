@@ -127,6 +127,12 @@ fn run() -> anyhow::Result<()> {
     hook::REMAP_TABLE.store(Some(Arc::new(table)));
     gui::mark_config_loaded();
 
+    // The copy every later restore is made from, taken while nothing of ours
+    // has replaced anything (ADR 0073 decision 1). Has to be after the
+    // single-instance check above: a second copy of WinRemap clears the tint
+    // on its way through here, and the first copy's is a tint that is
+    // legitimately on.
+    cursor::capture_pristine();
     // Unconditional, and before anything can tint again: a cursor left over
     // from a run that was killed is the one thing this feature cannot clear
     // by itself, and startup is when nothing can legitimately be tinted yet

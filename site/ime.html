@@ -134,14 +134,18 @@ enabled = true                # default: false
   <code>--debug</code> window all put the cursor back on the way out. Your own cursor
   theme and size are kept — the shape is recoloured, not replaced.</p>
   <div class="alert alert-secondary" role="alert">
-    <p class="mb-0"><strong>Known issue: rarely, the tinted I-beam is not drawn at
-    all.</strong><br>
-    Not a cursor without its colour — nothing at all. The arrow is unaffected and the
-    panel still appears, and toggling the IME does not bring it back —
-    <strong>restarting WinRemap does</strong>.<br>
-    It happened three times on one machine during the v0.8 acceptance and has never
-    reproduced on demand, so the cause is still open.<br>
-    <code>--debug</code> records every cursor change; a report with those lines in it is
+    <p class="mb-0"><strong>Known issue: rarely, the tint goes on only halfway, or
+    not at all.</strong><br>
+    While the IME is on, the tinted I-beam sometimes fails to appear. The arrow is
+    unaffected and the panel still appears, and
+    <strong>restarting WinRemap clears it</strong>.<br>
+    It happened three times on one machine during the v0.8 acceptance, as a cursor
+    with nothing drawn in it, and once during the v0.9 acceptance, as a tint that
+    never went on. It has never reproduced on demand, so the cause is still open.
+    0.9.0 stops an empty cursor from ever being installed, so the older form — where
+    toggling the IME would not bring it back — no longer happens.<br>
+    <code>--debug</code> now records how many cursors could not be tinted and why, and
+    repeats it every time the IME goes on; a report with those lines in it is
     welcome.</p>
   </div>
 </section>

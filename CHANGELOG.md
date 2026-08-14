@@ -5,6 +5,81 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-08-14
+
+### Added
+
+- **The settings window can edit the IME cursor colour.** `change_cursor_color`
+  and `cursor_color` were in the README, the help site and the config spec, but
+  nowhere in the settings window — and not merely missing from the display: the
+  draft the window edits did not carry the two keys at all, so they could not be
+  read, changed or saved there. They are now under `[ime_indicator]`, and they
+  are shown **whether or not `enabled` is ticked**, because the cursor is
+  independent of the panel (ADR 0067) — hiding it behind that tick would undo on
+  screen what 0.8.0 decided.
+
+  Nothing was ever lost by the omission: the window rewrites only the keys whose
+  draft value changed, so keys it did not know about were left alone. That is
+  luck rather than design, and there is now a test that holds it.
+
+### Fixed
+
+- **A cursor with nothing drawn in it is never installed** (ADR 0073). Rarely —
+  four times during 0.8.0's acceptance, never on demand — the tinted I-beam
+  stopped being drawn at all until WinRemap was restarted. Measured while it was
+  happening, the cursor Windows was holding turned out to be one WinRemap had
+  built and it was **completely empty**: 1024 of 1024 pixels transparent. It
+  then survived every attempt to clear it because an empty cursor was used as
+  the source for the next one, which produces another empty cursor — that is why
+  toggling the IME never brought it back. Both ends are now checked. A cursor
+  with no drawn pixels is not used as a source and not installed as a result,
+  and either refusal is written to the log with the reason.
+
+  **The cause of the first empty cursor is still unknown.** Six explanations
+  were measured and ruled out, and it has never been reproduced on demand. This
+  change stops the symptom reaching you and makes the next occurrence say so in
+  `--debug` instead of passing in silence.
+- **A tint that only half went on now says so** (ADR 0075). WinRemap recolours
+  two cursors, the arrow and the I-beam. When one of them could not be built it
+  was quietly dropped, and the log reported the other one going on as a
+  success — *tint installed — 1 replaced*, no failure named. During 0.9.0's own
+  acceptance that is exactly what happened: the I-beam went unbuilt at startup
+  and the arrow alone carried the colour for twenty minutes, with nothing
+  anywhere saying why. The count is now taken as "everything that did not go
+  on", so no path can slip past it, and the reason a cursor is missing is
+  repeated each time the IME is switched on rather than said once, at startup,
+  into a log nobody had opened yet.
+
+  **This is what 0.9.0 is for.** The empty cursor above is refused, as
+  designed — but the refusal has to be legible, and it was not.
+- **Restoring the cursor works now.** It was written in two stages, and the
+  first one — reloading the stock shapes out of `user32.dll` — **had never once
+  run since the feature shipped in 0.8.0**. Windows 11 answers
+  `ERROR_RESOURCE_NAME_NOT_FOUND` for those resource ids, and the failure was
+  discarded without a word. What was left was the second stage,
+  `SystemParametersInfo(SPI_SETCURSORS)`, which reloads from the cursor scheme
+  in the registry — empty on the stock scheme, which is the very case the first
+  stage was added for. WinRemap now copies the stock cursors at startup, before
+  it has changed anything, and restores from those copies; `user32.dll` is no
+  longer asked, because its resource ids are undocumented and may move again.
+  Startup reports how many copies it holds, so whether the safety net is up can
+  be looked at rather than assumed.
+- **The Microsoft Store build shows its own icon.** It was a solid blue square —
+  on the taskbar, on the window, and in Settings → Apps → Startup. Three faults
+  overlapped. The package carried **no resource index**, so the differently
+  sized and unplated images inside it were never consulted at all and only the
+  single file the manifest names was ever used; the 44-pixel unplated image that
+  the official procedure asks for was missing; and the plate behind the logo was
+  `transparent`, which means "use the accent colour" rather than "no plate", so
+  a blue logo sat on a blue plate. The package now carries an index, and the
+  build reads it back and stops if the unplated images are not in it — putting
+  a file in a package is not the same as it being used.
+
+  **This has been wrong since 0.6.0**, and 0.8.0 was submitted before it was
+  found, so 0.9.0 is the first Store build with the icon right. Builds from
+  GitHub Releases were never affected: the installer's icon is embedded in the
+  executable and does not go through the index.
+
 ## [0.8.0] - 2026-08-09
 
 ### Added
