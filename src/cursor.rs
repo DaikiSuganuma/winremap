@@ -22,6 +22,11 @@
 //! then drawn around the shape, because the colour alone is darker than the
 //! white it replaced and would be lost on a dark application (see
 //! [`outlined`]).
+//!
+//! A cursor that comes back empty at this display's scale is read and built
+//! again from a **DPI-unaware** thread, and the reload from the registry
+//! always is: on a scaled display, what a DPI-aware process is handed for the
+//! I-beam has nothing in it at all (see [`Unscaled`], ADR 0076).
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,6 +38,9 @@ use windows::Win32::Graphics::Gdi::{
     HGDIOBJ,
 };
 use windows::Win32::System::Diagnostics::Debug::{EXCEPTION_POINTERS, SetUnhandledExceptionFilter};
+use windows::Win32::UI::HiDpi::{
+    DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_UNAWARE, SetThreadDpiAwarenessContext,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     CopyIcon, CreateIconIndirect, GetIconInfo, HCURSOR, HICON, ICONINFO, IDC_ARROW, IDC_IBEAM,
     IMAGE_CURSOR, LR_DEFAULTSIZE, LR_SHARED, LoadImageW, OCR_IBEAM, OCR_NORMAL, SPI_SETCURSORS,
@@ -175,25 +183,119 @@ pub fn capture_pristine() {
     }
 }
 
-/// One pristine copy, or why there is not one.
-fn snapshot(name: PCWSTR) -> Result<HICON, &'static str> {
-    // No module handle: that is the spelling that works (measured — the
-    // user32-relative one is the `1814` above). LR_SHARED hands back the
-    // system's own handle, which must not be destroyed; LR_DEFAULTSIZE gives
-    // the size this display is actually using.
+/// Makes the calling thread ask about cursors the way a process that knows
+/// nothing about display scaling does, and puts the previous context back on
+/// the way out.
+///
+/// **This is what makes the I-beam readable at all on a scaled display**
+/// (ADR 0076). WinRemap is per-monitor DPI aware, and at 150% the system
+/// cursor size is 48 rather than 32. Asked from a DPI-aware thread, Windows
+/// does not hand out the machine's I-beam at that size — it hands out a
+/// 48×48 **colour** cursor whose alpha is zero everywhere and whose AND mask
+/// marks nothing opaque. There is nothing in it to tint. Measured on Windows
+/// 11 26200 at 150%, 2026-08-15:
+///
+/// | thread | I-beam | arrow |
+/// |---|---|---|
+/// | DPI-aware | colour 48×48, **0 drawn** | colour 48×48, 280 drawn |
+/// | DPI-unaware | mask-only 32×32, **26 drawn** | colour 32×32, 144 drawn |
+///
+/// The stock I-beam is the mask-only, invert-drawn cursor that
+/// [`from_mask_only`] describes, and that shape does not survive being turned
+/// into a 32-bit colour bitmap: an AND=1/XOR=1 pixel has no colour to carry.
+/// The arrow is a real colour cursor with alpha, so it scales and is why only
+/// half the tint ever went missing.
+///
+/// The size arguments are no help — `LR_SHARED` hands back the object cached
+/// for the thread's DPI context, and `0,0`, `32,32` and `48,48` all returned
+/// the same empty 48×48 one (measured the same day). The context is the only
+/// lever there is.
+struct Unscaled(DPI_AWARENESS_CONTEXT);
+
+impl Unscaled {
+    fn enter() -> Self {
+        // SAFETY: the call takes one of the documented DPI_AWARENESS_CONTEXT
+        // values and returns the thread's previous one, which is an opaque
+        // handle owned by the system and only handed back to the same call.
+        Self(unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_UNAWARE) })
+    }
+}
+
+impl Drop for Unscaled {
+    fn drop(&mut self) {
+        // A null context means the previous one could not be read, and there
+        // is then nothing to put back — restoring a null would be the call
+        // failing rather than the thread returning to where it was.
+        if !self.0.0.is_null() {
+            // SAFETY: `self.0` came from the call in `enter` and is the
+            // context this thread had before.
+            unsafe { SetThreadDpiAwarenessContext(self.0) };
+        }
+    }
+}
+
+/// An empty cursor, told apart from a Win32 call going wrong because it is
+/// the one failure worth retrying unscaled. [`snapshot`] reports it as it is,
+/// [`tinted`] turns it into [`Trouble::SourceEmpty`].
+const NOTHING_DRAWN: &str = "the cursor has nothing drawn in it";
+
+/// **The whole job is retried, not just the read.** A shared cursor handle is
+/// resolved against the DPI context of the thread *using* it, not the one
+/// that loaded it: a handle fetched unscaled and then decoded by an aware
+/// thread comes back empty again. Measured 2026-08-15 — the first version of
+/// this fix held [`Unscaled`] across `LoadImageW` alone and changed nothing.
+///
+/// So the unit of work is "read it and make the thing", and that is what runs
+/// again. Retrying rather than always going unscaled keeps the arrow at the
+/// size this display uses — 48×48 and native at 150%, instead of a 32×32 copy
+/// scaled back up — and needs no list of which cursors are mask-only, a list
+/// that would be wrong the moment Windows changes one.
+fn unscaled_retry<T, E>(
+    was_empty: impl Fn(&E) -> bool,
+    mut build: impl FnMut() -> Result<T, E>,
+) -> Result<T, E> {
+    let first = build();
+    match &first {
+        Err(why) if was_empty(why) => {}
+        // Anything else — a working cursor, or a call that failed for its own
+        // reasons — is the answer. Only emptiness is a question of scale.
+        _ => return first,
+    }
+    let _unscaled = Unscaled::enter();
+    build()
+}
+
+/// Asks the system for one of its own cursors.
+///
+/// No module handle: that is the spelling that works (measured — the
+/// user32-relative one is the `1814` above). LR_SHARED hands back the
+/// system's own handle, which must not be destroyed, and is also required for
+/// a system cursor — without it the call fails. LR_DEFAULTSIZE gives the size
+/// this display is using, which is the part [`unscaled_retry`] second-guesses.
+fn load(name: PCWSTR) -> Result<HICON, &'static str> {
     // SAFETY: `name` is one of the IDC_* atoms; a null instance means the
     // predefined cursors.
     let raw: HANDLE =
         unsafe { LoadImageW(None, name, IMAGE_CURSOR, 0, 0, LR_SHARED | LR_DEFAULTSIZE) }
             .map_err(|_| "LoadImageW")?;
-    match drawn_pixels(HICON(raw.0)) {
+    Ok(HICON(raw.0))
+}
+
+/// One pristine copy, or why there is not one.
+fn snapshot(name: PCWSTR) -> Result<HICON, &'static str> {
+    unscaled_retry(|why| *why == NOTHING_DRAWN, || snapshot_at_this_scale(name))
+}
+
+fn snapshot_at_this_scale(name: PCWSTR) -> Result<HICON, &'static str> {
+    let raw = load(name)?;
+    match drawn_pixels(raw) {
         None => return Err("the cursor could not be read"),
-        Some(0) => return Err("the cursor has nothing drawn in it"),
+        Some(0) => return Err(NOTHING_DRAWN),
         Some(_) => {}
     }
     // SAFETY: a live cursor handle; the copy is ours to keep for the life of
     // the process, and the shared original is left alone.
-    unsafe { CopyIcon(HICON(raw.0)) }.map_err(|_| "CopyIcon")
+    unsafe { CopyIcon(raw) }.map_err(|_| "CopyIcon")
 }
 
 /// Undoes any replacement — ours, or a leftover from a previous run that died
@@ -257,6 +359,14 @@ fn restore_inner(report_trouble: bool) {
 /// Step 2 of a restore, on its own because startup needs it before there is
 /// anything to restore from.
 fn reload_from_registry(report_trouble: bool) {
+    // Unscaled for the same reason the reads are (ADR 0076), and here it is
+    // not only this process that is affected: from a DPI-aware thread this
+    // call puts the **empty** scaled I-beam into the session's cursor table,
+    // where the next `snapshot` then finds nothing to copy — so the step that
+    // exists to undo a replacement was quietly disabling the one that undoes
+    // it. Measured 2026-08-15: aware leaves an all-transparent I-beam
+    // registered, unaware leaves the machine's own.
+    let _unscaled = Unscaled::enter();
     // SAFETY: SPI_SETCURSORS takes no input buffer; the null pointer and 0
     // are what the documentation prescribes for it.
     if unsafe { SystemParametersInfoW(SPI_SETCURSORS, 0, None, SPIF_SENDCHANGE) }.is_err()
@@ -520,17 +630,25 @@ fn drawn_pixels(icon: HICON) -> Option<usize> {
 /// Builds a recoloured copy of one of the system's cursors, or says why it
 /// could not (ADR 0073 decision 5 — this used to be five silent `?`s).
 fn tinted(id: SYSTEM_CURSOR_ID, name: PCWSTR, color: (u8, u8, u8)) -> Result<HCURSOR, Trouble> {
-    // LR_SHARED: this handle belongs to the system and must not be
-    // destroyed. LR_DEFAULTSIZE gives the size the system cursor is at, so
-    // the replacement matches on a high-DPI display.
-    // SAFETY: `name` is one of the IDC_* atoms; a null instance means the
-    // predefined cursors.
-    let raw: HANDLE =
-        match unsafe { LoadImageW(None, name, IMAGE_CURSOR, 0, 0, LR_SHARED | LR_DEFAULTSIZE) } {
-            Ok(raw) => raw,
-            Err(_) => return Err(build_failed(id, "LoadImageW")),
-        };
-    let Some(decoded) = decode(HICON(raw.0), color) else {
+    // An empty source is retried unscaled (ADR 0076); anything else it says
+    // is final. `SourceEmpty` therefore now means what it says — the cursor
+    // is empty however it is asked for, not merely at this display's scale.
+    unscaled_retry(
+        |trouble| matches!(trouble, Trouble::SourceEmpty { .. }),
+        || tinted_at_this_scale(id, name, color),
+    )
+}
+
+fn tinted_at_this_scale(
+    id: SYSTEM_CURSOR_ID,
+    name: PCWSTR,
+    color: (u8, u8, u8),
+) -> Result<HCURSOR, Trouble> {
+    let raw = match load(name) {
+        Ok(raw) => raw,
+        Err(why) => return Err(build_failed(id, why)),
+    };
+    let Some(decoded) = decode(raw, color) else {
         return Err(build_failed(id, "the cursor could not be read"));
     };
     let Decoded {
@@ -541,7 +659,9 @@ fn tinted(id: SYSTEM_CURSOR_ID, name: PCWSTR, color: (u8, u8, u8)) -> Result<HCU
     } = decoded;
     // Decision 4: an empty source produces an empty tint, and `from_color`
     // falls back to the AND mask when it finds no alpha — so an empty one
-    // feeds itself. This is where that loop is cut.
+    // feeds itself. This is also what `unscaled_retry` watches for, so on a
+    // scaled display it is the trigger for reading the cursor again unscaled
+    // rather than the end of the road (ADR 0076).
     if pixels.iter().all(|px| px >> 24 == 0) {
         return Err(Trouble::SourceEmpty { id });
     }
@@ -860,11 +980,67 @@ impl Drop for Bitmap {
     }
 }
 
-/// Only the arithmetic. Everything else here replaces cursors for the whole
-/// session, which is what the acceptance probe is for (ADR 0073 decision 6).
+/// Only the arithmetic, and one read (ADR 0073 decision 6 — everything that
+/// *replaces* a cursor does it for the whole session, and that is what the
+/// acceptance probe is for). The read is here because the thing it catches is
+/// invisible to the probe: [`Unscaled`] is about the DPI context of the
+/// process asking, and the probe asks from PowerShell.
 #[cfg(test)]
 mod tests {
+    use windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2;
+
     use super::*;
+
+    /// Runs `f` on a thread claiming to be per-monitor DPI aware — what
+    /// `winremap.exe` is, and what a cargo-test binary is not.
+    fn as_a_dpi_aware_app<T>(f: impl FnOnce() -> T) -> T {
+        // SAFETY: a documented DPI_AWARENESS_CONTEXT value; the return is the
+        // thread's previous context, put back below.
+        let previous =
+            unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
+        let out = f();
+        if !previous.0.is_null() {
+            // SAFETY: `previous` came from the call above.
+            unsafe { SetThreadDpiAwarenessContext(previous) };
+        }
+        out
+    }
+
+    /// **The failure the owner reported on 2026-08-15, as an assertion**
+    /// (ADR 0076): with the IME on, the arrow was tinted and the I-beam was
+    /// not, because `winremap.exe` is per-monitor DPI aware and a DPI-aware
+    /// thread at 150% is handed an I-beam with nothing drawn in it.
+    ///
+    /// Builds only — nothing is installed, so this stays inside the rule that
+    /// replacing a cursor belongs to the acceptance probe.
+    ///
+    /// **It only has teeth on a scaled display.** At 100% there is no scaled
+    /// form to be handed, so it passes with or without the fix — which is
+    /// exactly how the bug shipped: everything that measured this feature (CI,
+    /// the probe in PowerShell, a cargo-test binary with no manifest) was
+    /// effectively unscaled. Kept because the machine it is developed on is at
+    /// 150%, and that is where it fails first.
+    #[test]
+    fn a_dpi_aware_app_can_still_tint_the_i_beam() {
+        let built = as_a_dpi_aware_app(|| tinted(OCR_IBEAM, IDC_IBEAM, (0x00, 0x78, 0xD4)));
+        let drawn = built.map(|cursor| drawn_pixels(HICON(cursor.0)));
+        assert!(
+            matches!(drawn, Ok(Some(px)) if px > 0),
+            "the I-beam tint must survive this display's scale, got {drawn:?}"
+        );
+    }
+
+    /// And the safety net over the same ground: without a pristine copy of
+    /// the I-beam there is nothing for [`restore`] to put back, which is how
+    /// the scaled read disabled ADR 0073's first step as well as the tint.
+    #[test]
+    fn a_dpi_aware_app_can_still_snapshot_the_i_beam() {
+        let taken = as_a_dpi_aware_app(|| snapshot(IDC_IBEAM));
+        assert!(
+            taken.is_ok_and(|icon| matches!(drawn_pixels(icon), Some(px) if px > 0)),
+            "a pristine copy has to have the cursor in it"
+        );
+    }
 
     /// **The empty tint of M-2 can be built from a source that is not
     /// itself empty**, which is why decision 3 checks the result rather than

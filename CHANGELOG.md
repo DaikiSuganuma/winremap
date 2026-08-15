@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The I-beam takes the IME tint on a scaled display** (ADR 0076). On a screen
+  at 125% or more, the arrow was tinted while the I-beam stayed plain — the
+  symptom behind three releases of chasing, and its cause turns out to be
+  display scaling. WinRemap is per-monitor DPI aware, and a DPI-aware process
+  asking Windows for the I-beam at 150% is handed a 48×48 **colour** cursor with
+  nothing drawn in it: the stock I-beam is drawn by inverting the screen, and
+  that has no colour to carry into a 32-bit bitmap. The arrow is a real colour
+  cursor, so it survived — which is why exactly half the tint went missing.
+
+  A cursor that comes back empty is now read and built again on a DPI-unaware
+  thread, and the reload from the registry always runs on one. That second part
+  matters beyond the tint: from a DPI-aware thread it registered the empty
+  I-beam session-wide, and the pristine copy 0.9.0 takes to restore from could
+  then not be taken at all — the step that undoes a replacement had been
+  disabling the one that undoes it.
+
+  Nothing visible was broken for anyone who leaves `change_cursor_color` off:
+  applications re-read cursors in their own context, so the I-beam on screen
+  stayed normal throughout.
+
 ## [0.9.0] - 2026-08-14
 
 ### Added
