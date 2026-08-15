@@ -54,19 +54,17 @@ enabled = true                # default: false
   <code>--debug</code> window all put the cursor back on the way out. Your own cursor
   theme and size are kept — the shape is recoloured, not replaced.</p>
   <div class="alert alert-secondary" role="alert">
-    <p class="mb-0"><strong>Known issue: rarely, the tint goes on only halfway, or
-    not at all.</strong><br>
-    While the IME is on, the tinted I-beam sometimes fails to appear. The arrow is
-    unaffected and the panel still appears, and
-    <strong>restarting WinRemap clears it</strong>.<br>
-    It happened three times on one machine during the v0.8 acceptance, as a cursor
-    with nothing drawn in it, and once during the v0.9 acceptance, as a tint that
-    never went on. It has never reproduced on demand, so the cause is still open.
-    0.9.0 stops an empty cursor from ever being installed, so the older form — where
-    toggling the IME would not bring it back — no longer happens.<br>
-    <code>--debug</code> now records how many cursors could not be tinted and why, and
-    repeats it every time the IME goes on; a report with those lines in it is
-    welcome.</p>
+    <p class="mb-0"><strong>Fixed in 1.0.0: on a scaled display, the I-beam stayed
+    plain while the arrow was tinted.</strong><br>
+    The cause was display scaling. At 125% or more, Windows handed WinRemap an
+    I-beam with nothing drawn in it — the stock I-beam is drawn by inverting the
+    screen, and that survives neither the scaling nor the conversion that comes
+    with it. The arrow is an ordinary colour cursor, which is why exactly half the
+    tint went missing. Up to 0.9.0 this showed up in two forms: an I-beam that was
+    not tinted, and — before 0.9.0 — one that was not drawn at all.<br>
+    If you still see either on 1.0.0, <code>--debug</code> records which cursors
+    could not be tinted and why, and repeats it every time the IME goes on; a
+    report with those lines in it is welcome.</p>
   </div>
 </section>
 
