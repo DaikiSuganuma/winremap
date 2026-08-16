@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-08-16
+
+The 1.0 is not a freeze and adds no compatibility promise beyond the care the
+config format and the CLI flags have had all along. It says the feature set is
+one its author is happy to keep using.
+
+Everything below started as something noticed while using it.
 
 ### Added
 
