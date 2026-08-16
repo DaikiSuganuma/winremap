@@ -30,6 +30,10 @@ const REDIRECT_TAIL: [&str; 2] = ["LocalCache", "Roaming"];
 /// Resolves a config path to one that every process on the machine agrees
 /// about. Returns `path` unchanged when unpackaged, or when it is not under
 /// `%APPDATA%` (a `--config` elsewhere is never redirected).
+///
+/// Also the note of which config file to open next time (ADR 0077): it lives
+/// in that same folder, and a path written under one spelling of `%APPDATA%`
+/// and read under the other names a file that is not there.
 pub fn resolve_config_path(path: PathBuf) -> PathBuf {
     let Some(family) = family_name() else {
         return path;
