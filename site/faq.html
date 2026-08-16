@@ -167,9 +167,18 @@
   <div class="faq-a">
     <span class="faq-mark" aria-hidden="true">A</span>
     <div class="faq-body">
-    <p class="mb-0">Press <kbd>Win</kbd>+<kbd>R</kbd>, run <code>shell:startup</code>, and add or remove
+    <p>It depends on how you installed it — Windows manages autostart differently for
+            Store packages than for the installer.</p>
+            <p><strong>Microsoft Store version</strong>: right-click <em>WinRemap</em> in the Start
+            menu and choose <em>App settings</em>. That opens
+            <em>Settings → Apps → Installed apps → WinRemap</em>, where the
+            <em>Runs at log-in</em> toggle turns it on and off. The same switch is in the
+            <em>Settings → Apps → Startup</em> list, but the right-click gets you there faster.</p>
+            <p class="mb-0"><strong>Installer and portable versions</strong>: press
+            <kbd>Win</kbd>+<kbd>R</kbd>, run <code>shell:startup</code>, and add or remove
             the <em>WinRemap</em> shortcut there. (Re-running the installer also lets you re-choose
-            the option.)</p>
+            the option.) This <code>shell:startup</code> route does <strong>not</strong> work for the
+            Store version, whose autostart Windows keeps in the place described above instead.</p>
     </div>
   </div>
 </section>
