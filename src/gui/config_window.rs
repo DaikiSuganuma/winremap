@@ -59,6 +59,11 @@ pub struct ConfigWindow {
     edit: Option<EditState>,
     /// A button press from the previous frame; see [`PendingAction`].
     pending: Option<PendingAction>,
+    /// What the address bar's fixed widgets took the last time it was drawn,
+    /// which is how much of the row the folder path may **not** use (see
+    /// [`Self::address_row`]). Zero until the first frame has been drawn, and
+    /// then the path simply gets the whole row for that one frame.
+    header_reserved: f32,
 }
 
 /// Everything edit mode holds: the draft being edited, the pristine copy the
@@ -208,6 +213,66 @@ impl FileList {
     }
 }
 
+/// The address bar's file dropdown. Named once: the same id has to reach both
+/// the enabled and the edit-mode-disabled dropdown, or switching into edit
+/// mode would look like a different widget to egui.
+const SWITCH_SALT: &str = "config-file-switch";
+
+/// What one line of the address bar's own font takes up.
+fn monospace_width(ui: &egui::Ui, text: &str) -> f32 {
+    let font = egui::TextStyle::Monospace.resolve(ui.style());
+    ui.painter()
+        .layout_no_wrap(text.to_owned(), font, egui::Color32::PLACEHOLDER)
+        .size()
+        .x
+}
+
+/// Shortens a folder path from the middle until it fits `budget`, Explorer
+/// style: the drive stays, the deepest folders stay, and everything dropped in
+/// between becomes a single `…`.
+///
+/// **The two ends are the two things a person actually reads** — which drive
+/// this is, and which folder it is. The middle is what a config folder buried
+/// under `AppData\Local\Temp\...` has most of, and it is what says least.
+///
+/// `width` measures a candidate; taking it as an argument keeps this pure, so
+/// the shortening can be tested without a font.
+fn elide_path(path: &str, budget: f32, width: impl Fn(&str) -> f32) -> String {
+    if width(path) <= budget {
+        return path.to_owned();
+    }
+    let parts: Vec<&str> = path.split('\\').collect();
+    // Longest first, so the answer is the most that fits rather than the
+    // least. Two parts or fewer have no middle to drop.
+    for keep in (1..parts.len().saturating_sub(1)).rev() {
+        let candidate = format!(
+            "{}\\…\\{}",
+            parts[0],
+            parts[parts.len() - keep..].join("\\")
+        );
+        if width(&candidate) <= budget {
+            return candidate;
+        }
+    }
+    // Not even the deepest folder fits beside the drive, so the drive goes
+    // too and the folder's name is eaten from the front — its tail is the
+    // part that tells two sibling folders apart.
+    let tail = parts.last().copied().unwrap_or(path);
+    let mut from = 0;
+    while from < tail.len() {
+        let candidate = format!("…{}", &tail[from..]);
+        if width(&candidate) <= budget {
+            return candidate;
+        }
+        // On a char boundary: a path can hold any character at all.
+        from += 1;
+        while from < tail.len() && !tail.is_char_boundary(from) {
+            from += 1;
+        }
+    }
+    "…".to_owned()
+}
+
 /// The file's name for display; the path up to it is the folder's job.
 fn file_name(path: &Path) -> String {
     path.file_name()
@@ -288,6 +353,14 @@ impl ConfigWindow {
     /// editing, the band takes the edit colour, the dropdown goes inert, the
     /// reload button hides, and the right end turns into Save / Revert
     /// (§2.4) — the same spot, so the hand does not travel.
+    ///
+    /// **The folder path is the one thing in this row with no bound on its
+    /// length**, and egui's horizontal layout does not push back: a deep
+    /// folder simply carried the dropdown and the edit button past the right
+    /// edge of the window, where they could not be clicked at all (owner
+    /// report 2026-08-16). So the path is shortened to whatever the row has
+    /// left over — and how much that is is **measured by the row itself**,
+    /// see [`Self::address_row`].
     fn header_ui(&mut self, ui: &mut egui::Ui, path: &Path) {
         let texts = i18n::t();
         let editing = self.edit.is_some();
@@ -301,7 +374,6 @@ impl ConfigWindow {
             .frame(frame)
             .show(ui, |ui| {
                 self.files.refresh(path);
-                let active = file_name(path);
                 // The row's height is fixed *before* laying anything out.
                 // `ui.horizontal` pins its centring axis to the default
                 // interact height, so short labels ride high and anything
@@ -333,61 +405,109 @@ impl ConfigWindow {
                     // interact height to the row pins every widget to one
                     // axis.
                     ui.spacing_mut().interact_size.y = row_height;
-                    icons::show(ui, Icon::Folder, theme::body_icon_size(ui));
                     let folder = path
                         .parent()
                         .map(|folder| folder.display().to_string())
                         .unwrap_or_default();
-                    ui.label(egui::RichText::new(folder).monospace().weak());
-                    ui.label(egui::RichText::new("›").weak());
-                    if editing {
-                        // Switching files mid-edit would orphan the draft.
-                        ui.add_enabled_ui(false, |ui| {
-                            egui::ComboBox::from_id_salt("config-file-switch")
-                                .selected_text(egui::RichText::new(active.clone()).monospace())
-                                .show_ui(ui, |_| {});
-                        })
-                        .response
-                        .on_hover_text(texts.config_switch_locked);
-                    } else {
-                        let changed = self.files.is_changed(&active);
-                        let shown = if changed {
-                            format!("{active} ●")
-                        } else {
-                            active.clone()
-                        };
-                        let combo = egui::ComboBox::from_id_salt("config-file-switch")
-                            .selected_text(egui::RichText::new(shown).monospace())
-                            .show_ui(ui, |ui| file_menu_ui(ui, &self.files, path, &active));
-                        if changed {
-                            combo.response.on_hover_text(texts.config_file_changed);
-                        }
-                        ui.add_space(4.0);
-                        if icons::icon_button(ui, Icon::Reload)
-                            .on_hover_text(texts.menu_reload)
-                            .clicked()
-                        {
-                            super::log::action(texts.menu_reload);
-                            super::request_reload();
-                        }
-                    }
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if editing {
-                            // Right-to-left: Revert lands rightmost, Save to
-                            // its left — reading order Save, Revert (§2.4).
-                            if icons::button(ui, Icon::Revert, texts.config_revert).clicked() {
-                                action = Some(PendingAction::Revert);
-                            }
-                            if icons::button(ui, Icon::Floppy, texts.config_save).clicked() {
-                                action = Some(PendingAction::Save);
-                            }
-                        } else if icons::button(ui, Icon::Pencil, texts.config_edit).clicked() {
-                            action = Some(PendingAction::Edit);
-                        }
-                    });
+                    let budget = ui.available_width() - self.header_reserved;
+                    let shown = elide_path(&folder, budget, |text| monospace_width(ui, text));
+                    // Whatever the shortened path did not need, so the
+                    // right-hand buttons still sit at the right edge (§2.4).
+                    let gap = (budget - monospace_width(ui, &shown)).max(0.0);
+                    self.header_reserved =
+                        self.address_row(ui, path, &shown, &folder, gap, &mut action);
                 });
             });
         self.queue(ui, action);
+    }
+
+    /// The address bar's widgets, and **what everything except the path took**
+    /// — which is what the next frame gives the path to fit in.
+    ///
+    /// Measured here rather than predicted, because a prediction is a second
+    /// description of this row: it would say "an icon, a chevron, a dropdown,
+    /// two buttons and six gaps" somewhere else, and part company with the row
+    /// the first time a button was added. What the row itself did cannot be
+    /// out of date — only one frame old, and a window opening or being resized
+    /// settles in the frame after it moves.
+    ///
+    /// `shown` is the path as it will be drawn and `full` as it is; they
+    /// differ when it had to be shortened, and then the whole thing is a
+    /// tooltip away.
+    fn address_row(
+        &mut self,
+        ui: &mut egui::Ui,
+        path: &Path,
+        shown: &str,
+        full: &str,
+        gap: f32,
+        action: &mut Option<PendingAction>,
+    ) -> f32 {
+        let texts = i18n::t();
+        let editing = self.edit.is_some();
+        let active = file_name(path);
+        let left = ui.cursor().min.x;
+        icons::show(ui, Icon::Folder, theme::body_icon_size(ui));
+        let label = ui.label(egui::RichText::new(shown).monospace().weak());
+        let path_width = label.rect.width();
+        if shown != full {
+            label.on_hover_text(full);
+        }
+        ui.label(egui::RichText::new("›").weak());
+        if editing {
+            // Switching files mid-edit would orphan the draft.
+            ui.add_enabled_ui(false, |ui| {
+                egui::ComboBox::from_id_salt(SWITCH_SALT)
+                    .selected_text(egui::RichText::new(active.clone()).monospace())
+                    .show_ui(ui, |_| {});
+            })
+            .response
+            .on_hover_text(texts.config_switch_locked);
+        } else {
+            let changed = self.files.is_changed(&active);
+            let selected = if changed {
+                format!("{active} ●")
+            } else {
+                active.clone()
+            };
+            let combo = egui::ComboBox::from_id_salt(SWITCH_SALT)
+                .selected_text(egui::RichText::new(selected).monospace())
+                .show_ui(ui, |ui| file_menu_ui(ui, &self.files, path, &active));
+            if changed {
+                combo.response.on_hover_text(texts.config_file_changed);
+            }
+            ui.add_space(4.0);
+            if icons::icon_button(ui, Icon::Reload)
+                .on_hover_text(texts.menu_reload)
+                .clicked()
+            {
+                super::log::action(texts.menu_reload);
+                super::request_reload();
+            }
+        }
+        ui.add_space(gap);
+        let right = if editing {
+            // Reading order Save, Revert (§2.4).
+            let save = icons::button(ui, Icon::Floppy, texts.config_save);
+            if save.clicked() {
+                *action = Some(PendingAction::Save);
+            }
+            let revert = icons::button(ui, Icon::Revert, texts.config_revert);
+            if revert.clicked() {
+                *action = Some(PendingAction::Revert);
+            }
+            revert.rect.right()
+        } else {
+            let edit = icons::button(ui, Icon::Pencil, texts.config_edit);
+            if edit.clicked() {
+                *action = Some(PendingAction::Edit);
+            }
+            edit.rect.right()
+        };
+        // The row minus the two things that vary: the path, and the space it
+        // did not use. What is left is the same next frame, whatever the path
+        // says.
+        (right - left - path_width - gap).max(0.0)
     }
 
     /// Holds a button press until the next frame, and makes sure there is
@@ -2133,5 +2253,70 @@ fn open_in_default_editor(path: &Path) {
     super::log::action(&i18n::action_open_editor(&path.display().to_string()));
     if !super::win32::open_in_default_editor(path) {
         crate::notify::error(&i18n::open_editor_failed(&path.display().to_string()));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// One unit of width per character, so a budget reads as "this many
+    /// characters fit". The real measurement is a font galley; what is being
+    /// tested here is which characters get to stay.
+    fn per_char(text: &str) -> f32 {
+        text.chars().count() as f32
+    }
+
+    fn elide(path: &str, budget: f32) -> String {
+        elide_path(path, budget, per_char)
+    }
+
+    #[test]
+    fn a_path_that_fits_is_left_alone() {
+        assert_eq!(elide(r"C:\winremap", 40.0), r"C:\winremap");
+        // Exactly the budget is a fit, not a near miss.
+        assert_eq!(elide(r"C:\winremap", 11.0), r"C:\winremap");
+    }
+
+    /// The shape the owner's own folder has: a deep path whose two ends are
+    /// the only parts worth reading (report 2026-08-16).
+    #[test]
+    fn a_deep_path_keeps_the_drive_and_the_deepest_folders() {
+        let path = r"C:\Users\suganuma\AppData\Local\Temp\claude\scratchpad\appdata\winremap";
+        assert_eq!(elide(path, 30.0), r"C:\…\appdata\winremap");
+        // A wider window keeps more of the tail, not more of the middle.
+        assert_eq!(
+            elide(path, 40.0),
+            r"C:\…\claude\scratchpad\appdata\winremap"
+        );
+    }
+
+    /// Nothing structural fits, so the drive goes too and the folder's name
+    /// is eaten from the front — the end of it is what tells two sibling
+    /// folders apart.
+    #[test]
+    fn a_hopeless_budget_keeps_the_end_of_the_folder_name() {
+        let path = r"C:\Users\suganuma\AppData\winremap";
+        assert_eq!(elide(path, 6.0), "…remap");
+        assert_eq!(elide(path, 0.0), "…");
+    }
+
+    /// A folder name with no separator at all still shortens rather than
+    /// overflowing.
+    #[test]
+    fn a_path_of_one_piece_is_still_shortened() {
+        assert_eq!(elide("averylongfoldername", 6.0), "…rname");
+    }
+
+    /// Multi-byte characters are the ordinary case in a Japanese user's
+    /// folder, and slicing one in half would panic.
+    #[test]
+    fn a_japanese_folder_name_is_cut_on_a_character_boundary() {
+        let elided = elide(r"C:\ユーザー\設定フォルダー", 5.0);
+        assert!(
+            elided.chars().count() as f32 <= 5.0,
+            "{elided} is wider than the budget"
+        );
+        assert!(elided.starts_with('…'), "{elided} should say it was cut");
     }
 }
