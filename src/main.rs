@@ -368,6 +368,26 @@ mod tests {
         parse_args(&args)
     }
 
+    /// Decision 2 of ADR 0077: the memory sits beside the **default** config,
+    /// whatever file this run ends up opening. Beside the active one, a
+    /// `--config D:\work\keys.toml` would leave it where the next plain start
+    /// — which looks in `%APPDATA%` — never reads it.
+    #[test]
+    fn the_memory_sits_beside_the_default_config() {
+        let Ok(default) = default_config_path() else {
+            // No %APPDATA%: neither path can be built, and both say so the
+            // same way rather than one of them guessing.
+            assert!(memory_path().is_none());
+            return;
+        };
+        let memory = memory_path().expect("a default config path means a memory path");
+        assert_eq!(memory.parent(), default.parent());
+        assert_eq!(
+            memory.file_name().and_then(|name| name.to_str()),
+            Some(config::last_used::FILE_NAME)
+        );
+    }
+
     /// The guarantee of ADR 0053: a shipped build does not know the flag. A
     /// misplaced `#[cfg]` would silently hand it to every user instead.
     #[test]
