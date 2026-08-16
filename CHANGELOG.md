@@ -25,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A long config path no longer pushes the settings window's buttons off the
+  screen** (ADR 0078). The address bar showed the folder in full, and nothing
+  pushed back: with the config in a deep folder — a Microsoft Store install's
+  own folder is one — the file dropdown and the Edit button were carried past
+  the right edge of the window, where they could not be clicked at all. The
+  path is now shortened to whatever the row has left over, Explorer style
+  (`C:\…\Roaming\winremap`), growing and shrinking as the window is resized.
+  Hover it to read the whole thing.
+
 - **The I-beam takes the IME tint on a scaled display** (ADR 0076). On a screen
   at 125% or more, the arrow was tinted while the I-beam stayed plain — the
   symptom behind three releases of chasing, and its cause turns out to be
