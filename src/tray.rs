@@ -52,20 +52,6 @@ pub fn init(keymap_count: usize, macro_delay_override: Option<u32>) -> anyhow::R
         app_menu_icon(),
         None,
     );
-    // The second caption: which of the folder's `*.toml` files the keymaps in
-    // force came from (ADR 0079). Disabled like the version above it — the
-    // menu is where a resident app answers "what am I running", and since
-    // v0.4 that answer has had two halves (ADR 0050 lets the settings window
-    // switch files, and ADR 0077 makes the choice outlive the run).
-    //
-    // Named at startup from the load `main` has already done, so the caption
-    // never says a file that failed to load.
-    let config_item = IconMenuItem::new(
-        config_file_name(&crate::gui::active_config_path()),
-        false,
-        menu_icon(FILE_ICON),
-        None,
-    );
     // No icon: the checkmark is this item's own marker, and a second glyph
     // beside it would only compete with it.
     let enabled_item = CheckMenuItem::new(texts.menu_enabled, true, true, None);
@@ -74,6 +60,29 @@ pub fn init(keymap_count: usize, macro_delay_override: Option<u32>) -> anyhow::R
         IconMenuItem::new(texts.menu_settings, true, menu_icon(SETTINGS_ICON), None);
     let log_item = IconMenuItem::new(texts.menu_log, true, menu_icon(LOG_ICON), None);
     let quit_item = IconMenuItem::new(texts.menu_quit, true, menu_icon(QUIT_ICON), None);
+
+    // The second caption: which of the folder's `*.toml` files the keymaps in
+    // force came from (ADR 0079). Disabled like the version above it — the
+    // menu is where a resident app answers "what am I running", and since v0.4
+    // that answer has had two halves (ADR 0050 lets the settings window switch
+    // files, and ADR 0077 makes the choice outlive the run).
+    //
+    // Named at startup from the load `main` has already done, so the caption
+    // never says a file that failed to load.
+    //
+    // **Created last, though it is shown second.** `muda` hands out command
+    // ids in creation order, and the UI checks drive this menu by id — 1003 is
+    // "Settings" — precisely so they do not depend on the guest's display
+    // language (ADR 0064). Creating this one where it appears shifted every id
+    // by one, and six of the ten VM checks invoked the wrong item while
+    // reporting the invoke itself as a success (2026-08-16). The menu's order
+    // lives in `append_items` below, which is free to differ.
+    let config_item = IconMenuItem::new(
+        config_file_name(&crate::gui::active_config_path()),
+        false,
+        menu_icon(FILE_ICON),
+        None,
+    );
 
     let menu = Menu::new();
     menu.append_items(&[
