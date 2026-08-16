@@ -991,6 +991,36 @@ mod tests {
 
     use super::*;
 
+    /// Whether this machine has an I-beam to measure at all.
+    ///
+    /// The session's cursor table can hold an **empty** I-beam: a run killed
+    /// while tinted leaves its replacement behind, and any WinRemap before
+    /// 1.0.0 on a scaled display registered an empty one on purpose (ADR
+    /// 0076). No thread of any DPI context can read a cursor out of that
+    /// state — `SPI_SETCURSORS` is what repairs it, and replacing session
+    /// state belongs to the acceptance probe, not to a unit test (ADR 0073
+    /// decision 6). Measured 2026-08-16 with 0.9.0 running: the registered
+    /// I-beam was a 32x32 colour cursor with 0 drawn pixels, and both tests
+    /// below failed with nothing wrong in the code.
+    ///
+    /// This is only ever true when the **unscaled** read is empty too, so the
+    /// failure the two tests exist for — aware reads empty, unaware reads
+    /// fine — is not hidden by it.
+    fn the_session_has_no_i_beam() -> bool {
+        let _unscaled = Unscaled::enter();
+        let drawn = load(IDC_IBEAM).ok().and_then(drawn_pixels);
+        if !matches!(drawn, Some(px) if px > 0) {
+            // Visible under `--nocapture`, because a test that passes by
+            // measuring nothing has to be able to say so.
+            eprintln!(
+                "skipped: this session has no I-beam to read ({drawn:?} drawn); \
+                 signing out and back in loads the machine's own cursors afresh"
+            );
+            return true;
+        }
+        false
+    }
+
     /// Runs `f` on a thread claiming to be per-monitor DPI aware — what
     /// `winremap.exe` is, and what a cargo-test binary is not.
     fn as_a_dpi_aware_app<T>(f: impl FnOnce() -> T) -> T {
@@ -1022,6 +1052,9 @@ mod tests {
     /// 150%, and that is where it fails first.
     #[test]
     fn a_dpi_aware_app_can_still_tint_the_i_beam() {
+        if the_session_has_no_i_beam() {
+            return;
+        }
         let built = as_a_dpi_aware_app(|| tinted(OCR_IBEAM, IDC_IBEAM, (0x00, 0x78, 0xD4)));
         let drawn = built.map(|cursor| drawn_pixels(HICON(cursor.0)));
         assert!(
@@ -1035,6 +1068,9 @@ mod tests {
     /// the scaled read disabled ADR 0073's first step as well as the tint.
     #[test]
     fn a_dpi_aware_app_can_still_snapshot_the_i_beam() {
+        if the_session_has_no_i_beam() {
+            return;
+        }
         let taken = as_a_dpi_aware_app(|| snapshot(IDC_IBEAM));
         assert!(
             taken.is_ok_and(|icon| matches!(drawn_pixels(icon), Some(px) if px > 0)),
