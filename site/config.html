@@ -100,6 +100,12 @@
   sits in the package's own folder instead — the settings window always names the folder it is
   really using, and opens it in Explorer for you
   (<a href="install.html#install">the difference between the two channels</a>).</p>
+  <p>You can keep several <code>.toml</code> files side by side and switch between them in the
+  settings window's address bar. <strong>From 1.0.0 the file you switch to is the one the next
+  start opens</strong>, so a setup you use every day does not have to be chosen again after
+  every sign-in. The choice is kept in <code>last-config.txt</code> next to the default config;
+  delete that file and <code>config.toml</code> applies again. A <code>--config</code> on the
+  command line always wins for that run and leaves the choice alone.</p>
 
 <pre class="bg-body-tertiary border rounded p-3"><code># ---- settings (all optional) ----
 [macro]

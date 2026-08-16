@@ -471,6 +471,45 @@ pub fn created_default_config(path: &Path) -> String {
     }
 }
 
+/// Why this run opened a file nobody asked for on the command line: the
+/// settings window chose it, in some earlier run (ADR 0077). Worth a line —
+/// the keymaps in force are otherwise unexplained to anyone reading the log
+/// months later.
+pub fn config_from_last_time(path: &Path) -> String {
+    match lang() {
+        Lang::En => format!(
+            "opening the config file chosen last time: {}",
+            path.display()
+        ),
+        Lang::Ja => format!("前回選ばれた設定ファイルを開きます: {}", path.display()),
+    }
+}
+
+/// ...and when that file has been renamed or deleted since. The default is
+/// used, and the name that went missing is said: without it, the user sees
+/// their keymaps quietly revert with nothing to search for.
+pub fn config_from_last_time_gone(path: &Path) -> String {
+    match lang() {
+        Lang::En => format!(
+            "the config file chosen last time is gone ({}); using the default",
+            path.display()
+        ),
+        Lang::Ja => format!(
+            "前回選ばれた設定ファイルがありません（{}）。既定の設定ファイルを使います",
+            path.display()
+        ),
+    }
+}
+
+/// The switch worked but could not be recorded, so the next start will open
+/// the old file. Reported for exactly that reason (ADR 0077).
+pub fn remember_config_failed(reason: &str) -> String {
+    match lang() {
+        Lang::En => format!("could not record which config file to open next time: {reason}"),
+        Lang::Ja => format!("次回開く設定ファイルを記録できませんでした: {reason}"),
+    }
+}
+
 /// The status bar's "running since" segment (v0.4 screen design §5).
 pub fn status_started(time: &str) -> String {
     match lang() {
@@ -1194,7 +1233,9 @@ USAGE:
     winremap [OPTIONS]
 
 OPTIONS:
-    -c, --config <PATH>    Config file (default: %APPDATA%\\winremap\\config.toml)
+    -c, --config <PATH>    Config file (default: the one last chosen in the
+                           settings window, else
+                           %APPDATA%\\winremap\\config.toml)
         --lang <en|ja>     UI language (default: system language)
         --debug            Print the log to this terminal (the same lines the
                            tray's \"Show log\" window shows)
@@ -1210,7 +1251,9 @@ OPTIONS:
     winremap [オプション]
 
 オプション:
-    -c, --config <PATH>    設定ファイル（既定: %APPDATA%\\winremap\\config.toml）
+    -c, --config <PATH>    設定ファイル（既定: 設定ウィンドウで最後に選んだ
+                           ファイル。無ければ
+                           %APPDATA%\\winremap\\config.toml）
         --lang <en|ja>     UI 言語（既定: システム言語）
         --debug            ログをこの端末に表示（トレイの「ログを表示」
                            ウィンドウと同じ内容）

@@ -707,9 +707,10 @@ fn file_menu_ui(ui: &mut egui::Ui, files: &FileList, path: &Path, active: &str) 
         {
             // Switching = swap the path, then the ordinary reload path does
             // the loading (ADR 0050). A file that fails to load behaves like
-            // any failed reload: the live table stays.
+            // any failed reload: the live table stays. The choice also
+            // outlives the run, which is what `choose_` means here (ADR 0077).
             super::log::action(&i18n::action_switch_file(&entry.name));
-            super::set_config_path(folder.join(&entry.name));
+            super::choose_config_path(folder.join(&entry.name));
             super::request_reload();
         }
     }

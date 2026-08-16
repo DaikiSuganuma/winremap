@@ -16,7 +16,9 @@
 //!   stall the message loop that services the hook. The loop itself is never
 //!   torn down; it could never be rebuilt (ADR 0032).
 //! * With every window closed nothing is scheduled, so the thread sleeps.
-//! * Only `config.toml` is ever written. Logs stay in memory (invariant 6).
+//! * The only things ever written are the config file and the one line
+//!   recording which config file that is (ADR 0077). Logs stay in memory
+//!   (invariant 6).
 //! * No `unsafe` in this file: what egui cannot express — per-size window
 //!   icons, handing the config file to the shell — lives in `win32`
 //!   (invariant 3, ADR 0038).
@@ -158,6 +160,39 @@ pub fn active_config_path() -> PathBuf {
         .lock()
         .map(|path| path.clone())
         .unwrap_or_default()
+}
+
+/// Where the choice of config file is remembered between runs (ADR 0077).
+/// `None` when there is nowhere to keep it, which makes a switch last for
+/// this run only — the behaviour of every version before 1.0.0.
+fn config_memory() -> &'static OnceLock<Option<PathBuf>> {
+    static MEMORY: OnceLock<Option<PathBuf>> = OnceLock::new();
+    &MEMORY
+}
+
+/// Called once from startup, before any window can be opened.
+pub fn set_config_memory(path: Option<PathBuf>) {
+    let _ = config_memory().set(path);
+}
+
+/// The address bar's file switch: the file becomes the active one **and** the
+/// one the next start opens (ADR 0077).
+///
+/// Startup does not come through here, on purpose. Choosing a file is
+/// something the user does in this window; a `--config` on the command line
+/// is an instruction for one run, and must not overwrite the choice — the
+/// acceptance probe alone starts WinRemap on a throwaway config half a dozen
+/// times per run.
+pub(crate) fn choose_config_path(path: PathBuf) {
+    if let Some(memory) = config_memory().get().and_then(Option::as_ref)
+        && let Err(e) = winremap::config::last_used::remember(memory, &path)
+    {
+        // Said out loud rather than swallowed: what goes wrong here is
+        // invisible until the *next* start opens the old file, which is the
+        // confusion this feature exists to remove.
+        log::emit(&i18n::remember_config_failed(&e.to_string()));
+    }
+    set_config_path(path);
 }
 
 /// Hides the settings window (close = hide, ADR 0032). For the footer's
