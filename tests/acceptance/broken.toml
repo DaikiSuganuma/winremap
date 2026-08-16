@@ -1,0 +1,18 @@
+# A config with exactly one deliberate mistake, for v1.0's F-4 ③ (ADR 0079).
+#
+# Switching to this file in the settings window must leave the *previous*
+# file's keymaps in force (ADR 0050 decision 3) — and therefore leave the tray
+# menu naming the previous file. A caption that followed the switch rather
+# than the load would name this one.
+#
+# `NoSuchKey` is not a key name, so the load fails with a validation issue
+# carrying a line and column. Semantic rather than a TOML syntax error, for the
+# same reason tests/ui/fixtures/broken.toml gives: a syntax error takes a
+# different path through the loader.
+
+[[keymap]]
+name = "broken"
+application = ["notepad.exe"]
+
+[keymap.remap]
+"C-h" = "NoSuchKey"
