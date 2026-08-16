@@ -102,9 +102,20 @@
   <div class="faq-a">
     <span class="faq-mark" aria-hidden="true">A</span>
     <div class="faq-body">
-    <kbd>Win</kbd>+<kbd>R</kbd> → <code>shell:startup</code> を実行し、開いたフォルダで
+    <p>やり方は入手経路で変わります。<br>
+            Store 版とインストーラー版とで、Windows が自動起動を管理する仕組みが違うためです。</p>
+            <p><strong>Microsoft Store 版</strong>: スタートメニューで <em>WinRemap</em> を右クリックし、
+            <em>アプリの設定</em>を選んでください。<br>
+            <em>設定 → アプリ → インストールされているアプリ → WinRemap</em> が開くので、
+            <em>ログイン時に実行する</em>を切り替えます。<br>
+            <em>設定 → アプリ → スタートアップ</em>の一覧からでも同じ切り替えができますが、
+            右クリックのほうが早く着きます。</p>
+            <p class="mb-0"><strong>インストーラー版・ポータブル版</strong>:
+            <kbd>Win</kbd>+<kbd>R</kbd> → <code>shell:startup</code> を実行し、開いたフォルダで
             <em>WinRemap</em> のショートカットを追加・削除してください(インストーラーを再実行して
             選び直すこともできます)。<br>
+            この <code>shell:startup</code> の方法は <strong>Store 版には使えません</strong>。<br>
+            パッケージアプリの自動起動は、Windows が上記の仕組みで別に管理しているためです。</p>
     </div>
   </div>
 </section>
