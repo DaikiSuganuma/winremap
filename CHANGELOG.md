@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **WinRemap opens the config file you chose last time** (ADR 0077). The
+  settings window has been able to switch between the `*.toml` files in your
+  config folder since 0.4.0, but the choice only lasted as long as that run:
+  every start went back to `config.toml`, with nothing on screen to say why the
+  keys had changed. The file you pick in the address bar is now remembered, in
+  a one-line `last-config.txt` beside the default config — delete it and the
+  default applies again.
+
+  Only a choice made in the window is remembered. `--config` is an instruction
+  for one run and neither reads nor writes the memory, so a shortcut or a test
+  run that names a file cannot take over your next start. If the remembered
+  file has been renamed or deleted, WinRemap starts on the default and says so,
+  naming the file it went looking for.
+
 ### Fixed
 
 - **The I-beam takes the IME tint on a scaled display** (ADR 0076). On a screen

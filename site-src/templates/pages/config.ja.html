@@ -23,6 +23,14 @@
   設定ウィンドウが実際に使っているフォルダーを
   常に表示し、エクスプローラーで開くこともできます
   （<a href="install.html#install">2 つの経路の違い</a>）。</p>
+  <p><code>.toml</code> は何本でも並べておけて、設定ウィンドウのアドレスバーで
+  切り替えられます。<br>
+  <strong>1.0.0 からは、切り替えたファイルが次回の起動でも開きます</strong>ので、
+  普段使う設定をサインインのたびに選び直す必要はありません。<br>
+  選択は既定の設定ファイルの隣の <code>last-config.txt</code> に記録されます。
+  削除すれば <code>config.toml</code> に戻ります。<br>
+  コマンドラインの <code>--config</code> はその 1 回の起動で常に優先され、
+  記録は書き換えません。</p>
 
 <pre class="bg-body-tertiary border rounded p-3"><code># ---- 設定（すべて任意） ----
 [macro]
