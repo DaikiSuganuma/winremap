@@ -37,7 +37,8 @@ param(
     # Print the full 手順 / 通過条件 / 前回 of these items — what the agent
     # reads out to the person.
     [string[]]$Show,
-    # Put the acceptance configuration in place for an item prefix (C/H/M/S/P)
+    # Put the acceptance configuration in place for an item prefix
+    # (C/F/H/M/S/P)
     # and print the steps that stay with the person.
     [string]$Prepare,
     # Put the live configuration back. Safe to run at any time, including
@@ -69,6 +70,14 @@ $script:begin = '<!-- harness:begin -->'
 $script:end = '<!-- harness:end -->'
 $script:config = $ConfigPath
 $script:backup = "$ConfigPath.bak"
+# The files `-Prepare F` puts *beside* the config, so there is something to
+# switch to (ADR 0077) and something that fails to load (ADR 0079). Removed by
+# -Teardown.
+$script:extras = @('file-switch.toml', 'broken.toml')
+# Which config file to open next time (ADR 0077). Not a config, but the F
+# items rewrite it, so it is moved aside like one.
+$script:memory = Join-Path (Split-Path $ConfigPath) 'last-config.txt'
+$script:memoryBackup = "$script:memory.bak"
 
 # --- reading the checklist ---------------------------------------------------
 
@@ -198,6 +207,45 @@ function Restore-Config {
     else {
         '  退避された設定は無い（戻すものが無い）'
     }
+    Restore-Extras
+}
+
+# The second `.toml` to switch to, the one that will not load, and the note of
+# which file to open next time (F-1〜F-4, ADR 0077/0079).
+function Use-Extras {
+    $folder = Split-Path $script:config
+    foreach ($name in $script:extras) {
+        Copy-Item (Join-Path $PSScriptRoot $name) (Join-Path $folder $name) -Force
+    }
+    "  切り替え先の設定を置いた（$($script:extras -join '・')）"
+    if (Test-Path $script:memoryBackup) {
+        throw "$script:memoryBackup が既にある。前回の受け入れが片付いていない — 中身を確かめてから -Teardown で戻すこと"
+    }
+    if (Test-Path $script:memory) {
+        Move-Item $script:memory $script:memoryBackup
+        "  実運用の last-config.txt を退避した（この項目群が書き換えるため）"
+    }
+}
+
+function Restore-Extras {
+    $folder = Split-Path $script:config
+    foreach ($name in $script:extras) {
+        $path = Join-Path $folder $name
+        if (Test-Path $path) {
+            Remove-Item $path -Force
+            "  切り替え用の $name を片付けた"
+        }
+    }
+    # The run's own choice goes, whatever it ended up being: leaving it would
+    # make the owner's next plain start open a fixture.
+    if (Test-Path $script:memory) {
+        Remove-Item $script:memory -Force
+        "  受け入れ中に書かれた last-config.txt を消した"
+    }
+    if (Test-Path $script:memoryBackup) {
+        Move-Item -Force $script:memoryBackup $script:memory
+        "  実運用の last-config.txt を戻した"
+    }
 }
 
 # Only ever touches instances started from $Exe. The owner's installed or
@@ -309,6 +357,19 @@ $script:prep = @{
             'メモ帳を開いておく'
         )
     }
+    'F' = @{
+        Name   = '設定ファイルの選択と表示'
+        # Two files in the folder, because every F item is about *which* of
+        # them is in force. manual-minimum.toml has one keymap and
+        # file-switch.toml has two, so the count answers that question from
+        # the tray tooltip alone.
+        Enter  = { Use-Config 'manual-minimum.toml'; Use-Extras; Start-HarnessProcess }
+        Manual = @(
+            'トレイ →「ログを表示」でログウィンドウを開いておく — F-1・F-3 は「どのファイルを開いたか」をログの行で見る',
+            'F-5（パスの省略）は設定ウィンドウの幅を変えて見る。この準備が使う %APPDATA%\winremap は短いので、省略が起きるところまで窓を狭くすること',
+            'F-2 は引数付きの起動を 1 回挟む — ハーネスは引数なしでしか起動しない'
+        )
+    }
     'P' = @{
         Name   = 'MSIX 固有'
         Manual = @(
@@ -405,7 +466,7 @@ if ($Teardown) {
 if ($Prepare) {
     $prefix = $Prepare.Split('-')[0].ToUpper()
     if (-not $script:prep.ContainsKey($prefix)) {
-        throw "$prefix の準備は用意されていない（C / H / M / S / P）"
+        throw "$prefix の準備は用意されていない（C / F / H / M / S / P）"
     }
     $section = $script:prep[$prefix]
     "=== $($section.Name) の準備 ==="

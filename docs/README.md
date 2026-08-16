@@ -35,7 +35,7 @@
 | [v0.8/](v0.8/) | v0.8 開発計画（[01_development-plan.md](v0.8/01_development-plan.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v0.8/03_acceptance-checklist.md)）、decisions/（ADR 0066-0072）、notes/（[M-2 空の I ビームの調査](v0.8/notes/20260809_m2-empty-ibeam.md)、[ストア掲載情報 0.8.0](v0.8/notes/20260809_store-listing-0.8.0.md)）。スコープはヘルプサイトの Zola 化・IME の状態をマウスカーソルの色で示す・`--debug` の `AllocConsole` 化・受け入れテストの対話化。**2026-08-09 リリース** |
 | [v0.9/](v0.9/) | v0.9 開発計画（[01_development-plan.md](v0.9/01_development-plan.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v0.9/03_acceptance-checklist.md)）、decisions/（ADR 0073-0075）、notes/（[ストア掲載情報 0.9.0](v0.9/notes/20260814_store-listing-0.9.0.md)、[v1.0.0 の方針](v0.9/notes/20260814_v1.0-policy.md)）。スコープは v0.8 で見つかった宿題の片付け — M-2（空の I ビーム）の根治・egui 0.36.1 への載せ替えと upstream PR・MSIX アイコン修正・受け入れとリリース運用の穴塞ぎ。利用者から見える新機能は無し。**2026-08-14 リリース** |
 
-| [v1.0/](v1.0/) | decisions/（ADR 0076-）。**開発中。** 移行の基準と候補は [v0.9/notes/20260814_v1.0-policy.md](v0.9/notes/20260814_v1.0-policy.md) にある（開発計画はまだ無い） |
+| [v1.0/](v1.0/) | v1.0 開発計画（[01_development-plan.md](v1.0/01_development-plan.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v1.0/03_acceptance-checklist.md)）、decisions/（ADR 0076-0079）。**開発中。** 使っていて気づいたことを直した版 — 拡大表示での I ビームの着色・設定ファイルの引き継ぎ・アドレスバーのパスの省略・トレイのメニューへのファイル名。移行の基準は [v0.9/notes/20260814_v1.0-policy.md](v0.9/notes/20260814_v1.0-policy.md)（**2026-08-16 に前倒しを決定**、開発計画 §1） |
 
 設定ファイルの利用者向け説明は、docs ではなく[ヘルプサイト](../site/)（GitHub Pages）で分かりやすく提供する運用とする（詳細仕様書 `v0.1/02_config-spec.md` は開発者向け）。
 
