@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
 PackageIdentifier: DaikiSuganuma.WinRemap
-PackageVersion: 0.9.0
+PackageVersion: 1.0.0
 InstallerType: inno
 Scope: user
 InstallModes:
@@ -11,10 +11,10 @@ UpgradeBehavior: install
 # Inno Setup's uninstall key is {AppId}_is1 (installer/winremap.iss); this lets
 # winget correlate the install for upgrade and uninstall.
 ProductCode: '{707AFB56-1975-4DF4-8371-B50DD23E3DA1}_is1'
-ReleaseDate: 2026-08-14
+ReleaseDate: 2026-08-16
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/DaikiSuganuma/winremap/releases/download/v0.9.0/winremap-setup.exe
-    InstallerSha256: 2FEA9926C4D8E3D82926FF2DD287028B375A7345C6D64A9A92D4E55DB8D15697
+    InstallerUrl: https://github.com/DaikiSuganuma/winremap/releases/download/v1.0.0/winremap-setup.exe
+    InstallerSha256: A20002CB189A2792B092575A052F2872D69C40D17FA355E3363A76A3A000818E
 ManifestType: installer
 ManifestVersion: 1.6.0
