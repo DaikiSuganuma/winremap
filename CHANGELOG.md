@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The tray menu names the config file in force** (ADR 0079), on a caption
+  line under the version. With several `.toml` files in the folder and a choice
+  that now survives a restart, "which one am I running?" is a question the tray
+  should answer without opening anything. It follows a switch made in the
+  settings window, and after a switch that failed to load it keeps naming the
+  file whose keymaps are actually in force.
+
 - **WinRemap opens the config file you chose last time** (ADR 0077). The
   settings window has been able to switch between the `*.toml` files in your
   config folder since 0.4.0, but the choice only lasted as long as that run:
