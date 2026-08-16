@@ -1,12 +1,12 @@
 {
-    "version": "0.9.0",
+    "version": "1.0.0",
     "description": "A per-application key remapper for Windows, written in Rust.",
     "homepage": "https://github.com/DaikiSuganuma/winremap",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/DaikiSuganuma/winremap/releases/download/v0.9.0/winremap.exe",
-            "hash": "fe804e4adaacee728f8659fbe76d97253578fa66fb46dbcfab66cb4c741b3de2"
+            "url": "https://github.com/DaikiSuganuma/winremap/releases/download/v1.0.0/winremap.exe",
+            "hash": "7c9b5f6a439332099d04b58362029ee4523f82310b88a9afe9e6deb02e5c57b2"
         }
     },
     "bin": "winremap.exe",

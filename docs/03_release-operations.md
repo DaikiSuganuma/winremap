@@ -10,6 +10,7 @@
 - 更新: 2026-08-03（Claude Code / claude-opus-5[1m]）— §1 に**自動側の所要時間と人の作業への影響**を書く旨を追加。最新チェックリストの参照を v0.8 に更新
 - 更新: 2026-08-04（Claude Code / claude-opus-5[1m]）— v0.7.0 の**認定通過**を §4.2 に記録。あわせて §4.2 手順 5 に**受け入れ P-9 → P-8 の順序制約**を明記した
 - 更新: 2026-08-06（Claude Code / claude-opus-5[1m]）— winget の**初回登録がマージされた**ことを §3 に記録。以後この節は「初回登録」ではなく**通常の版上げ**の手順になる
+- 更新: 2026-08-16（Claude Code / claude-opus-5[1m]）— v1.0.0 の公開・winget PR・Store 提出物の作成を §2 手順 8・§3・§4.2 に記録。あわせて**手順 8 の落とし穴 2 つ**（`gh attestation verify` は端末以外へ出力すると成功メッセージを出さないので終了コードで見る／`SHA256SUMS` は CRLF なので Git Bash の `sha256sum -c` がそのままでは全件 FAILED になる）を注記した
 
 ---
 
@@ -96,6 +97,10 @@ GitHub → リポジトリ → **Settings → Rules → Rulesets → New ruleset
    gh attestation verify .\winremap-setup.exe --repo DaikiSuganuma/winremap
    ```
 
+   > **成否は終了コードで見ること**（2026-08-16 に判明）。`gh attestation verify` は**端末以外へ出力すると成功メッセージを何も出さない**（gh 2.97.0）。パイプやファイルへ流すと出力は空になるので、**「出力が空＝失敗」と読み違えない**。`$LASTEXITCODE` が 0 なら成功である。**来歴を持たないファイル（例: `THIRD-PARTY-NOTICES.md`）で 1 が返ることを一度確かめておくと、終了コードが効いていることの対照になる。**
+   >
+   > **`SHA256SUMS` は CRLF なので、Git Bash の `sha256sum -c` はそのままでは全件 FAILED になる**（ファイル名に `\r` が混じり「そんなファイルは無い」と言われる）。`tr -d '\r' < SHA256SUMS | sha256sum -c -` とするか、リリースノートが案内しているとおり PowerShell の `Get-FileHash` を使う。**ハッシュ自体は合っているのに落ちるので、事故として読み間違えやすい。**
+
 9. **配布チャネルを更新する。リリース 1 回につき 2 つある**（v0.6.0 以降）:
    - **§4 Microsoft Store** — `.msix` を作って Partner Center へ提出する。ここが遅れると、**Store の利用者だけ古い版のまま**になる
    - **§3 winget** — マニフェストを新しいタグの URL と SHA256 に更新して提出する
@@ -120,6 +125,10 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 5. 更新自動化（[winget-releaser](https://github.com/vedantmgoyal9/winget-releaser) 等）を入れるかは [ADR 0045](./v0.3/decisions/0045-package-manager-channels.md) 決定 6 に従って判断する
 
 > 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
+
+> **2026-08-16 実施（v1.0.0）**: [PR #418315](https://github.com/microsoft/winget-pkgs/pull/418315) を新規に出した。`manifests/d/DaikiSuganuma/WinRemap/1.0.0/` を足す形で、**差分は追加 3 ファイル・64 行のみ・削除ゼロ**。0.9.0 のマニフェストとの差は例によって **7 行**（`PackageVersion` ×3・`ReleaseDate`・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`）で、`ProductCode` は Inno の `AppId` が同じなので据え置き（`installer/winremap.iss` の「Never change AppId」を確認済み）。提出前に 0. の DLL チェック（`winremap.exe`・`winremap-setup.exe` とも出力が空）、`winget validate`（成功）、**公開 URL から実際に落とした SHA256 が manifest と `SHA256SUMS` の両方に一致**することを確認した。
+>
+> **fork を同期せずに出す経路（2026-08-09 に確立）をそのまま使った。** fork の master は上流より **715 コミット遅れていたが、`compare` API で「上流の祖先である」ことを確かめた**うえで、そこからブランチを切って Contents API で 3 本置いた。**新しいディレクトリを足すだけなので競合しない**し、PR の差分にも古さは出ない。置いたあと `gh api` で読み戻して、手元の control copy と**バイト単位で同じ**ことを `cmp` で確認している。**今回はトークンに `workflow` スコープがあったが、同期そのものが不要なので試していない。**
 
 > **2026-08-09 実施（v0.8.0。初回登録ではない通常の運用の 1 回目）**: [PR #414253](https://github.com/microsoft/winget-pkgs/pull/414253) を**新規に**出した（差し替えではない）。`manifests/d/DaikiSuganuma/WinRemap/0.8.0/` を足す形で、0.7.0 のマニフェストとの差は **7 行**（`PackageVersion` ×3・`ReleaseDate`・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`）。`ProductCode` は Inno の `AppId` が同じなので据え置き。提出前に 0. の DLL チェック（出力が空）、`winget validate`（成功）、**公開 URL から実際に落とした SHA256 が manifest と `SHA256SUMS` の両方に一致**することを確認した。
 >
@@ -206,6 +215,12 @@ Partner Center の製品は登録済みで、**これらの値は変えてはな
    >
    > 1. **通過の連絡を見たら、他の何よりも先に P-9 を回す。** Microsoft Store の「アプリの更新」を切れれば確実だが、**この設定には管理者権限が要る**（2026-08-10、Windows 11 Pro 26200 で、オーナーの権限では切れなかった）。**切れない機械では速さだけが頼りである** — 0.8.0 が測れたのもそれによる。切れる機械なら切り、**P-8 まで終わったら戻すこと**（この設定は Store のすべてのアプリに効く）
    > 2. **更新の前に、設定 → アプリ → スタートアップで自動起動をオンにしておく。** P-9 の通過条件④は「自動起動の設定が保たれる」だが、**既定のオフのままでは「オフがオフのまま」で何も測れない**
+
+> **2026-08-16 実施（v1.0.0）**: Release を公開したあと、**タグの内容から作り直して** `packaging\msix\out\winremap-1.0.0.msix`（**4,304,474 バイト**・**未署名**・`Identity/@Version` = `1.0.0.0`・Publisher は `CN=38CDEE8D-…`・`PublisherDisplayName` は `SUGANUMA Daiki`・`x64`・`resources.pri` 3,664 バイト）を作成した。パッケージを開いて `AppxSignature.p7x` が無いことと Identity の 4 項目を機械的に確認済み。4.1 の順序制約も満たしている（Release 公開 07:13 UTC、`privacy.html` は日英とも 200）。**同日オーナーが Partner Center へ提出。認定待ち。** 掲載情報の変更点は [v1.0 の差分ノート](./v1.0/notes/20260816_store-listing-1.0.0.md)（書き換えるのは「このバージョンの新機能」の 1 欄だけ）。
+>
+> **同じソースでも再ビルドでファイルは変わる。** 公開前に一度作ったもの（4,304,467 バイト）と提出物（4,304,474 バイト）は別のファイルで、中の `winremap.exe` は 9,884,160 バイトで同じである。**どちらを提出したかを取り違えないよう、ノートには提出物の SHA256 だけを残すこと。**
+>
+> **この版は P-9 を測らない。** 受け入れの P 区切りを認定通過を待たずに回したため、前準備で Store 版 0.9.0 を削除した。**Store は旧版を配らないので更新経路は復元できない。** オーナーが代償を承知のうえで選んだ結果である（v0.7 では同じことが事故として起きた）。**認定通過後にやることは P-8 だけ。** 更新前の仕込み（設定ファイルの切り替え・自動起動をオン）も不要である。**次の版で 1.0.0 → 次版として測ること。**
 
 > **2026-08-09 実施（v0.8.0）**: `packaging\msix\out\winremap-0.8.0.msix`（4.15 MB・**未署名**・`Identity/@Version` = `0.8.0.0`・Publisher は `CN=38CDEE8D-…` のまま・`PublisherDisplayName` は `SUGANUMA Daiki`）を作成し、**パッケージを開いて `AppxSignature.p7x` が無いことと Identity の 3 項目を機械的に確認**した。4.1 の順序制約も満たしている（Release を先に公開し、`privacy.html` は日英とも 200）。**同日オーナーが Partner Center へ提出した。認定待ち。** 掲載情報の変更点は [v0.8 の差分ノート](./v0.8/notes/20260809_store-listing-0.8.0.md)（v0.7.0 と同じく、書き換えるのは「このバージョンの新機能」と「主な機能」の 1 行だけ）。
 >
