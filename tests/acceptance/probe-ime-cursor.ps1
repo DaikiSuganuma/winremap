@@ -69,6 +69,8 @@ Add-Type -Namespace Probe -Name Cur -MemberDefinition @'
 [DllImport("user32.dll", SetLastError=true)] public static extern bool SetCursorPos(int x, int y);
 [DllImport("user32.dll", SetLastError=true)] public static extern bool GetClientRect(IntPtr h, out RECT r);
 [DllImport("user32.dll", SetLastError=true)] public static extern bool ClientToScreen(IntPtr h, ref PT p);
+[DllImport("user32.dll", SetLastError=true)] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+[DllImport("user32.dll", SetLastError=true)] public static extern int GetSystemMetrics(int index);
 [StructLayout(LayoutKind.Sequential)] public struct CURSORINFO { public int size, flags; public IntPtr cursor; public int x, y; }
 [StructLayout(LayoutKind.Sequential)] public struct RECT { public int left, top, right, bottom; }
 [StructLayout(LayoutKind.Sequential)] public struct PT { public int x, y; }
@@ -76,6 +78,31 @@ Add-Type -Namespace Probe -Name Cur -MemberDefinition @'
 [StructLayout(LayoutKind.Sequential)] public struct BM { public int type, w, h, wbytes; public short planes, bpp; public IntPtr bits; }
 [StructLayout(LayoutKind.Sequential)] public struct BMI { public int size, w, h; public short planes, bpp; public int compression, imgSize, xppm, yppm, used, important; public int pad1, pad2, pad3; }
 '@
+
+# Every cursor here is read at one fixed scale, whatever this PowerShell is.
+#
+# **Without this the probe measures the host, not WinRemap.** A cursor is
+# handed out at the size the *asking thread's* DPI context implies (ADR 0076),
+# and at 150% the stock I-beam does not exist at 48x48 at all — Windows
+# answers with a colour cursor that has nothing drawn in it. So a probe that
+# reads at 48 reports an empty I-beam for a perfectly healthy machine.
+#
+# That is not hypothetical: the same 10 checks passed on 2026-08-16 morning
+# and failed 6 of 10 that afternoon, on an unchanged binary, because the
+# PowerShell host had gone from DPI-unaware to DPI-aware between the two runs.
+#
+# Unaware is the scale to pin to: it is the only one in which the machine's
+# own stock cursors exist, and 32x32 is the form SetSystemCursor registers.
+# Thread-level rather than process-level, because a host that is already
+# aware refuses `SetProcessDpiAwarenessContext` outright.
+$script:UNAWARE = [IntPtr](-1)
+function Enter-UnscaledReads {
+    $previous = [Probe.Cur]::SetThreadDpiAwarenessContext($script:UNAWARE)
+    if ($previous -eq [IntPtr]::Zero) {
+        throw "この PowerShell では DPI 文脈を固定できない — 読み取る大きさが実行ごとに変わるので、測っても比べられない"
+    }
+    return $previous
+}
 
 # Any bitmap as top-down 32-bit BGRA, whatever it is stored as. A monochrome
 # one comes back black and white, which is what makes counting the AND mask
@@ -130,6 +157,7 @@ function Measure-DrawnBits([byte[]]$bytes, [bool]$colored) {
 # Windows does not always read the same one, so both have to say it (see the
 # check that compares them).
 function Read-ArrowTint {
+    [void](Enter-UnscaledReads)
     $cur = [Probe.Cur]::LoadCursorW([IntPtr]::Zero, $CursorId)
     $info = New-Object Probe.Cur+INFO
     if (-not [Probe.Cur]::GetIconInfo($cur, [ref]$info)) { return 0 }
@@ -186,33 +214,54 @@ function Measure-Drawn([IntPtr]$window) {
     [void][Probe.Cur]::SetCursorPos($p.x, $p.y)
     Start-Sleep -Milliseconds 300
 
-    $ci = New-Object Probe.Cur+CURSORINFO
-    $ci.size = [System.Runtime.InteropServices.Marshal]::SizeOf($ci)
-    if (-not [Probe.Cur]::GetCursorInfo([ref]$ci)) { return $null }
-    if (($ci.flags -band 1) -eq 0) { return [pscustomobject]@{ Kind = 'hidden'; Visible = 0; Blue = 0 } }
-    $info = New-Object Probe.Cur+INFO
-    if (-not [Probe.Cur]::GetIconInfo($ci.cursor, [ref]$info)) { return $null }
+    # Pinned only from here on, and put back on the way out. The pointer was
+    # placed in *this* window's coordinates just above, and an unaware thread
+    # reads window rectangles and moves the pointer in a virtualised space —
+    # pinning any earlier lands the pointer somewhere else entirely on a scaled
+    # display, and leaving it pinned would do that to every later round.
+    $previous = Enter-UnscaledReads
+    try {
+        $ci = New-Object Probe.Cur+CURSORINFO
+        $ci.size = [System.Runtime.InteropServices.Marshal]::SizeOf($ci)
+        if (-not [Probe.Cur]::GetCursorInfo([ref]$ci)) { return $null }
+        if (($ci.flags -band 1) -eq 0) { return [pscustomobject]@{ Kind = 'hidden'; Visible = 0; Blue = 0 } }
+        $info = New-Object Probe.Cur+INFO
+        if (-not [Probe.Cur]::GetIconInfo($ci.cursor, [ref]$info)) { return $null }
 
-    $colored = $info.hbmColor -ne [IntPtr]::Zero
-    $bytes = Read-Bitmap $(if ($colored) { $info.hbmColor } else { $info.hbmMask })
-    $visible = Measure-DrawnBits $bytes $colored
-    # Only a colour cursor can lean anywhere; a mask-only one is the shape the
-    # tint would have replaced.
-    $blue = 0
-    if ($colored) {
-        for ($i = 0; $i -lt $bytes.Length; $i += 4) {
-            if ($bytes[$i] -gt $bytes[$i + 2] + 40) { $blue++ }
+        $colored = $info.hbmColor -ne [IntPtr]::Zero
+        $bytes = Read-Bitmap $(if ($colored) { $info.hbmColor } else { $info.hbmMask })
+        $visible = Measure-DrawnBits $bytes $colored
+        # Only a colour cursor can lean anywhere; a mask-only one is the shape
+        # the tint would have replaced.
+        $blue = 0
+        if ($colored) {
+            for ($i = 0; $i -lt $bytes.Length; $i += 4) {
+                if ($bytes[$i] -gt $bytes[$i + 2] + 40) { $blue++ }
+            }
         }
+        [void][Probe.Cur]::DeleteObject($info.hbmMask)
+        if ($colored) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
+        return [pscustomobject]@{ Kind = $(if ($colored) { 'colour' } else { 'mask-only' }); Visible = $visible; Blue = $blue }
     }
-    [void][Probe.Cur]::DeleteObject($info.hbmMask)
-    if ($colored) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
-    [pscustomobject]@{ Kind = $(if ($colored) { 'colour' } else { 'mask-only' }); Visible = $visible; Blue = $blue }
+    finally {
+        [void][Probe.Cur]::SetThreadDpiAwarenessContext($previous)
+    }
 }
 
 if ($ReadArrowOnly) {
+    # No need to put the context back: this process exists to print one line.
     Read-ArrowTint
     exit 0
 }
+
+# Said out loud, because it is the number that decides what everything below
+# means. On a scaled display the stock I-beam does not exist at the scaled
+# size at all (ADR 0076), so a probe reading at that size reports an empty
+# I-beam for a healthy machine.
+$previousContext = Enter-UnscaledReads
+$cursorPx = [Probe.Cur]::GetSystemMetrics(13)
+[void][Probe.Cur]::SetThreadDpiAwarenessContext($previousContext)
+"cursors are read at ${cursorPx}px, in a DPI-unaware context"
 
 # Every measurement in a process of its own. `LoadCursor` hands out a handle
 # that stays cached for the life of the process, while a restore installs
