@@ -16,7 +16,9 @@
 //!   stall the message loop that services the hook. The loop itself is never
 //!   torn down; it could never be rebuilt (ADR 0032).
 //! * With every window closed nothing is scheduled, so the thread sleeps.
-//! * Only `config.toml` is ever written. Logs stay in memory (invariant 6).
+//! * The only things ever written are the config file and the one line
+//!   recording which config file that is (ADR 0077). Logs stay in memory
+//!   (invariant 6).
 //! * No `unsafe` in this file: what egui cannot express — per-size window
 //!   icons, handing the config file to the shell — lives in `win32`
 //!   (invariant 3, ADR 0038).
@@ -158,6 +160,39 @@ pub fn active_config_path() -> PathBuf {
         .lock()
         .map(|path| path.clone())
         .unwrap_or_default()
+}
+
+/// Where the choice of config file is remembered between runs (ADR 0077).
+/// `None` when there is nowhere to keep it, which makes a switch last for
+/// this run only — the behaviour of every version before 1.0.0.
+fn config_memory() -> &'static OnceLock<Option<PathBuf>> {
+    static MEMORY: OnceLock<Option<PathBuf>> = OnceLock::new();
+    &MEMORY
+}
+
+/// Called once from startup, before any window can be opened.
+pub fn set_config_memory(path: Option<PathBuf>) {
+    let _ = config_memory().set(path);
+}
+
+/// The address bar's file switch: the file becomes the active one **and** the
+/// one the next start opens (ADR 0077).
+///
+/// Startup does not come through here, on purpose. Choosing a file is
+/// something the user does in this window; a `--config` on the command line
+/// is an instruction for one run, and must not overwrite the choice — the
+/// acceptance probe alone starts WinRemap on a throwaway config half a dozen
+/// times per run.
+pub(crate) fn choose_config_path(path: PathBuf) {
+    if let Some(memory) = config_memory().get().and_then(Option::as_ref)
+        && let Err(e) = winremap::config::last_used::remember(memory, &path)
+    {
+        // Said out loud rather than swallowed: what goes wrong here is
+        // invisible until the *next* start opens the old file, which is the
+        // confusion this feature exists to remove.
+        log::emit(&i18n::remember_config_failed(&e.to_string()));
+    }
+    set_config_path(path);
 }
 
 /// Hides the settings window (close = hide, ADR 0032). For the footer's
@@ -420,4 +455,40 @@ fn show_config_viewport(ctx: &egui::Context, state: &Arc<Mutex<config_window::Co
             }
         },
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The wiring under the address bar's file switch (ADR 0077 decision 1):
+    /// the file becomes the active one **and** the next start's.
+    ///
+    /// The click itself belongs to the UI checks; what this pins is that the
+    /// switch goes through the path that writes the choice down. Until 1.0.0
+    /// it called `set_config_path`, which does only the first half — and the
+    /// difference is invisible until the *next* start opens the old file.
+    #[test]
+    fn choosing_a_file_records_it_for_the_next_start() {
+        use winremap::config::last_used::{FILE_NAME, LastUsed, recall};
+
+        let dir = std::env::temp_dir().join(format!("winremap-choose-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let memory = dir.join(FILE_NAME);
+        let chosen = dir.join("personal-ja.toml");
+        std::fs::write(&chosen, "# mine\n").unwrap();
+        // A `OnceLock`, so this is the one test in this binary that sets it.
+        set_config_memory(Some(memory.clone()));
+
+        choose_config_path(chosen.clone());
+
+        assert_eq!(active_config_path(), chosen, "the switch takes effect now");
+        assert_eq!(
+            recall(&memory),
+            LastUsed::At(chosen),
+            "and again at the next start"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

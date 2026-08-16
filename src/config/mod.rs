@@ -10,6 +10,7 @@
 pub mod comments;
 mod compile;
 pub mod draft;
+pub mod last_used;
 mod raw;
 #[cfg(test)]
 mod tests;

@@ -1,10 +1,14 @@
 # Checks the IME cursor tint (ADR 0067) on this machine, end to end.
 #
-# Reads the *system* arrow cursor's pixels rather than a screenshot: that is
-# what SetSystemCursor replaces, and it answers the questions the design
-# actually makes claims about — does it tint, does it come back, does a kill
-# leave the tint behind (the signal that WinRemap died), and does the next
-# start clear it.
+# Reads the *system* cursors' pixels rather than a screenshot: that is what
+# SetSystemCursor replaces, and it answers the questions the design actually
+# makes claims about — does it tint, does it come back, does a kill leave the
+# tint behind (the signal that WinRemap died), and does the next start clear
+# it.
+#
+# Both cursors are asked in both directions. Until 2026-08-16 every check on
+# the *restore* side read the arrow alone, which is the cursor that never had
+# the problem (see Wait-BeamRestored).
 #
 # Needs a build with `--features test-inject`, and runs it with
 # `--accept-injected`: a shipped build passes injected keys straight through
@@ -65,6 +69,8 @@ Add-Type -Namespace Probe -Name Cur -MemberDefinition @'
 [DllImport("user32.dll", SetLastError=true)] public static extern bool SetCursorPos(int x, int y);
 [DllImport("user32.dll", SetLastError=true)] public static extern bool GetClientRect(IntPtr h, out RECT r);
 [DllImport("user32.dll", SetLastError=true)] public static extern bool ClientToScreen(IntPtr h, ref PT p);
+[DllImport("user32.dll", SetLastError=true)] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+[DllImport("user32.dll", SetLastError=true)] public static extern int GetSystemMetrics(int index);
 [StructLayout(LayoutKind.Sequential)] public struct CURSORINFO { public int size, flags; public IntPtr cursor; public int x, y; }
 [StructLayout(LayoutKind.Sequential)] public struct RECT { public int left, top, right, bottom; }
 [StructLayout(LayoutKind.Sequential)] public struct PT { public int x, y; }
@@ -72,6 +78,31 @@ Add-Type -Namespace Probe -Name Cur -MemberDefinition @'
 [StructLayout(LayoutKind.Sequential)] public struct BM { public int type, w, h, wbytes; public short planes, bpp; public IntPtr bits; }
 [StructLayout(LayoutKind.Sequential)] public struct BMI { public int size, w, h; public short planes, bpp; public int compression, imgSize, xppm, yppm, used, important; public int pad1, pad2, pad3; }
 '@
+
+# Every cursor here is read at one fixed scale, whatever this PowerShell is.
+#
+# **Without this the probe measures the host, not WinRemap.** A cursor is
+# handed out at the size the *asking thread's* DPI context implies (ADR 0076),
+# and at 150% the stock I-beam does not exist at 48x48 at all — Windows
+# answers with a colour cursor that has nothing drawn in it. So a probe that
+# reads at 48 reports an empty I-beam for a perfectly healthy machine.
+#
+# That is not hypothetical: the same 10 checks passed on 2026-08-16 morning
+# and failed 6 of 10 that afternoon, on an unchanged binary, because the
+# PowerShell host had gone from DPI-unaware to DPI-aware between the two runs.
+#
+# Unaware is the scale to pin to: it is the only one in which the machine's
+# own stock cursors exist, and 32x32 is the form SetSystemCursor registers.
+# Thread-level rather than process-level, because a host that is already
+# aware refuses `SetProcessDpiAwarenessContext` outright.
+$script:UNAWARE = [IntPtr](-1)
+function Enter-UnscaledReads {
+    $previous = [Probe.Cur]::SetThreadDpiAwarenessContext($script:UNAWARE)
+    if ($previous -eq [IntPtr]::Zero) {
+        throw "この PowerShell では DPI 文脈を固定できない — 読み取る大きさが実行ごとに変わるので、測っても比べられない"
+    }
+    return $previous
+}
 
 # Any bitmap as top-down 32-bit BGRA, whatever it is stored as. A monochrome
 # one comes back black and white, which is what makes counting the AND mask
@@ -88,8 +119,37 @@ function Read-Bitmap([IntPtr]$bitmap) {
     return $bytes
 }
 
+# How many pixels of a cursor would actually be drawn.
+#
+# Counting differs by cursor kind. A modern cursor is drawn where its alpha
+# is not zero. The stock I-beam has no colour bitmap and no solid pixels at
+# all: it is visible only because it *inverts* the screen under it (AND=1
+# with XOR=1), which is why "count the opaque pixels" reports zero for a
+# perfectly visible cursor. A mask-only cursor's bitmap is twice as tall, the
+# AND rows above the XOR rows.
+#
+# Zero is what M-2 was made of, and it is also what a broken *restore* leaves
+# behind (ADR 0076): a cursor Windows is perfectly happy to hand out and draw
+# nothing of. Measured on this machine on 2026-08-16, with 0.9.0 running: the
+# registered I-beam was a 32x32 colour cursor with 0 drawn pixels.
+function Measure-DrawnBits([byte[]]$bytes, [bool]$colored) {
+    $drawn = 0
+    if ($colored) {
+        for ($i = 0; $i -lt $bytes.Length; $i += 4) { if ($bytes[$i + 3] -ne 0) { $drawn++ } }
+        return $drawn
+    }
+    $half = ($bytes.Length / 4) / 2
+    for ($i = 0; $i -lt $half; $i++) {
+        $and = $bytes[$i * 4] -ne 0
+        $xor = $bytes[($i + $half) * 4] -ne 0
+        if (-not $and -or $xor) { $drawn++ }
+    }
+    return $drawn
+}
+
 # One system cursor as the session currently has it, summarised as
-# "<blue-leaning> <alpha-transparent> <pixels read> <mask-transparent>".
+# "<blue-leaning> <alpha-transparent> <pixels read> <mask-transparent>
+# <white> <drawn>".
 #
 # A black-and-white cursor leans nowhere, so "leans blue" can only be the
 # tint. The two transparency counts are the same shape described twice — once
@@ -97,6 +157,7 @@ function Read-Bitmap([IntPtr]$bitmap) {
 # Windows does not always read the same one, so both have to say it (see the
 # check that compares them).
 function Read-ArrowTint {
+    [void](Enter-UnscaledReads)
     $cur = [Probe.Cur]::LoadCursorW([IntPtr]::Zero, $CursorId)
     $info = New-Object Probe.Cur+INFO
     if (-not [Probe.Cur]::GetIconInfo($cur, [ref]$info)) { return 0 }
@@ -124,9 +185,14 @@ function Read-ArrowTint {
             if ($mask[$i] -ne 0 -or $mask[$i + 1] -ne 0 -or $mask[$i + 2] -ne 0) { $masked++ }
         }
     }
+    # And whether there is a cursor there at all. The four numbers above all
+    # describe a *tint*, so an empty cursor satisfies every one of them by
+    # having nothing to say — which is how "restored" came to include a state
+    # with nothing in it.
+    $drawn = Measure-DrawnBits $bytes $colored
     [void][Probe.Cur]::DeleteObject($info.hbmMask)
     if ($colored) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
-    return "$blue $clear $($bytes.Length / 4) $masked $white"
+    return "$blue $clear $($bytes.Length / 4) $masked $white $drawn"
 }
 
 # What is on the pointer *right now*, over the text of a real window.
@@ -138,12 +204,6 @@ function Read-ArrowTint {
 # apart and this one had no answer at all. GetCursorInfo hands out the cursor
 # being displayed; a cursor with no drawn pixels is one the user sees nothing
 # of, whatever the registry and the system cursor table say.
-#
-# Counting differs by cursor kind. A modern cursor is drawn where its alpha
-# is not zero. The stock I-beam has no colour bitmap and no solid pixels at
-# all: it is visible only because it *inverts* the screen under it (AND=1
-# with XOR=1), which is why "count the opaque pixels" reports zero for a
-# perfectly visible cursor.
 function Measure-Drawn([IntPtr]$window) {
     $r = New-Object Probe.Cur+RECT
     if (-not [Probe.Cur]::GetClientRect($window, [ref]$r)) { return $null }
@@ -154,41 +214,54 @@ function Measure-Drawn([IntPtr]$window) {
     [void][Probe.Cur]::SetCursorPos($p.x, $p.y)
     Start-Sleep -Milliseconds 300
 
-    $ci = New-Object Probe.Cur+CURSORINFO
-    $ci.size = [System.Runtime.InteropServices.Marshal]::SizeOf($ci)
-    if (-not [Probe.Cur]::GetCursorInfo([ref]$ci)) { return $null }
-    if (($ci.flags -band 1) -eq 0) { return [pscustomobject]@{ Kind = 'hidden'; Visible = 0; Blue = 0 } }
-    $info = New-Object Probe.Cur+INFO
-    if (-not [Probe.Cur]::GetIconInfo($ci.cursor, [ref]$info)) { return $null }
+    # Pinned only from here on, and put back on the way out. The pointer was
+    # placed in *this* window's coordinates just above, and an unaware thread
+    # reads window rectangles and moves the pointer in a virtualised space —
+    # pinning any earlier lands the pointer somewhere else entirely on a scaled
+    # display, and leaving it pinned would do that to every later round.
+    $previous = Enter-UnscaledReads
+    try {
+        $ci = New-Object Probe.Cur+CURSORINFO
+        $ci.size = [System.Runtime.InteropServices.Marshal]::SizeOf($ci)
+        if (-not [Probe.Cur]::GetCursorInfo([ref]$ci)) { return $null }
+        if (($ci.flags -band 1) -eq 0) { return [pscustomobject]@{ Kind = 'hidden'; Visible = 0; Blue = 0 } }
+        $info = New-Object Probe.Cur+INFO
+        if (-not [Probe.Cur]::GetIconInfo($ci.cursor, [ref]$info)) { return $null }
 
-    $colored = $info.hbmColor -ne [IntPtr]::Zero
-    $visible = 0
-    $blue = 0
-    if ($colored) {
-        $bytes = Read-Bitmap $info.hbmColor
-        for ($i = 0; $i -lt $bytes.Length; $i += 4) {
-            if ($bytes[$i + 3] -ne 0) { $visible++ }
-            if ($bytes[$i] -gt $bytes[$i + 2] + 40) { $blue++ }
+        $colored = $info.hbmColor -ne [IntPtr]::Zero
+        $bytes = Read-Bitmap $(if ($colored) { $info.hbmColor } else { $info.hbmMask })
+        $visible = Measure-DrawnBits $bytes $colored
+        # Only a colour cursor can lean anywhere; a mask-only one is the shape
+        # the tint would have replaced.
+        $blue = 0
+        if ($colored) {
+            for ($i = 0; $i -lt $bytes.Length; $i += 4) {
+                if ($bytes[$i] -gt $bytes[$i + 2] + 40) { $blue++ }
+            }
         }
-    } else {
-        $bytes = Read-Bitmap $info.hbmMask
-        $rows = $bytes.Length / 4
-        $half = $rows / 2
-        for ($i = 0; $i -lt $half; $i++) {
-            $and = $bytes[$i * 4] -ne 0
-            $xor = $bytes[($i + $half) * 4] -ne 0
-            if (-not $and) { $visible++ } elseif ($xor) { $visible++ }
-        }
+        [void][Probe.Cur]::DeleteObject($info.hbmMask)
+        if ($colored) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
+        return [pscustomobject]@{ Kind = $(if ($colored) { 'colour' } else { 'mask-only' }); Visible = $visible; Blue = $blue }
     }
-    [void][Probe.Cur]::DeleteObject($info.hbmMask)
-    if ($colored) { [void][Probe.Cur]::DeleteObject($info.hbmColor) }
-    [pscustomobject]@{ Kind = $(if ($colored) { 'colour' } else { 'mask-only' }); Visible = $visible; Blue = $blue }
+    finally {
+        [void][Probe.Cur]::SetThreadDpiAwarenessContext($previous)
+    }
 }
 
 if ($ReadArrowOnly) {
+    # No need to put the context back: this process exists to print one line.
     Read-ArrowTint
     exit 0
 }
+
+# Said out loud, because it is the number that decides what everything below
+# means. On a scaled display the stock I-beam does not exist at the scaled
+# size at all (ADR 0076), so a probe reading at that size reports an empty
+# I-beam for a healthy machine.
+$previousContext = Enter-UnscaledReads
+$cursorPx = [Probe.Cur]::GetSystemMetrics(13)
+[void][Probe.Cur]::SetThreadDpiAwarenessContext($previousContext)
+"cursors are read at ${cursorPx}px, in a DPI-unaware context"
 
 # Every measurement in a process of its own. `LoadCursor` hands out a handle
 # that stays cached for the life of the process, while a restore installs
@@ -199,7 +272,7 @@ $selfPath = $PSCommandPath
 $hostExe = (Get-Process -Id $PID).Path
 function Measure-Cursor([int]$id = 32512) {
     $raw = (& $hostExe -NoProfile -File $selfPath -ReadArrowOnly -CursorId $id | Select-Object -Last 1) -split ' '
-    return [pscustomobject]@{ Blue = [int]$raw[0]; Clear = [int]$raw[1]; Total = [int]$raw[2]; Masked = [int]$raw[3]; White = [int]$raw[4] }
+    return [pscustomobject]@{ Blue = [int]$raw[0]; Clear = [int]$raw[1]; Total = [int]$raw[2]; Masked = [int]$raw[3]; White = [int]$raw[4]; Drawn = [int]$raw[5] }
 }
 function Get-ArrowTint {
     (Measure-Cursor 32512).Blue
@@ -241,6 +314,40 @@ function Wait-TintOwning([scriptblock]$until) {
         Set-Focus $script:target
     }
     throw "the foreground kept leaving the window under test (now $(Get-FrontName)); a tint read there is about that window, not about WinRemap"
+}
+
+# The other half of every restore, and until 2026-08-16 nobody's job.
+#
+# Every "the tint came off" check waits on the arrow — and the arrow is the
+# cursor that never had the problem. A restore that put the arrow back and
+# left the I-beam tinted passed all of them; so did one that left an I-beam
+# with **nothing drawn in it** registered, which is what a reload from the
+# registry did on a scaled display until 1.0.0 (ADR 0076). Measured on this
+# machine on 2026-08-16 with 0.9.0 running: a 32x32 colour I-beam, 0 drawn.
+# That state is not "restored" under any reading, and nothing here could see
+# it.
+#
+# So the I-beam is asked two questions after each restore, and they fail
+# differently: the tint is gone (nothing leans blue), and there is still a
+# cursor there (something is drawn).
+#
+# Polled for the same reason Wait-Tint is, and the wait is real: the arrow is
+# restored first, so a reading taken the instant the arrow comes back can
+# catch the I-beam mid-restore.
+function Wait-BeamRestored([int]$timeoutMs = 4000) {
+    $deadline = (Get-Date).AddMilliseconds($timeoutMs)
+    while ($true) {
+        $beam = Measure-Cursor 32513
+        if ((Test-BeamRestored $beam) -or (Get-Date) -gt $deadline) { return $beam }
+    }
+}
+
+function Test-BeamRestored($beam) {
+    return $beam.Blue -eq 0 -and $beam.Drawn -gt 0
+}
+
+function Format-Beam($beam) {
+    return "I-beam: blue-leaning $($beam.Blue), drawn $($beam.Drawn)"
 }
 
 # The two windows this drives. The IME's open state is **per window**, and
@@ -435,7 +542,8 @@ Set-ImeDirect 0
 $front = Get-FrontName
 $app = Start-WinRemap $config
 $leftover = Wait-TintOwning { param($t) $t -eq 0 }
-Check "startup-clears-any-leftover" ($leftover -eq 0) "blue-leaning pixels: $leftover; in front at the start: $front; after: $(Get-FrontName)"
+$beamStart = Wait-BeamRestored
+Check "startup-clears-any-leftover" ($leftover -eq 0 -and (Test-BeamRestored $beamStart)) "blue-leaning pixels: $leftover; $(Format-Beam $beamStart); in front at the start: $front; after: $(Get-FrontName)"
 
 $state = Set-Ime 1
 $on = Wait-TintOwning { param($t) $t -gt 0 }
@@ -479,7 +587,8 @@ Check "the-i-beam-on-screen-is-the-tinted-one" $isDrawn $(
 
 $state = Set-Ime 0
 $off = Wait-TintOwning { param($t) $t -eq 0 }
-Check "restores-when-the-ime-goes-off" ($state -eq 0 -and $off -eq 0) "IME reports $state; blue-leaning pixels: $off; in front: $(Get-FrontName)"
+$beamOff = Wait-BeamRestored
+Check "restores-when-the-ime-goes-off" ($state -eq 0 -and $off -eq 0 -and (Test-BeamRestored $beamOff)) "IME reports $state; blue-leaning pixels: $off; $(Format-Beam $beamOff); in front: $(Get-FrontName)"
 
 # The same thing, over and over (ADR 0073 decision 6).
 #
@@ -507,6 +616,10 @@ foreach ($round in 1..$rounds) {
     [void](Set-Ime 0)
     $off = Wait-TintOwning { param($t) $t -eq 0 }
     if ($off -ne 0) { $trouble += "round ${round}: $off blue-leaning pixels still there with the IME off" }
+    # Both sides of the round, for the reason the round exists: a restore that
+    # goes wrong on the tenth toggle looks exactly like one that never did.
+    $beamOff = Wait-BeamRestored
+    if (-not (Test-BeamRestored $beamOff)) { $trouble += "round ${round}: after the restore, $(Format-Beam $beamOff)" }
 }
 Check "repeated-toggles-never-empty-the-tint" ($trouble.Count -eq 0) $(
     if ($trouble.Count) { $trouble -join '; ' } else { "$rounds rounds, tinted and restored every time" })
@@ -528,7 +641,8 @@ Set-ImeDirect 0
 $front = Get-FrontName
 $app = Start-WinRemap $config
 $afterRestart = Wait-TintOwning { param($t) $t -eq 0 }
-Check "the-next-start-restores-it" ($afterRestart -eq 0) "blue-leaning pixels: $afterRestart; in front at the start: $front; after: $(Get-FrontName)"
+$beamBack = Wait-BeamRestored
+Check "the-next-start-restores-it" ($afterRestart -eq 0 -and (Test-BeamRestored $beamBack)) "blue-leaning pixels: $afterRestart; $(Format-Beam $beamBack); in front at the start: $front; after: $(Get-FrontName)"
 
 Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
 Stop-Process -Id $notepad.Id, $other.Id -Force -ErrorAction SilentlyContinue

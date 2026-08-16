@@ -5,6 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-08-16
+
+The 1.0 is not a freeze and adds no compatibility promise beyond the care the
+config format and the CLI flags have had all along. It says the feature set is
+one its author is happy to keep using.
+
+Everything below started as something noticed while using it.
+
+### Added
+
+- **The tray menu names the config file in force** (ADR 0079), on a caption
+  line under the version. With several `.toml` files in the folder and a choice
+  that now survives a restart, "which one am I running?" is a question the tray
+  should answer without opening anything. It follows a switch made in the
+  settings window, and after a switch that failed to load it keeps naming the
+  file whose keymaps are actually in force.
+
+- **WinRemap opens the config file you chose last time** (ADR 0077). The
+  settings window has been able to switch between the `*.toml` files in your
+  config folder since 0.4.0, but the choice only lasted as long as that run:
+  every start went back to `config.toml`, with nothing on screen to say why the
+  keys had changed. The file you pick in the address bar is now remembered, in
+  a one-line `last-config.txt` beside the default config — delete it and the
+  default applies again.
+
+  Only a choice made in the window is remembered. `--config` is an instruction
+  for one run and neither reads nor writes the memory, so a shortcut or a test
+  run that names a file cannot take over your next start. If the remembered
+  file has been renamed or deleted, WinRemap starts on the default and says so,
+  naming the file it went looking for.
+
+### Fixed
+
+- **A long config path no longer pushes the settings window's buttons off the
+  screen** (ADR 0078). The address bar showed the folder in full, and nothing
+  pushed back: with the config in a deep folder — a Microsoft Store install's
+  own folder is one — the file dropdown and the Edit button were carried past
+  the right edge of the window, where they could not be clicked at all. The
+  path is now shortened to whatever the row has left over, Explorer style
+  (`C:\…\Roaming\winremap`), growing and shrinking as the window is resized.
+  Hover it to read the whole thing.
+
+- **The I-beam takes the IME tint on a scaled display** (ADR 0076). On a screen
+  at 125% or more, the arrow was tinted while the I-beam stayed plain — the
+  symptom behind three releases of chasing, and its cause turns out to be
+  display scaling. WinRemap is per-monitor DPI aware, and a DPI-aware process
+  asking Windows for the I-beam at 150% is handed a 48×48 **colour** cursor with
+  nothing drawn in it: the stock I-beam is drawn by inverting the screen, and
+  that has no colour to carry into a 32-bit bitmap. The arrow is a real colour
+  cursor, so it survived — which is why exactly half the tint went missing.
+
+  A cursor that comes back empty is now read and built again on a DPI-unaware
+  thread, and the reload from the registry always runs on one. That second part
+  matters beyond the tint: from a DPI-aware thread it registered the empty
+  I-beam session-wide, and the pristine copy 0.9.0 takes to restore from could
+  then not be taken at all — the step that undoes a replacement had been
+  disabling the one that undoes it.
+
+  Nothing visible was broken for anyone who leaves `change_cursor_color` off:
+  applications re-read cursors in their own context, so the I-beam on screen
+  stayed normal throughout.
+
 ## [0.9.0] - 2026-08-14
 
 ### Added

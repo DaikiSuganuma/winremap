@@ -45,8 +45,11 @@ description: WinRemap の受け入れテストを対話で進める。チェッ�
 
 一覧を見せ、**これから何件やるか**と、**準備で機械に何をするか**を先に断る。
 
-- `-Prepare H` / `-Prepare M` / `-Prepare S` は**実運用の設定ファイルを退避して受け入れ用に
+- `-Prepare H` / `-Prepare M` / `-Prepare S` / `-Prepare F` は**実運用の設定ファイルを退避して受け入れ用に
   差し替え**、`target\release\winremap.exe` を**起動し直す**（既に起動していれば終了させてから）
+- **`-Prepare F` はもう 2 本置く。** 切り替え先（`file-switch.toml`）と、読み込みに失敗する
+  もの（`broken.toml`）である。あわせて `last-config.txt`（次に開くファイルの記録、ADR 0077）
+  を退避し、**受け入れ中に書かれたものは `-Teardown` で消してから元を戻す**
 - **`[人] 起動したはずの … が動いていない` が出たら、そこで止まる。** 別の WinRemap が
   常駐していると 2 つ目は自力で終了するので、**動いていないものを見てもらう**ことになる
 - 途中で作業を中断されると設定は退避されたままになる。**まとまった時間が取れるときに
@@ -59,7 +62,7 @@ description: WinRemap の受け入れテストを対話で進める。チェッ�
 
 ### 2. 区切りごとに準備する
 
-項目の頭文字（`C` / `H` / `M` / `S` / `P`）が区切りである。区切りが変わったら:
+項目の頭文字（`C` / `F` / `H` / `M` / `S` / `P`）が区切りである。区切りが変わったら:
 
 ```powershell
 .\tests\acceptance\run-acceptance.ps1 <checklist> -Prepare H
@@ -139,7 +142,7 @@ M-5|測れない|カーソルテーマを既定から変えていない。変え
 |---|---|
 | `<checklist>` | 一覧（`-Only` / `-Resume` で絞る） |
 | `<checklist> -Show C-1,M-2` | 手順・通過条件・過去の記録 |
-| `<checklist> -Prepare H` | 設定の退避と配置、WinRemap の起動、`[人]` の手順（`C` / `H` / `M` / `S` / `P`） |
+| `<checklist> -Prepare H` | 設定の退避と配置、WinRemap の起動、`[人]` の手順（`C` / `F` / `H` / `M` / `S` / `P`） |
 | `<checklist> -Record <file>` | 記録欄へ追記（環境は自動で刻まれる） |
 | `-Teardown` | 実運用の設定を戻す（チェックリストは要らない） |
 | `-Environment` | 記録に刻まれる環境の 1 行 |

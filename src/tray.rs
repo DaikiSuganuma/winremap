@@ -18,6 +18,9 @@ use winremap::config;
 
 pub struct Tray {
     icon: TrayIcon,
+    /// The caption naming the config file in force; see [`Tray::reload`] for
+    /// why it is only ever set after a load that worked (ADR 0079).
+    config_item: IconMenuItem,
     enabled_item: CheckMenuItem,
     reload_item: IconMenuItem,
     settings_item: IconMenuItem,
@@ -58,9 +61,33 @@ pub fn init(keymap_count: usize, macro_delay_override: Option<u32>) -> anyhow::R
     let log_item = IconMenuItem::new(texts.menu_log, true, menu_icon(LOG_ICON), None);
     let quit_item = IconMenuItem::new(texts.menu_quit, true, menu_icon(QUIT_ICON), None);
 
+    // The second caption: which of the folder's `*.toml` files the keymaps in
+    // force came from (ADR 0079). Disabled like the version above it — the
+    // menu is where a resident app answers "what am I running", and since v0.4
+    // that answer has had two halves (ADR 0050 lets the settings window switch
+    // files, and ADR 0077 makes the choice outlive the run).
+    //
+    // Named at startup from the load `main` has already done, so the caption
+    // never says a file that failed to load.
+    //
+    // **Created last, though it is shown second.** `muda` hands out command
+    // ids in creation order, and the UI checks drive this menu by id — 1003 is
+    // "Settings" — precisely so they do not depend on the guest's display
+    // language (ADR 0064). Creating this one where it appears shifted every id
+    // by one, and six of the ten VM checks invoked the wrong item while
+    // reporting the invoke itself as a success (2026-08-16). The menu's order
+    // lives in `append_items` below, which is free to differ.
+    let config_item = IconMenuItem::new(
+        config_file_name(&crate::gui::active_config_path()),
+        false,
+        menu_icon(FILE_ICON),
+        None,
+    );
+
     let menu = Menu::new();
     menu.append_items(&[
         &title_item,
+        &config_item,
         &PredefinedMenuItem::separator(),
         &enabled_item,
         &PredefinedMenuItem::separator(),
@@ -81,6 +108,7 @@ pub fn init(keymap_count: usize, macro_delay_override: Option<u32>) -> anyhow::R
 
     Ok(Tray {
         icon,
+        config_item,
         enabled_item,
         reload_item,
         settings_item,
@@ -164,6 +192,13 @@ impl Tray {
                 hook::abort_recording(i18n::t().macro_record_reason_reload);
                 crate::macro_record::sync_with_config();
                 self.keymap_count.set(count);
+                // Here rather than at the top of this function: the caption
+                // says which file the keymaps in force came from, and after a
+                // switch that failed to load those are still the old file's
+                // (ADR 0050 decision 3 keeps the live table). Naming the file
+                // that did not load would be the one reading of "currently
+                // loaded" that is untrue.
+                self.config_item.set_text(config_file_name(&config_path));
                 crate::gui::mark_config_loaded();
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
                 crate::gui::log::action(&i18n::reload_ok(count));
@@ -197,6 +232,17 @@ const SETTINGS_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/menu-gear
 const RELOAD_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/menu-arrow-clockwise.rgba"));
 const LOG_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/menu-card-list.rgba"));
 const QUIT_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/menu-box-arrow-right.rgba"));
+const FILE_ICON: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/menu-file-earmark-text.rgba"));
+
+/// The config file's name for the caption. The folder is deliberately left
+/// out: it is the settings window's address bar that answers "where", and a
+/// packaged install's folder is long enough to make the menu unreadable
+/// (ADR 0078 had to shorten it even in a window).
+fn config_file_name(path: &std::path::Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
 
 fn menu_icon(rgba: &[u8]) -> Option<tray_icon::menu::Icon> {
     tray_icon::menu::Icon::from_rgba(rgba.to_vec(), MENU_ICON_SIZE, MENU_ICON_SIZE).ok()

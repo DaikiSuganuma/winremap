@@ -1,0 +1,21 @@
+# The file the address bar switches *to*, for v1.0's F-1〜F-4 (ADR 0077).
+#
+# Two keymaps, where the acceptance config beside it (manual-minimum.toml) has
+# one. The count is the point: it is what the tray tooltip, the log line and
+# the settings window all report, so "which file is in force" can be answered
+# without opening the file.
+
+[[keymap]]
+name = "switched-a"
+application = ["notepad.exe"]
+
+[keymap.remap]
+"C-h" = "Back"
+
+[[keymap]]
+name = "switched-b"
+application = ["*"]
+exclude = ["notepad.exe"]
+
+[keymap.remap]
+"C-p" = "Up"
