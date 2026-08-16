@@ -67,10 +67,25 @@ fn run() -> anyhow::Result<()> {
     if cli.debug {
         notify::open_debug_console();
     }
+    // Where the choice of config file is remembered between runs (ADR 0077),
+    // and what it says. Only consulted when this run named no file of its
+    // own: `--config` is an instruction about *this* run and outranks a
+    // choice made in an earlier one.
+    let memory = memory_path().map(package::resolve_config_path);
+    let recalled = match (cli.config_is_default, memory.as_deref()) {
+        (true, Some(memory)) => config::last_used::recall(memory),
+        _ => config::last_used::LastUsed::Nothing,
+    };
+    let chosen = match &recalled {
+        config::last_used::LastUsed::At(path) => path.clone(),
+        // Nothing remembered, or what was remembered is gone: the default
+        // path, which is where every run before 1.0.0 started.
+        _ => cli.config_path,
+    };
     // Absolute from the start: the settings window's address bar shows the
     // parent folder and lists its .toml files for switching (ADR 0050), and
     // a relative `--config x.toml` has no parent to show or read.
-    let config_path = std::path::absolute(&cli.config_path).unwrap_or(cli.config_path);
+    let config_path = std::path::absolute(&chosen).unwrap_or(chosen);
     // Once, before anything reads or shows it: inside an MSIX package the
     // %APPDATA% path this resolves to is private to the package, and the
     // settings window hands paths to Explorer and to a text editor — neither
@@ -83,6 +98,9 @@ fn run() -> anyhow::Result<()> {
     // silencing a `--debug` session that was running before it opened.
     gui::log::set_cli_debug(cli.debug);
     gui::set_config_path(config_path.clone());
+    // The settings window writes this when the address bar switches files;
+    // startup only reads it (ADR 0077).
+    gui::set_config_memory(memory);
     // The status bar shows this timestamp for the whole run.
     gui::mark_started();
 
@@ -105,6 +123,19 @@ fn run() -> anyhow::Result<()> {
         // Loud on purpose: this build converts other software's injected
         // input, so it must never be mistaken for a normal one (ADR 0053).
         gui::log::emit(i18n::test_build_notice());
+    }
+
+    // Why this run opened a file nobody named on the command line — or why
+    // it did not (ADR 0077). Said before the load, so a config error below
+    // is read next to the reason that file was picked.
+    match &recalled {
+        config::last_used::LastUsed::At(_) => {
+            gui::log::emit(&i18n::config_from_last_time(&config_path))
+        }
+        config::last_used::LastUsed::Gone(path) => {
+            gui::log::emit(&i18n::config_from_last_time_gone(path))
+        }
+        config::last_used::LastUsed::Nothing => {}
     }
 
     // After the session banner so first-run output is part of the transcript,
@@ -285,6 +316,23 @@ fn default_config_path() -> anyhow::Result<PathBuf> {
     let appdata = std::env::var_os("APPDATA")
         .context("APPDATA is not set; pass --config <path> explicitly")?;
     Ok(PathBuf::from(appdata).join("winremap").join("config.toml"))
+}
+
+/// Where the last chosen config file is remembered (ADR 0077): beside the
+/// default config, whatever file this run ends up opening. `None` when
+/// `%APPDATA%` is not set — the same condition that leaves
+/// [`default_config_path`] with nothing to return, and one that makes the
+/// feature quietly absent rather than fatal.
+///
+/// Deliberately not beside the *active* config: a `--config D:\work\keys.toml`
+/// would otherwise leave a memory file in the user's own folder, and the next
+/// plain start — which looks in `%APPDATA%` — would never read it.
+fn memory_path() -> Option<PathBuf> {
+    Some(
+        default_config_path()
+            .ok()?
+            .with_file_name(config::last_used::FILE_NAME),
+    )
 }
 
 /// Makes sure `path` exists before the config is loaded.
