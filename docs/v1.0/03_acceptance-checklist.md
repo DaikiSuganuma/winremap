@@ -235,6 +235,29 @@ cargo build --release                   # 受け入れは素の配布ビルド�
 
 > その回の全体的な判断を書く。省略した項目とその理由、機械の状態、気づいたこと。
 
+### 2026-08-16（自動側）— **全部緑。ただし 2 件の欠陥を捕まえてからである**
+
+オーナー外出中に自動側だけを回した（`release/1.0.0` ブランチ、WinRemap 1.0.0）。
+
+| 検査 | 結果 |
+|---|---|
+| `cargo fmt --check` / `clippy`（通常・`test-inject`） | 緑 |
+| `cargo test` / `cargo test --features test-inject` | **160 件** 緑 |
+| `cargo build --release` | 緑 |
+| `site-src\build.ps1 -Check` | `site/ matches site-src/ (23 files)` |
+| `tests\ui\run-vm-ui-test.ps1` | **10 件・121 チェック 全部通過** |
+| `tests\acceptance\probe-ime-cursor.ps1` | **10/10**（32px 固定で読み、青 77・I ビーム 26・白 53/64・画面上 90） |
+| docs のリンク切れ | 出力なし |
+| DLL 依存（リリース手順 §3 手順 0） | 出力なし（CRT は静的リンク） |
+| `packaging\msix\build.ps1 -Pack` | `winremap-1.0.0.msix` 4,304,467 バイト・**未署名**・`Identity/@Version` = `1.0.0.0`（[掲載差分ノート §2](notes/20260816_store-listing-1.0.0.md)） |
+
+**この日の自動側は、2 つの実際の欠陥を捕まえた。どちらも「検査そのものが黙って無意味になる」種類である。**
+
+1. **プローブが測っていたのは、ホストの DPI 対応だった。** 同じ 10 項目が朝は全部通り、午後は 6 件落ちた — バイナリは同じで、変わったのは PowerShell 側の DPI 対応（`SM_CXCURSOR` 32 → 48）だけである。48 で読めば素の I ビームは存在しないので、健全な機械が「I ビームが空」と報告される。**WinRemap を 1 つも動かさずに測って確かめた**（48 で描画 0 画素、32 でマスク専用 26 画素）。読み取りを DPI 非対応へ固定した（[ADR 0076 追記 2](decisions/0076-read-cursors-unscaled.md)）
+2. **トレイのメニューに項目を増やしたら、コマンド ID が 1 つずつずれた。** VM の 10 件中 6 件が別の項目を叩き、`invoke` 自体は成功を返していた（「押せたのに窓が出ない」）。`muda` は ID を**作成順**に振る。見出しを最後に作るよう直し、`HMENU` を読んで 1001〜1005 が元の意味に戻ったことを確認した（[ADR 0079 影響・補足](decisions/0079-tray-menu-names-the-config-file.md)）
+
+**手動側（M・C・F・H・P）はこの日には行っていない。**
+
 ---
 
 ## 10. 対話ハーネスの記録

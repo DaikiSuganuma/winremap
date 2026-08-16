@@ -41,19 +41,22 @@
 > - **The tray menu now names the config file in force**
 > - Fixed: a long config folder path pushed the settings window's buttons off the window — **which is what a packaged app's own folder does**
 
-## 2. 提出前の確認（**提出時に埋める**）
+## 2. 提出前の確認
 
-`packaging\msix\build.ps1 -Pack` の出力について、[リリース手順 §4.2](../../03_release-operations.md) の項目を確認する。
+**2026-08-16 に一度作って中身を確かめてある。** ただし**提出用のパッケージは Release を公開したあとに作り直すこと** — §4.1 の順序制約であり、タグの内容と一致させるためでもある（下の値は、その時点のリリースビルドに対するもの）。
 
-| 見るもの | 期待 | 結果 |
+| 見るもの | 期待 | 2026-08-16 の結果 |
 |---|---|---|
-| `AppxSignature.p7x` | **入っていない**（Store が再署名する） | |
-| `Identity/@Name` | `SUGANUMADaiki.WinRemap` | |
-| `Identity/@Version` | **`1.0.0.0`**（第 4 フィールドは Store 用で常に 0） | |
-| `Identity/@Publisher` | `CN=38CDEE8D-0FAC-4CBA-A3DA-17BBDD107F55` | |
-| `PublisherDisplayName` | `SUGANUMA Daiki` | |
-| ファイル | `packaging\msix\out\winremap-1.0.0.msix`（サイズと SHA256 を記録する） | |
-| §4.1 の順序制約 | GitHub Release `v1.0.0` が公開済み、`privacy.html` が日英とも 200 | |
+| `AppxSignature.p7x` | **入っていない**（Store が再署名する） | **入っていない** ✓ |
+| `Identity/@Name` | `SUGANUMADaiki.WinRemap` | 一致 ✓ |
+| `Identity/@Version` | **`1.0.0.0`**（第 4 フィールドは Store 用で常に 0） | **`1.0.0.0`** ✓ |
+| `Identity/@Publisher` | `CN=38CDEE8D-0FAC-4CBA-A3DA-17BBDD107F55` | 一致 ✓ |
+| `Identity/@ProcessorArchitecture` | `x64` | 一致 ✓ |
+| `PublisherDisplayName` | `SUGANUMA Daiki` | 一致 ✓ |
+| ファイル | `packaging\msix\out\winremap-1.0.0.msix` | 4,304,467 バイト、SHA256 `aaee7a4f606fba838ff64b180f96b520ab952082a88cfd8a21c577341a5d93cb` |
+| 中の `winremap.exe` | 手元の配布ビルドと同じ | 9,884,160 バイト（一致） |
+| `resources.pri` | **入っている**（0.9.0 のアイコン修正。無いと unplated アセットが引かれない） | 3,664 バイト・`altform-unplated` × 6 ✓ |
+| §4.1 の順序制約 | GitHub Release `v1.0.0` が公開済み、`privacy.html` が日英とも 200 | **未** — 公開後に確認する |
 
 ## 3. 提出時の注意（前回からの引き継ぎ）
 
