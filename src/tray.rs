@@ -259,9 +259,19 @@ fn app_menu_icon() -> Option<tray_icon::menu::Icon> {
 
 /// Loads the owner-designed icon (assets/kbd*.ico, gray when disabled) from
 /// the exe's embedded resources — build.rs compiles them in (ADR 0010), so
-/// the binary stays a self-contained single file. `None` lets the shell pick
-/// the best size from the multi-size .ico for the current DPI.
+/// the binary stays a self-contained single file.
+///
+/// Asks for the notification area's own size rather than letting `tray-icon`
+/// pick: its `from_resource(_, None)` means "the large metric", and the shell
+/// shrinking that 32 px face into a 16 px slot closed up the gaps between the
+/// keys, leaving a blue block (ADR 0080). `from_resource` stays as the
+/// fallback — a face we could not load is no reason to have no tray icon.
 fn build_icon(enabled: bool) -> Icon {
     let ordinal = if enabled { 1 } else { 2 };
-    Icon::from_resource(ordinal, None).expect("icon resources are embedded by build.rs")
+    match crate::gui::load_notification_icon(ordinal) {
+        Some(handle) => Icon::from_handle(handle),
+        None => {
+            Icon::from_resource(ordinal, None).expect("icon resources are embedded by build.rs")
+        }
+    }
 }
