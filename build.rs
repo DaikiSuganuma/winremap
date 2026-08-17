@@ -76,6 +76,25 @@ fn main() {
         winresource::WindowsResource::new()
             .set_icon_with_id("assets/kbd.ico", "1")
             .set_icon_with_id("assets/kbd-disabled.ico", "2")
+            // Spelled out because winresource defaults both of these to the
+            // crate name, which ADR 0025 keeps lowercase — and the shell reads
+            // them as display text, not as an identifier: Settings > タスクバー
+            // > その他のシステム トレイ アイコン takes FileDescription first,
+            // ProductName second, and showed "winremap" until now. Task
+            // Manager's "アプリ" column reads the same pair.
+            .set("FileDescription", "WinRemap")
+            .set("ProductName", "WinRemap")
+            // The shell's last fallback before it gives up and shows the bare
+            // file name. winresource leaves it empty, so spell it out — and
+            // keep it lowercase: this field names the file, so ADR 0025 puts
+            // it on the identifier side of the line, unlike the two above.
+            .set("OriginalFilename", "winremap.exe")
+            // The publisher shown beside the name. Blank until now because
+            // winresource has no default for it; the wording matches the MSIX
+            // manifest's PublisherDisplayName so the packaged and portable
+            // builds do not disagree.
+            .set("CompanyName", "SUGANUMA Daiki")
+            .set("LegalCopyright", "Copyright (c) 2026 SUGANUMA Daiki")
             .compile()
             .expect("failed to embed icon resources");
     }
