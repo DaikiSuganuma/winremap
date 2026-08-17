@@ -7,9 +7,14 @@
 
 use std::path::Path;
 
-use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, POINT, WPARAM};
+use windows::Win32::Graphics::Gdi::{MONITOR_DEFAULTTOPRIMARY, MonitorFromPoint};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::GetCurrentThreadId;
+use windows::Win32::UI::HiDpi::{
+    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, GetDpiForMonitor, GetSystemMetricsForDpi,
+    MDT_EFFECTIVE_DPI, SetThreadDpiAwarenessContext,
+};
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumThreadWindows, GetSystemMetrics, HICON, ICON_BIG, ICON_SMALL, IMAGE_ICON, LR_DEFAULTCOLOR,
@@ -99,22 +104,65 @@ fn load_icon((width, height): (i32, i32)) -> Option<HICON> {
 /// to `tray_icon::Icon::from_handle`, which `DestroyIcon`s it when the icon
 /// drops, and a shared handle must never be destroyed.
 pub fn load_notification_icon(ordinal: u16) -> Option<isize> {
+    let (width, height) = notification_icon_size();
     // SAFETY: the module handle is our own exe and the ordinal is one build.rs
-    // embeds; SM_* are documented metric ids. A missing resource returns Err,
-    // handled here — the caller then falls back to tray-icon's own loader.
+    // embeds. A missing resource returns Err, handled here — the caller then
+    // falls back to tray-icon's own loader.
     let handle = unsafe {
         let instance = GetModuleHandleW(None).ok()?;
         LoadImageW(
             Some(instance.into()),
             PCWSTR(ordinal as usize as *const u16),
             IMAGE_ICON,
-            GetSystemMetrics(SM_CXSMICON),
-            GetSystemMetrics(SM_CYSMICON),
+            width,
+            height,
             LR_DEFAULTCOLOR,
         )
         .ok()?
     };
     (!handle.is_invalid()).then_some(handle.0 as isize)
+}
+
+/// The notification area's icon size **in real pixels**.
+///
+/// The catch is that this process is `DPI_AWARENESS_UNAWARE` when the tray is
+/// built: winit only declares awareness when it creates the event loop, and
+/// that happens on the GUI thread after startup — so at this point every DPI
+/// query answers in 96 dpi terms. `SM_CXSMICON` reads 16 on a 150% display
+/// where the taskbar actually draws 24, and handing over a 16 px face just
+/// moves the blur from a downscale to an upscale (ADR 0081 measured both).
+///
+/// `SetThreadDpiAwarenessContext` fixes that for the length of the query
+/// without touching the process or the GUI: it is scoped to this thread, and
+/// restored before returning. The monitor is then asked for its effective DPI,
+/// and `GetSystemMetricsForDpi` gives the size the taskbar will draw.
+///
+/// The primary monitor, not the taskbar's: finding the latter means owning a
+/// window on it, and the two differ only in a mixed-DPI setup where some
+/// rescaling is unavoidable anyway. Every step falls back to the unscaled
+/// metric, which still yields an icon.
+fn notification_icon_size() -> (i32, i32) {
+    // SAFETY: the context is restored on every path below, including the
+    // failure ones. SM_* are documented metric ids; the origin is always on
+    // the primary monitor, so MONITOR_DEFAULTTOPRIMARY returns a live handle.
+    // GetDpiForMonitor writes both out-params or fails, and is checked.
+    unsafe {
+        let previous = SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        let monitor = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
+        let (mut dpi_x, mut dpi_y) = (0u32, 0u32);
+        let size = if GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).is_ok() {
+            (
+                GetSystemMetricsForDpi(SM_CXSMICON, dpi_x),
+                GetSystemMetricsForDpi(SM_CYSMICON, dpi_y),
+            )
+        } else {
+            (GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON))
+        };
+        if !previous.is_invalid() {
+            SetThreadDpiAwarenessContext(previous);
+        }
+        size
+    }
 }
 
 fn set_icon(hwnd: HWND, which: u32, icon: HICON) {
