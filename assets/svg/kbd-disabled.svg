@@ -1,3 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
-  <path fill="#8A8886" fill-rule="evenodd" d="M2.5 3h11a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 11.5v-7A1.5 1.5 0 0 1 2.5 3ZM2.5 5h2v2h-2V5Zm3 0h2v2h-2V5Zm3 0h2v2h-2V5Zm3 0h2v2h-2V5Zm-9 4h2v2h-2V9Zm3 0h5v2h-5V9Zm6 0h2v2h-2V9Z"></path>
+  <!-- Painted keys rather than evenodd holes, for the reason in
+       kbd-enabled.svg (ADR 0081). The disabled face has the same problem in
+       its own palette: a grey body with see-through keys disappears against
+       any grey background. -->
+  <path fill="#8A8886" d="M2.5 3h11a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 11.5v-7A1.5 1.5 0 0 1 2.5 3Z"></path>
+  <path fill="#FFFFFF" d="M2.5 5h2v2h-2V5Zm3 0h2v2h-2V5Zm3 0h2v2h-2V5Zm3 0h2v2h-2V5Zm-9 4h2v2h-2V9Zm3 0h5v2h-5V9Zm6 0h2v2h-2V9Z"></path>
 </svg>
