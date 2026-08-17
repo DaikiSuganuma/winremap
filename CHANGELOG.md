@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The tray icon is drawn as a keyboard again, not a blue block** (ADR 0081).
+  The keys were cut out of the body rather than painted on it, so the icon only
+  read correctly against a light background. Settings > Personalization >
+  Taskbar > Other system tray icons draws every row on a plate in the accent
+  colour, and a blue body with see-through keys merged into it completely —
+  the row showed a plain blue square. Body and keys are now two filled shapes,
+  which reads the same on a light taskbar, a dark one, and that plate.
+
+  Windows stores a snapshot of the icon when a tray entry is first created and
+  does not refresh it afterwards, so the Settings list keeps showing the old
+  picture for an entry it already has. Installing this version creates a new
+  entry, which is where the new icon appears.
+
+- **The tray icon is no longer blurred by rescaling** (ADR 0080, ADR 0081). It
+  was handed to the shell at the *large* icon size and shrunk to fit the
+  notification area. It is now loaded at the size the taskbar actually draws,
+  which the multi-size `.ico` already contains, so nothing is rescaled. On a
+  scaled display that size is only visible to a DPI-aware caller, so the query
+  briefly opts this thread in rather than changing the process.
+
+- **WinRemap calls itself WinRemap** (ADR 0025). The executable carried no
+  description, product name or publisher of its own, so Windows fell back to
+  the crate name: Task Manager and the tray-icon list in Settings both showed a
+  lower-case `winremap`, with no publisher beside it.
+
 ## [1.0.0] - 2026-08-16
 
 The 1.0 is not a freeze and adds no compatibility promise beyond the care the
