@@ -21,13 +21,18 @@
 //!   (invariant 6).
 //! * No `unsafe` in this file: what egui cannot express — per-size window
 //!   icons, handing the config file to the shell — lives in `win32`
-//!   (invariant 3, ADR 0038).
+//!   (invariant 3, ADR 0038). `win32` also serves the tray, which is not part
+//!   of the GUI but needs the same "load the face drawn at this exact size"
+//!   call (ADR 0080); it is re-exported below rather than duplicated behind a
+//!   second entry on the unsafe allowlist.
 
 pub mod config_window;
 mod icons;
 pub mod log;
 mod watch;
 mod win32;
+
+pub use win32::load_notification_icon;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};

@@ -81,6 +81,42 @@ fn load_icon((width, height): (i32, i32)) -> Option<HICON> {
     (!handle.is_invalid()).then_some(HICON(handle.0))
 }
 
+/// Loads an embedded icon face at the size the notification area draws at,
+/// and hands the caller a handle it owns.
+///
+/// The tray had the mirror image of the window-icon bug above. `tray-icon`'s
+/// `Icon::from_resource(_, None)` calls `LoadImageW` with a zero size and
+/// `LR_DEFAULTSIZE`, which means the *large* metric (`SM_CXICON`: 32 px at
+/// 100% scaling) — so the shell was handed a 32 px face and shrank it into a
+/// 16 px slot. The gaps between the keyboard's keys are one pixel wide at that
+/// size and closed up under the downscale, leaving a solid blue block both in
+/// the tray and in Settings > Personalization > Taskbar (ADR 0080).
+///
+/// Takes an ordinal because the tray has two faces (1 enabled, 2 disabled)
+/// where the windows only ever want [`ICON_ORDINAL`].
+///
+/// **Deliberately without `LR_SHARED`, unlike [`load_icon`].** This handle goes
+/// to `tray_icon::Icon::from_handle`, which `DestroyIcon`s it when the icon
+/// drops, and a shared handle must never be destroyed.
+pub fn load_notification_icon(ordinal: u16) -> Option<isize> {
+    // SAFETY: the module handle is our own exe and the ordinal is one build.rs
+    // embeds; SM_* are documented metric ids. A missing resource returns Err,
+    // handled here — the caller then falls back to tray-icon's own loader.
+    let handle = unsafe {
+        let instance = GetModuleHandleW(None).ok()?;
+        LoadImageW(
+            Some(instance.into()),
+            PCWSTR(ordinal as usize as *const u16),
+            IMAGE_ICON,
+            GetSystemMetrics(SM_CXSMICON),
+            GetSystemMetrics(SM_CYSMICON),
+            LR_DEFAULTCOLOR,
+        )
+        .ok()?
+    };
+    (!handle.is_invalid()).then_some(handle.0 as isize)
+}
+
 fn set_icon(hwnd: HWND, which: u32, icon: HICON) {
     // SAFETY: hwnd came from the enumeration and is live for this callback;
     // WM_SETICON takes ownership of nothing (LR_SHARED handles are the
