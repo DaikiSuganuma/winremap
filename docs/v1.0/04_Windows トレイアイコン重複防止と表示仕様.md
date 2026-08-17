@@ -3,7 +3,7 @@
 - 作成日: 2026-08-17
 - 作成: Gemini Deep Research（オーナーが実施し、本リポジトリへ配置）
 - 追記・実機検証: Claude Code（AI モデル: claude-opus-5[1m]）／レビュー・承認: オーナー
-- 関連: [ADR 0080](../v1.1/decisions/0080-tray-icon-asks-for-the-small-metric.md)（トレイのアイコンは通知領域のサイズを指定して読む）、[ADR 0081](../v1.1/decisions/0081-icon-must-not-depend-on-its-background.md)（アイコンは背景に依存しない絵にし、サイズは実 DPI から求める）、[ADR 0025](../v0.1/decisions/0025-display-name-winremap.md)（製品名の表記）
+- 関連: [ADR 0080](../v1.0.1/decisions/0080-tray-icon-asks-for-the-small-metric.md)（トレイのアイコンは通知領域のサイズを指定して読む）、[ADR 0081](../v1.0.1/decisions/0081-icon-must-not-depend-on-its-background.md)（アイコンは背景に依存しない絵にし、サイズは実 DPI から求める）、[ADR 0025](../v0.1/decisions/0025-display-name-winremap.md)（製品名の表記）
 
 > **本文中の「実測（2026-08-17）」の枠は、この調査レポートをオーナーの開発機（Windows 11 Pro 26200、表示スケール 150%）で突き合わせた結果として Claude Code が追記したものである。** レポート本体の記述には手を入れていない。
 
@@ -142,7 +142,7 @@ Windows 7以降で導入されたGUID識別（NIF\_GUID）方式では、初回�
 設定画面およびタスクバーのアイコン描画には、NOTIFYICONDATA.hIcon で渡されたアイコンハンドルが使用されます2。  
 表示品質を担保するためには、従来の LoadIcon や LoadImage ではなく、Common Controlsライブラリの LoadIconMetric API（サイズフラグに LIM\_SMALL を指定）を用いてロードします1。高DPIディスプレイ（125%、150%、200%等）において、システムが要求する正確なメトリック（16x16、20x20、24x24、32x32ピクセル等）でラスタライズが行われ、ぼやけやジャギーの発生を防止できます1。バイナリには 16x16 から 256x256 までのマルチ解像度を含んだ .ico ファイルを埋め込む必要があります。
 
-> **実測（2026-08-17）— この節が手がかりになったが、本節だけでは足りなかった。詳細は [ADR 0080](../v1.1/decisions/0080-tray-icon-asks-for-the-small-metric.md)・[ADR 0081](../v1.1/decisions/0081-icon-must-not-depend-on-its-background.md)。**
+> **実測（2026-08-17）— この節が手がかりになったが、本節だけでは足りなかった。詳細は [ADR 0080](../v1.0.1/decisions/0080-tray-icon-asks-for-the-small-metric.md)・[ADR 0081](../v1.0.1/decisions/0081-icon-must-not-depend-on-its-background.md)。**
 >
 > トレイと設定画面で WinRemap のアイコンが**キーの見えない青い塗りつぶし**になっていた。`assets/kbd.ico` は 16 / 24 / 32 / 48 / 256 px を持ち、exe への埋め込みも正常だったので素材の欠落ではない。原因は独立に 3 つあった。
 >

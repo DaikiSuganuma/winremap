@@ -1,4 +1,4 @@
-# v1.1 受け入れチェックリスト
+# v1.0.1 受け入れチェックリスト
 
 > 元資料: [v1.0 受け入れチェックリスト](../v1.0/03_acceptance-checklist.md)（C-1〜C-5・M-1〜M-7・F-1〜F-5・H-1〜H-10・P-1〜P-10 の直前の版。**MSIX 固有項目の詳しい前準備は [v0.6 §3.1](../v0.6/03_acceptance-checklist.md) が正**）、
 > [ADR 0080](decisions/0080-tray-icon-asks-for-the-small-metric.md)（トレイのアイコンは通知領域のサイズを指定して読む）・[ADR 0081](decisions/0081-icon-must-not-depend-on-its-background.md)（アイコンは背景に依存しない絵にし、サイズは実 DPI から求める）、[ADR 0025](../v0.1/decisions/0025-display-name-winremap.md)（製品名の表記）、[ADR 0069](../v0.8/decisions/0069-interactive-acceptance-harness.md)・[ADR 0070](../v0.8/decisions/0070-agent-led-acceptance.md)（この文書を読んで、この文書へ追記するハーネス）。
@@ -12,12 +12,10 @@
 
 ## 0. この文書の目的
 
-v1.1 はまだスコープが決まっていない。この時点で入っているのは、**v1.0.0 のリリース後にオーナーが気づいたトレイまわりの 2 件**である。
+**v1.0.1 は修正だけの版である。** 利用者から見える新機能は無い。入っているのは **v1.0.0 のリリース後にオーナーが気づいたトレイまわりの 2 件**で、SemVer どおりパッチとして出す（オーナー決定 2026-08-17）。**この版に開発計画（`01_development-plan.md`）は無い** — 計画を書くほどのスコープが無いことが、パッチである理由そのものだからである。
 
 1. トレイと設定アプリの一覧で、アイコンが**キーの見えない青い塗りつぶし**になっていた（[ADR 0080](decisions/0080-tray-icon-asks-for-the-small-metric.md)・[ADR 0081](decisions/0081-icon-must-not-depend-on-its-background.md)）
 2. 同じ一覧とタスク マネージャーで、名前が**小文字の `winremap`** と出ていた（[ADR 0025](../v0.1/decisions/0025-display-name-winremap.md) の適用漏れ）
-
-**この節は、スコープが固まった時点で開発計画（`01_development-plan.md`）に合わせて書き直すこと。**
 
 ### ⚠ この区切りで特に注意すること
 
