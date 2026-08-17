@@ -88,7 +88,20 @@
 
 ## 5. 記録欄（散文）
 
-（未実施）
+### 2026-08-17（自動側）— 全部緑
+
+- `cargo fmt --check`・`clippy`（既定と `test-inject` の 2 本）・`cargo test`（**160 件**）・`site-src\build.ps1 -Check`（23 ファイル）すべて通過
+- **VM の UI テスト: 10 スイート 121 チェック全通過、fail 0。** `00-uia-actuation` 5・`00-cli-smoke` 8・`00-regression` 14・`00-log-view` 26・`01-settings-window` 12・`02-config-display` 9・`03-tray-actions` 14・`04-log-window` 11・`05-remap-notepad` 10・`06-foreground-line` 12
+- **`probe-ime-cursor.ps1`: 10 項目全通過**
+- リリースビルド 2 本とも通過。素の配布ビルドの `FileDescription` / `ProductName` が `WinRemap`、`CompanyName` が `SUGANUMA Daiki`、`FileVersion` が `1.0.1`（**I-4 の自動側の裏付け**）
+
+**テスト件数は v1.0 の 160 件から増減なし。** この版で触ったのは素材・アイコンの読み込み・バージョンリソースだけで、テストのある層（`keymap` / `config`）に手が入っていないため、想定どおりである。
+
+**`03-tray-actions` が通ったことは、アイコン読み込み経路を差し替えてもトレイの構築が壊れていないことを示す。** ただし `build_icon` はフォールバック（`from_resource`）を持つので、**これが通ったことは絵が正しいことの証明にはならない** — I-1〜I-3 は人の目で見ること。
+
+**自動側では I-1〜I-3 は測れない。** アイコンの見え方と設定アプリの一覧は、画素を測る検査を持っていない。
+
+**⚠ `probe-ime-cursor.ps1` の 1 行目が `cursors are read at 32px, in a DPI-unaware context` と言っている。** [ADR 0081](decisions/0081-icon-must-not-depend-on-its-background.md) が突き止めた「プロセスが起動時に DPI 非認識である」という事実は、[ADR 0076](../v1.0/decisions/0076-read-cursors-unscaled.md) がカーソル側で既に踏んでいた同じ性質のものだった。**この 2 つが同じ根に繋がっていることは、次にどこかで DPI が絡む不具合が出たときの最初の手がかりになる。**
 
 ---
 
