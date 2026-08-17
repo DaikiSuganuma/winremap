@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scaled display that size is only visible to a DPI-aware caller, so the query
   briefly opts this thread in rather than changing the process.
 
+  The icon now also carries the sizes the notification area asks for at 125%
+  and 175% display scaling (20 and 28 pixels). They were missing, so those two
+  settings were the ones where Windows had to rescale whatever it could find.
+
 - **WinRemap calls itself WinRemap** (ADR 0025). The executable carried no
   description, product name or publisher of its own, so Windows fell back to
   the crate name: Task Manager and the tray-icon list in Settings both showed a

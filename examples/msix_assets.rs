@@ -59,10 +59,27 @@ const TARGET_SIZES: &[u32] = &[16, 24, 32, 44, 48, 256];
 /// `makepri` step in `packaging/msix/build.ps1`.
 const UNPLATED: &str = "_altform-unplated";
 
+/// The simplified face, for the target sizes small enough that the detailed
+/// artwork turns to mush (ADR 0082). Optional: until it is drawn, `SOURCE`
+/// covers these too. `app_icons` splits the exe's own .ico at the same size,
+/// and the two must agree — the Start menu list and the notification area sit
+/// next to each other often enough that one icon changing shape between them
+/// would be noticed.
+const SMALL_SOURCE: &str = "assets/svg/kbd-enabled-small.svg";
+const SMALL_TARGET_SIZES: &[u32] = &[16, 24, 32];
+
 fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let svg = std::fs::read_to_string(root.join(SOURCE))
         .unwrap_or_else(|e| panic!("failed to read {SOURCE}: {e}"));
+    let small_path = root.join(SMALL_SOURCE);
+    let small = small_path.exists().then(|| {
+        std::fs::read_to_string(&small_path)
+            .unwrap_or_else(|e| panic!("failed to read {SMALL_SOURCE}: {e}"))
+    });
+    if small.is_none() {
+        println!("  ({SMALL_SOURCE} が無いので小サイズも {SOURCE} から焼く)");
+    }
     let out = root.join(OUT_DIR);
     std::fs::create_dir_all(&out).expect("failed to create the asset directory");
 
@@ -79,11 +96,15 @@ fn main() {
         }
     }
     for size in TARGET_SIZES {
+        let source = match &small {
+            Some(s) if SMALL_TARGET_SIZES.contains(size) => s,
+            _ => &svg,
+        };
         let path = out.join(format!("Square44x44Logo.targetsize-{size}.png"));
-        write_png(&svg, &path, *size);
+        write_png(source, &path, *size);
         count += 1;
         let unplated = out.join(format!("Square44x44Logo.targetsize-{size}{UNPLATED}.png"));
-        write_png(&svg, &unplated, *size);
+        write_png(source, &unplated, *size);
         count += 1;
     }
 

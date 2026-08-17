@@ -1,26 +1,57 @@
-//! Regenerates the app icons from the master SVGs (ADR 0010, ADR 0081).
+//! Regenerates the app icons from the master SVGs (ADR 0010, ADR 0081, ADR 0082).
 //!
 //! ADR 0010 made `assets/svg/` the master and said to regenerate the PNGs and
 //! the .ico files when it changes — but nothing did the regenerating, so the
 //! committed files were hand-made in an external tool. Redrawing the icon then
-//! means rebuilding five sizes of two faces plus two .ico containers by hand,
+//! means rebuilding every size of two faces plus two .ico containers by hand,
 //! which is exactly the kind of step that gets half-done. This is that tool:
 //!
 //! ```text
 //! cargo run --example app_icons
 //! ```
 //!
-//! Writes `assets/png/kbd-{enabled,disabled}-{16,24,32,48,256}.png` and
-//! `assets/kbd.ico` / `assets/kbd-disabled.ico`. Run `msix_assets` as well
-//! when the enabled face changes — that one feeds the Store listing, and the
-//! two must not drift apart.
+//! Writes `assets/png/kbd-{enabled,disabled}-<size>.png` and `assets/kbd.ico` /
+//! `assets/kbd-disabled.ico`. Run `msix_assets` as well when a face changes —
+//! that one feeds the Store listing, and the two must not drift apart.
+//!
+//! How to draw the masters, and why the small ones exist:
+//! `docs/06_icon-assets.md`.
 
 use std::path::{Path, PathBuf};
 
-/// The faces the shell asks an exe for. 16 and 24 are the notification area
-/// at 100% and 150%; 32 and 48 are Explorer and Alt+Tab; 256 is the extra
-/// large view.
-const SIZES: &[u32] = &[16, 24, 32, 48, 256];
+/// Which master draws a given size (ADR 0082).
+#[derive(PartialEq, Clone, Copy)]
+enum Master {
+    /// The simplified face, for sizes where the detailed one turns to mush.
+    Small,
+    /// The full artwork.
+    Main,
+}
+
+/// Every size the shell asks an exe for, and the master that draws it.
+///
+/// The notification area asks for `SM_CXSMICON` at the monitor's scale — 16 at
+/// 100%, 20 at 125%, 24 at 150%, 28 at 175%, 32 at 200% — and the large-icon
+/// surfaces (Explorer, Alt+Tab, a window's `ICON_BIG`) ask for twice that. **A
+/// size the .ico does not carry gets scaled by Windows**, which is the blur
+/// ADR 0080 was about, so the tray's whole range is present rather than the
+/// 16/24/32 the hand-made files happened to have. 56 and 64 are left out: the
+/// large-icon surfaces are far less sensitive than a 24 px tray slot, and every
+/// frame is uncompressed (64x64 alone would add 17 KB).
+///
+/// The split at 32 is where the tray stops asking. Drawing the tray's whole
+/// range from one master is the point — otherwise the icon would change shape
+/// as the user moved the window between monitors of different scale.
+const SIZES: &[(u32, Master)] = &[
+    (16, Master::Small),
+    (20, Master::Small),
+    (24, Master::Small),
+    (28, Master::Small),
+    (32, Master::Small),
+    (40, Master::Main),
+    (48, Master::Main),
+    (256, Master::Main),
+];
 
 /// Above this the .ico frame is stored as PNG rather than an uncompressed
 /// DIB, which is how the previous hand-made files were laid out: a 256x256
@@ -28,19 +59,25 @@ const SIZES: &[u32] = &[16, 24, 32, 48, 256];
 const PNG_FRAME_AT_OR_ABOVE: u32 = 256;
 
 struct Face {
-    svg: &'static str,
+    main_svg: &'static str,
+    /// Optional on purpose: until it is drawn, the main master covers the
+    /// small sizes too, so the pipeline works before the artwork lands and
+    /// says which master it actually used.
+    small_svg: &'static str,
     png_prefix: &'static str,
     ico: &'static str,
 }
 
 const FACES: &[Face] = &[
     Face {
-        svg: "assets/svg/kbd-enabled.svg",
+        main_svg: "assets/svg/kbd-enabled.svg",
+        small_svg: "assets/svg/kbd-enabled-small.svg",
         png_prefix: "kbd-enabled",
         ico: "assets/kbd.ico",
     },
     Face {
-        svg: "assets/svg/kbd-disabled.svg",
+        main_svg: "assets/svg/kbd-disabled.svg",
+        small_svg: "assets/svg/kbd-disabled-small.svg",
         png_prefix: "kbd-disabled",
         ico: "assets/kbd-disabled.ico",
     },
@@ -49,12 +86,25 @@ const FACES: &[Face] = &[
 fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for face in FACES {
-        let svg = std::fs::read_to_string(root.join(face.svg))
-            .unwrap_or_else(|e| panic!("failed to read {}: {e}", face.svg));
+        let main = read(&root.join(face.main_svg), face.main_svg);
+        let small_path = root.join(face.small_svg);
+        let small = small_path
+            .exists()
+            .then(|| read(&small_path, face.small_svg));
+        if small.is_none() {
+            println!(
+                "  ({} が無いので小サイズも通常マスターから焼く)",
+                face.small_svg
+            );
+        }
 
         let mut frames = Vec::new();
-        for size in SIZES {
-            let pixmap = render(&svg, *size, face.svg);
+        for (size, master) in SIZES {
+            let (svg, source) = match (master, &small) {
+                (Master::Small, Some(svg)) => (svg, face.small_svg),
+                _ => (&main, face.main_svg),
+            };
+            let pixmap = render(svg, *size, source);
             let png = pixmap.encode_png().expect("pixmap encodes as PNG");
 
             let path = root
@@ -78,6 +128,10 @@ fn main() {
         FACES.len() * SIZES.len(),
         FACES.len()
     );
+}
+
+fn read(path: &Path, name: &str) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|e| panic!("failed to read {name}: {e}"))
 }
 
 /// One SVG into a square pixmap. The artwork is wider than it is tall, so it
