@@ -82,6 +82,7 @@
 
 - **`TaskbarCreated` を扱っていない。** Explorer がクラッシュ・再起動するとトレイアイコンが戻らず、常駐しているのに終了する手段が無くなる。2026-08-17 の調査中に実際に起きた。直すかどうかは未決 — 直すなら `tray-icon` クレートの側の話になる可能性がある
 - **プロセスが起動時に DPI 非認識である。** [ADR 0081](decisions/0081-icon-must-not-depend-on-its-background.md) はトレイに閉じて回避したが、`gui/win32.rs` のウィンドウアイコン（[ADR 0038](../v0.2/decisions/0038-gui-win32-module.md)）も同じ `GetSystemMetrics` を使っている。設定ウィンドウ・ログウィンドウのアイコンに同じずれがある可能性がある
+- **P-9（Store 版の更新）はこの版でも測っていない。** 次の版で、Store 版 1.0.1 からの更新として測る。そのとき `last-config.txt` が更新をまたいで残るかを見る
 - **既に配布した 1.0.0 の利用者の行は直らない。** 1.1 を入れればパスが変わって新しい行ができるので、そこで直る
 
 ---
@@ -111,6 +112,16 @@
 - **奇数座標なので、24 px ではキーの辺に半端な画素（1 画素ぶんの水色）が出る。** オーナーがこのマシンのトレイ（24 px）で見て、I-1 ②「輪郭がぼやけていない」を通過とした。偶数座標への描き直しはこの版ではしない（[06_icon-assets.md](../06_icon-assets.md) §5.3）
 - **小マスター（`-small.svg`）は作らず、通常マスターを描き直した。** [ADR 0082](decisions/0082-small-master-for-small-sizes.md) のフォールバックどおり、全サイズを通常マスターから焼いている
 
+### 2026-09-14（P 区切り）— P-10 通過、P-9 は測れない
+
+- **始めた時点で、この機械には Store 版 1.0.0（`SignatureKind: Store`）が入っていた。** 開発者登録で P を回すにはこれを消す必要があり、消すと P-9 の更新元が無くなる。認定後に Store の更新で P-9 → P-10 を測る案と、今消して回す案を示し、オーナーが「Store 版を消して今回す」を選んだ
+- **Store 版のパッケージ専用フォルダーに設定があった。** `%LOCALAPPDATA%\Packages\SUGANUMADaiki.WinRemap_pktmgf1zdhxe0\LocalCache\Roaming\winremap` に `personal-ja.toml`（6320 バイト、2026-08-20 更新）と `last-config.txt`（中身は `C:\Users\suganuma\AppData\Roaming\winremap\personal-ja.toml`）。`%APPDATA%\winremap\personal-ja.toml` は 6317 バイト、2026-08-18 更新で、内容が異なる。アンインストールでこのフォルダーは消えるので、先に `C:\Users\suganuma\winremap-store-1.0.0-backup-20260914` と scratchpad へ複製し、ハッシュの一致を確かめた
+- `Remove-AppxPackage` で 1.0.0 を削除し、パッケージ専用フォルダーが消えたことを確かめた。`build.ps1 -Register` で登録し、`Version 1.0.1.0`・`SignatureKind None`・`resources.pri: 3664 bytes, altform-unplated x 6` だった。登録後の新しいパッケージ専用フォルダーへ、退避した 2 ファイルを戻した（ハッシュ一致）
+- `shell:AppsFolder` から起動した。トレイの行（`ExecutablePath` が `packaging\msix\layout\winremap.exe`）が新しく作られ、`IconSnapshot` は 24×24、白っぽい画素 48。`IsPromoted=1` にした
+- P-10 はオーナーが 3 か所を見て通過
+- P-1〜P-7 は回していない。`git diff v1.0.0..HEAD` で `AppxManifest.xml`・`build.ps1`・`src/package.rs` に差分が無い
+- 登録したパッケージのインストール先は `packaging\msix\layout` である。`build.ps1` はこのフォルダーを毎回作り直す
+
 ---
 
 ## 6. 対話ハーネスの記録
@@ -123,3 +134,7 @@
 | I-2 | 通過 | 灰色の面でもキーの列が見分けられる。チェックを戻すと青に戻る |
 | I-3 | 通過 | 作り直した行で、名前が `WinRemap`、アイコンにキーが見える |
 | I-4 | 通過 | タスク マネージャーの表示が `WinRemap`。プロパティの説明が `WinRemap`、著作権が `Copyright (c) 2026 SUGANUMA Daiki` |
+| P-1〜P-7 | 未実施 | `git diff v1.0.0..HEAD` で `AppxManifest.xml`・`build.ps1`・`src/package.rs` に差分が無いため回していない |
+| P-8 | 測れない | Store 経由のインストールは認定通過後にしか測れない |
+| P-9 | 測れない | 更新元の Store 版 1.0.0 を、P を今回すために削除した（オーナーの選択）。次の版で 1.0.1 からの更新として測る |
+| P-10 | 通過 | 開発者登録した 1.0.1 で、スタートアップ一覧・タスクバー・スタート メニューの 3 か所とも問題なし、との報告 |
