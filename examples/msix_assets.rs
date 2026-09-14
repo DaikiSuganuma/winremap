@@ -114,6 +114,12 @@ fn main() {
 fn write_png(svg: &str, path: &Path, size: u32) {
     let tree = resvg::usvg::Tree::from_str(svg, &resvg::usvg::Options::default())
         .unwrap_or_else(|e| panic!("failed to parse {SOURCE}: {e}"));
+    // Same guard as app_icons: an Illustrator export cropped to the artwork
+    // would land every tile flush against the top.
+    let (w, h) = (tree.size().width(), tree.size().height());
+    if w != h {
+        panic!("master SVG の viewBox が {w}x{h} で正方形ではない（docs/06_icon-assets.md §5.7）");
+    }
     let mut pixmap =
         resvg::tiny_skia::Pixmap::new(size, size).expect("an icon-sized pixmap is allocatable");
     let scale = size as f32 / tree.size().width();

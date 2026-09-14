@@ -137,17 +137,49 @@ fn read(path: &Path, name: &str) -> String {
 /// One SVG into a square pixmap. The artwork is wider than it is tall, so it
 /// is the *viewBox* that is square — scaling by width keeps the drawing
 /// centred with the padding the master already has.
+///
+/// Both checks below are Illustrator export mistakes that produce a plausible
+/// image rather than an error, so they would otherwise reach the exe
+/// unnoticed (2026-09-14, the first masters exported from Illustrator had one
+/// each). Failing here is deliberate: an icon quietly drawn in the wrong place
+/// is the kind of thing nobody notices for a release.
 fn render(svg: &str, size: u32, source: &str) -> resvg::tiny_skia::Pixmap {
     let tree = resvg::usvg::Tree::from_str(svg, &resvg::usvg::Options::default())
         .unwrap_or_else(|e| panic!("failed to parse {source}: {e}"));
+
+    // Saved without "use artboards", Illustrator crops the viewBox to the
+    // artwork's bounds, and the padding is gone: a 14x10 body scaled to the
+    // square's width lands flush against the top.
+    let (w, h) = (tree.size().width(), tree.size().height());
+    if w != h {
+        panic!(
+            "{source} の viewBox が {w}x{h} で正方形ではない。Illustrator が絵の外接矩形で切り抜いて\
+             書き出している — アートボード（16x16）で書き出し直すこと（docs/06_icon-assets.md §5.7）"
+        );
+    }
+
     let mut pixmap =
         resvg::tiny_skia::Pixmap::new(size, size).expect("an icon-sized pixmap is allocatable");
-    let scale = size as f32 / tree.size().width();
+    let scale = size as f32 / w;
     resvg::render(
         &tree,
         resvg::tiny_skia::Transform::from_scale(scale, scale),
         &mut pixmap.as_mut(),
     );
+
+    // The corners are outside the rounded body in every face this app has.
+    // Paint there means a background rectangle was drawn to force the bounds
+    // to 16x16 — and it would be baked into the icon, a white square on a
+    // dark taskbar.
+    let last = size - 1;
+    for (x, y) in [(0, 0), (last, 0), (0, last), (last, last)] {
+        if pixmap.pixel(x, y).is_some_and(|p| p.alpha() != 0) {
+            panic!(
+                "{source} を {size}px で焼くと四隅が塗られている。背景の四角を入れていないか — \
+                 アイコンの周りは透明でなければならない（docs/06_icon-assets.md §5.4）"
+            );
+        }
+    }
     pixmap
 }
 
