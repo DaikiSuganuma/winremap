@@ -38,26 +38,29 @@
 
 ## 2. 提出前の確認
 
-**提出するのは、Release を公開したあとにタグの内容から作り直したものである**（§4.1 の順序制約）。結果はその作り直しのときに下の表へ記録する。
+**提出するのは、Release を公開したあとにタグの内容から作り直したものである**（§4.1 の順序制約）。下の表は、**2026-09-14 05:51 UTC に `v1.0.1`（`1708261`）を git worktree へ取り出し、そこで `build.ps1 -Pack` を回した**結果である。worktree を使ったのは、開発者登録した 1.0.1 が本体の `packaging\msix\layout` から動いていたためで、そのフォルダーに触れずに作った。
 
 | 見るもの | 期待 | 提出物の結果 |
 |---|---|---|
-| `AppxSignature.p7x` | 入っていない（Store が再署名する） | |
-| `Identity/@Name` | `SUGANUMADaiki.WinRemap` | |
-| `Identity/@Version` | `1.0.1.0` | |
-| `Identity/@Publisher` | `CN=38CDEE8D-0FAC-4CBA-A3DA-17BBDD107F55` | |
-| `Identity/@ProcessorArchitecture` | `x64` | |
-| `PublisherDisplayName` | `SUGANUMA Daiki` | |
-| ファイル | `packaging\msix\out\winremap-1.0.1.msix` | |
-| `resources.pri` | 入っている・`altform-unplated` × 6 | |
-| §4.1 の順序制約 | GitHub Release `v1.0.1` が公開済み、`privacy.html` が日英とも 200 | |
+| `AppxSignature.p7x` | 入っていない（Store が再署名する） | 入っていない ✓ |
+| `Identity/@Name` | `SUGANUMADaiki.WinRemap` | 一致 ✓ |
+| `Identity/@Version` | `1.0.1.0` | `1.0.1.0` ✓ |
+| `Identity/@Publisher` | `CN=38CDEE8D-0FAC-4CBA-A3DA-17BBDD107F55` | 一致 ✓ |
+| `Identity/@ProcessorArchitecture` | `x64` | 一致 ✓ |
+| `PublisherDisplayName` | `SUGANUMA Daiki` | 一致 ✓ |
+| ファイル | `packaging\msix\out\winremap-1.0.1.msix` | 4,320,420 バイト、SHA256 `e3477060ccc9381e0d654d846e47789ef5b4c9cca03ce4d97ecc3092155e88e3` |
+| 中の `winremap.exe` | タグから作った配布ビルド | 9,956,864 バイト（worktree の `target\release\winremap.exe` と同じ） |
+| `resources.pri` | 入っている・`altform-unplated` × 6 | 3,664 バイト・`altform-unplated` × 6 ✓。`resources.scale-{125,150,200,400}.pri` も入っており、エントリ数 39 は 1.0.0 の提出物と同じ |
+| §4.1 の順序制約 | GitHub Release `v1.0.1` が公開済み、`privacy.html` が日英とも 200 | 満たした ✓（公開 05:46:46 UTC、`privacy.html` は日英とも 200） |
+
+中の `winremap.exe`（9,956,864 バイト）は、GitHub Release の `winremap.exe`（9,935,872 バイト、CI でビルド）とはバイト数が違う。ビルドした機械が違うためで、ソースはどちらも `v1.0.1` である。
 
 ## 3. 提出時の注意
 
 - **署名しない。** Store が再署名する
 - **バージョンは手で触らない。** `build.ps1` が `Cargo.toml` から読んで `1.0.1.0` を埋める
 - **提出は GitHub Release の公開後**
-- **`build.ps1` は `packaging\msix\layout` を作り直す。** 2026-09-14 の受け入れで開発者登録した 1.0.1 のインストール先がこのフォルダーなので、`-Pack` を回すと登録した版は動かなくなる
+- **`build.ps1` は `packaging\msix\layout` を作り直す。** 2026-09-14 の受け入れで開発者登録した 1.0.1 のインストール先がこのフォルダーなので、本体で `-Pack` を回すと登録した版は動かなくなる。今回は §2 のとおり worktree で作った
 
 ## 4. 認定通過後にやること
 
