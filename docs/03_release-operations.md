@@ -126,6 +126,8 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 
 > 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
 
+> **2026-09-14 実施（v1.0.1）**: [PR #434307](https://github.com/microsoft/winget-pkgs/pull/434307) を新規に出した。`manifests/d/DaikiSuganuma/WinRemap/1.0.1/` を足す形で、1.0.0 のマニフェストとの差は **7 行**（`PackageVersion` ×3・`ReleaseDate`・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`）。`ProductCode` は据え置き。提出前に 0. の DLL チェック（`winremap.exe`・`winremap-setup.exe` とも出力が空）、`winget validate`（成功）、公開 URL から落とした `winremap-setup.exe` の SHA256 が manifest と `SHA256SUMS` の両方に一致することを確認した。経路は 1.0.0 と同じ（fork の master `237a387` が上流の祖先であることを `compare` API で確認 → ブランチ `winremap-1.0.1` → Contents API で 3 本 → 読み戻して control copy とバイト単位で一致）。**`winget install --manifest` は実行していない**ので、PR のチェックリストのその項目は空欄で出した。
+
 > **2026-08-16 実施（v1.0.0）**: [PR #418315](https://github.com/microsoft/winget-pkgs/pull/418315) を新規に出した。`manifests/d/DaikiSuganuma/WinRemap/1.0.0/` を足す形で、**差分は追加 3 ファイル・64 行のみ・削除ゼロ**。0.9.0 のマニフェストとの差は例によって **7 行**（`PackageVersion` ×3・`ReleaseDate`・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`）で、`ProductCode` は Inno の `AppId` が同じなので据え置き（`installer/winremap.iss` の「Never change AppId」を確認済み）。提出前に 0. の DLL チェック（`winremap.exe`・`winremap-setup.exe` とも出力が空）、`winget validate`（成功）、**公開 URL から実際に落とした SHA256 が manifest と `SHA256SUMS` の両方に一致**することを確認した。
 >
 > **fork を同期せずに出す経路（2026-08-09 に確立）をそのまま使った。** fork の master は上流より **715 コミット遅れていたが、`compare` API で「上流の祖先である」ことを確かめた**うえで、そこからブランチを切って Contents API で 3 本置いた。**新しいディレクトリを足すだけなので競合しない**し、PR の差分にも古さは出ない。置いたあと `gh api` で読み戻して、手元の control copy と**バイト単位で同じ**ことを `cmp` で確認している。**今回はトークンに `workflow` スコープがあったが、同期そのものが不要なので試していない。**
@@ -215,6 +217,8 @@ Partner Center の製品は登録済みで、**これらの値は変えてはな
    >
    > 1. **通過の連絡を見たら、他の何よりも先に P-9 を回す。** Microsoft Store の「アプリの更新」を切れれば確実だが、**この設定には管理者権限が要る**（2026-08-10、Windows 11 Pro 26200 で、オーナーの権限では切れなかった）。**切れない機械では速さだけが頼りである** — 0.8.0 が測れたのもそれによる。切れる機械なら切り、**P-8 まで終わったら戻すこと**（この設定は Store のすべてのアプリに効く）
    > 2. **更新の前に、設定 → アプリ → スタートアップで自動起動をオンにしておく。** P-9 の通過条件④は「自動起動の設定が保たれる」だが、**既定のオフのままでは「オフがオフのまま」で何も測れない**
+
+> **2026-09-14 実施（v1.0.1）**: Release を公開したあと（05:46:46 UTC）、**`v1.0.1` を git worktree へ取り出してそこで** `build.ps1 -Pack` を回し、`winremap-1.0.1.msix`（**4,320,420 バイト**・**未署名**・`Identity/@Version` = `1.0.1.0`・Publisher は `CN=38CDEE8D-…`・`PublisherDisplayName` は `SUGANUMA Daiki`・`x64`・`resources.pri` 3,664 バイト・`altform-unplated` × 6）を作り、本体の `packaging\msix\out\` へ複製した。SHA256 は `e3477060…`（全桁は [v1.0.1 の差分ノート](./v1.0.1/notes/20260914_store-listing-1.0.1.md) §2）。`privacy.html` は日英とも 200。**worktree を使ったのは、受け入れで開発者登録した 1.0.1 が本体の `packaging\msix\layout` から動いていたため**で、`build.ps1` はこのフォルダーを作り直すので、本体で回すと登録した版が動かなくなる。掲載情報で書き換えるのは「このバージョンの新機能」の 1 欄だけ。**Partner Center への提出はオーナーが行う。**
 
 > **2026-08-16 実施（v1.0.0）**: Release を公開したあと、**タグの内容から作り直して** `packaging\msix\out\winremap-1.0.0.msix`（**4,304,474 バイト**・**未署名**・`Identity/@Version` = `1.0.0.0`・Publisher は `CN=38CDEE8D-…`・`PublisherDisplayName` は `SUGANUMA Daiki`・`x64`・`resources.pri` 3,664 バイト）を作成した。パッケージを開いて `AppxSignature.p7x` が無いことと Identity の 4 項目を機械的に確認済み。4.1 の順序制約も満たしている（Release 公開 07:13 UTC、`privacy.html` は日英とも 200）。**同日オーナーが Partner Center へ提出。認定待ち。** 掲載情報の変更点は [v1.0 の差分ノート](./v1.0/notes/20260816_store-listing-1.0.0.md)（書き換えるのは「このバージョンの新機能」の 1 欄だけ）。
 >
