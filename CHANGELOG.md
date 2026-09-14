@@ -5,7 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.1] - 2026-09-14
+
+A fix-only release for two things about the tray noticed after 1.0.0: how the
+icon looks, and the name Windows shows for the app.
 
 ### Fixed
 
@@ -19,8 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Windows stores a snapshot of the icon when a tray entry is first created and
   does not refresh it afterwards, so the Settings list keeps showing the old
-  picture for an entry it already has. Installing this version creates a new
-  entry, which is where the new icon appears.
+  picture for an entry it already has. An entry belongs to the executable's
+  path. The Microsoft Store version installs each release under a new path, so
+  updating creates a new entry and the list shows the new icon. The installer
+  and the portable `winremap.exe` keep their path, so the list keeps the old
+  picture for them; the tray itself shows the new icon either way.
+
+  The icon was also redrawn so that every edge falls on a whole pixel at 16 and
+  32 pixels (the previous artwork had keys at half-pixel positions).
 
 - **The tray icon is no longer blurred by rescaling** (ADR 0080, ADR 0081). It
   was handed to the shell at the *large* icon size and shrunk to fit the
@@ -28,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which the multi-size `.ico` already contains, so nothing is rescaled. On a
   scaled display that size is only visible to a DPI-aware caller, so the query
   briefly opts this thread in rather than changing the process.
+
+  The icon now also carries the sizes the notification area asks for at 125%
+  and 175% display scaling (20 and 28 pixels). They were missing, so those two
+  settings were the ones where Windows had to rescale whatever it could find.
 
 - **WinRemap calls itself WinRemap** (ADR 0025). The executable carried no
   description, product name or publisher of its own, so Windows fell back to
