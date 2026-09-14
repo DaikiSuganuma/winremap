@@ -126,6 +126,8 @@ winget / scoop のマニフェストは公式 Releases の資産（URL と SHA25
 
 > 初回提出のみ審査に時間がかかる。README / ヘルプサイトの「パッケージマネージャーから入れる」記述は、マニフェストがマージされて初めて実際に解決するようになる。
 
+> **2026-09-14 実施（v1.0.1）**: [PR #434307](https://github.com/microsoft/winget-pkgs/pull/434307) を新規に出した。`manifests/d/DaikiSuganuma/WinRemap/1.0.1/` を足す形で、1.0.0 のマニフェストとの差は **7 行**（`PackageVersion` ×3・`ReleaseDate`・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`）。`ProductCode` は据え置き。提出前に 0. の DLL チェック（`winremap.exe`・`winremap-setup.exe` とも出力が空）、`winget validate`（成功）、公開 URL から落とした `winremap-setup.exe` の SHA256 が manifest と `SHA256SUMS` の両方に一致することを確認した。経路は 1.0.0 と同じ（fork の master `237a387` が上流の祖先であることを `compare` API で確認 → ブランチ `winremap-1.0.1` → Contents API で 3 本 → 読み戻して control copy とバイト単位で一致）。**`winget install --manifest` は実行していない**ので、PR のチェックリストのその項目は空欄で出した。
+
 > **2026-08-16 実施（v1.0.0）**: [PR #418315](https://github.com/microsoft/winget-pkgs/pull/418315) を新規に出した。`manifests/d/DaikiSuganuma/WinRemap/1.0.0/` を足す形で、**差分は追加 3 ファイル・64 行のみ・削除ゼロ**。0.9.0 のマニフェストとの差は例によって **7 行**（`PackageVersion` ×3・`ReleaseDate`・`InstallerUrl`・`InstallerSha256`・`ReleaseNotesUrl`）で、`ProductCode` は Inno の `AppId` が同じなので据え置き（`installer/winremap.iss` の「Never change AppId」を確認済み）。提出前に 0. の DLL チェック（`winremap.exe`・`winremap-setup.exe` とも出力が空）、`winget validate`（成功）、**公開 URL から実際に落とした SHA256 が manifest と `SHA256SUMS` の両方に一致**することを確認した。
 >
 > **fork を同期せずに出す経路（2026-08-09 に確立）をそのまま使った。** fork の master は上流より **715 コミット遅れていたが、`compare` API で「上流の祖先である」ことを確かめた**うえで、そこからブランチを切って Contents API で 3 本置いた。**新しいディレクトリを足すだけなので競合しない**し、PR の差分にも古さは出ない。置いたあと `gh api` で読み戻して、手元の control copy と**バイト単位で同じ**ことを `cmp` で確認している。**今回はトークンに `workflow` スコープがあったが、同期そのものが不要なので試していない。**
