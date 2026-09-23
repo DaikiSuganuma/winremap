@@ -60,10 +60,10 @@ application = [
     "*" # 全アプリ。ここから除外するアプリは exclude で指定
 ]
 exclude = [
-    "Illustrator.exe", # アドビイラストレーター
-    "Photoshop.exe", # アドビフォトショップ
-    "Adobe Premiere Pro.exe", # アドビプレミアプロ
-    "InDesign.exe", # アドビインデザイン
+    #"Illustrator.exe", # アドビイラストレーター
+    #"Photoshop.exe", # アドビフォトショップ
+    #"Adobe Premiere Pro.exe", # アドビプレミアプロ
+    #"InDesign.exe", # アドビインデザイン
     #"WindowsTerminal.exe",
     #"Zed.exe",
 ]
