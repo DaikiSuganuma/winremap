@@ -1,0 +1,20 @@
+Windows Registry Editor Version 5.00
+
+; Map CapsLock (scan code 0x3A) to Left Ctrl (scan code 0x1D) at the keyboard
+; driver level (kbdclass "Scancode Map"). Takes effect after signing out or
+; rebooting. Writes HKEY_LOCAL_MACHINE, so it asks for administrator rights.
+;
+; Value layout: version (4 bytes, 0), flags (4 bytes, 0), entry count including
+; the terminator (4 bytes, 2), one entry = [new scan code 0x001D][original scan
+; code 0x003A] as little-endian words, then a 4-byte zero terminator.
+;
+; Why a registry remap instead of the WinRemap rule "CapsLock" = "LCtrl":
+; with the Japanese keyboard type (kbd101.dll / kbd106.dll) Windows drops the
+; CapsLock release while Ctrl is held, so the rule leaves Ctrl stuck. A
+; driver-level remap never reaches that translation. Details:
+; docs/v1.0.1/notes/20260923_capslock-lctrl-japanese-keyboard.md
+;
+; To undo, import capslock-to-lctrl-undo.reg.
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout]
+"Scancode Map"=hex:00,00,00,00,00,00,00,00,02,00,00,00,1d,00,3a,00,00,00,00,00

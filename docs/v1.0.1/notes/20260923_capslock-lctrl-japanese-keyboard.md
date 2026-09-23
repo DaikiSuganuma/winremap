@@ -101,6 +101,7 @@ Store 版（注入イベントは素通し）が動いたまま、同じフッ�
 ## 7. 対応（2026-09-23）
 
 - `examples/personal-ja.toml` と実運用の `personal-ja.toml` の `"CapsLock" = "LCtrl"` をコメントアウトし、理由をコメントに残した
+- レジストリの Scancode Map を登録・解除する `.reg` を `examples/registry/` に追加した（オーナー指示 2026-09-23）
 - README の制限事項への追記は未実施（提案: 「日本語キーボード種別では CapsLock の単キールールは使えない」。AGENTS.md 不変条件 5 と同じく、回避ハックではなく明文化で扱う）
 
 ## 8. 再現スクリプトの流し方

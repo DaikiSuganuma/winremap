@@ -1,0 +1,11 @@
+Windows Registry Editor Version 5.00
+
+; Undo for capslock-to-lctrl.reg: delete the "Scancode Map" value so every key
+; returns to its physical meaning (CapsLock is CapsLock again). Takes effect
+; after signing out or rebooting. Asks for administrator rights.
+;
+; This removes the whole value. If your Scancode Map also held mappings other
+; than CapsLock -> Left Ctrl, re-create those instead of importing this file.
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout]
+"Scancode Map"=-
