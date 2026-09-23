@@ -1,16 +1,37 @@
+# ---------------------------------------------------------------------------
+# Build outputs
+# ---------------------------------------------------------------------------
+# Cargo build directory.
 /target/
+# Inno Setup installer output.
 /installer/output/
-# MSIX build products. Assets/ is generated too, but committed: packaging
-# should not need a Rust toolchain.
+
+# ---------------------------------------------------------------------------
+# MSIX packaging
+# ---------------------------------------------------------------------------
+# Build products of the MSIX package. Assets/ is generated too, but committed:
+# packaging should not need a Rust toolchain.
 /packaging/msix/layout/
 /packaging/msix/out/
-# Listing images. Uploaded to Partner Center; a PNG of a window is not source,
-# and the script plus the demo config beside it reproduce them. The few that
-# the docs show are committed, cropped, under site/assets/screenshots/ --
+# Store listing images. Uploaded to Partner Center; a PNG of a window is not
+# source, and the script plus the demo config beside it reproduce them. The few
+# that the docs show are committed, cropped, under site/assets/screenshots/ --
 # export-doc-images.ps1 makes those from these.
 /packaging/msix/screenshots/
-# Test VM connection details, including the guest password. Never commit.
+
+# ---------------------------------------------------------------------------
+# Secrets and per-machine settings (never commit)
+# ---------------------------------------------------------------------------
+# Test VM connection details, including the guest password.
 /.secrets/
+# MCP server configuration for AI agents. May contain local paths and tokens.
 .mcp.json
+# Claude Code per-machine settings (permission allowlist etc.).
+# Project-shared files under .claude/ (skills, settings.json) stay tracked.
+.claude/settings.local.json
+
+# ---------------------------------------------------------------------------
+# Logs and crash dumps
+# ---------------------------------------------------------------------------
 *.log
 *.stackdump
