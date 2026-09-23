@@ -14,3 +14,7 @@ site/** linguist-generated=true
 # because SECURITY.md tells readers both channels are built from the same
 # source (found 2026-08-10; v0.8 acceptance §7).
 *.toml text eol=lf
+
+# Registry export files are CRLF by convention (what regedit writes), and
+# ASCII-only so the encoding never matters to regedit.
+*.reg text eol=crlf

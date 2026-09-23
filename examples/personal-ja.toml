@@ -69,6 +69,13 @@ exclude = [
 ]
 
 [keymap.remap]
+# キー自体の差し替え: CapsLock → Ctrl — 2026-09-23 に無効化。日本語キーボード種別（英語 101 配列を
+# 日本語 IME で使う kbd101.dll も含む）では、Ctrl 押下中に CapsLock を離すと Windows がその解放を
+# IME キー（カタカナ）扱いで握りつぶし、注入した LCtrl を離す契機が来ないため Ctrl が押しっぱなしになる。
+# 入力言語を英語 (米国) にしている間だけは正常に動く。当面はレジストリの Scancode Map で代用する。
+# 調査: docs/v1.0.1/notes/20260923_capslock-lctrl-japanese-keyboard.md
+# "CapsLock" = "LCtrl"
+
 # カーソル移動
 "C-b" = "Left"  # 1 文字左へ
 "C-f" = "Right" # 1 文字右へ
