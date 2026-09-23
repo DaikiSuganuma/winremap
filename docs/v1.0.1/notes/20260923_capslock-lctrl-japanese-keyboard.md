@@ -93,7 +93,7 @@ Store 版（注入イベントは素通し）が動いたまま、同じフッ�
 
 ## 6. 選択肢
 
-1. **CapsLock だけレジストリの Scancode Map に戻す**（確実。他のリマップは WinRemap のまま併用できる）
+1. **CapsLock だけレジストリの Scancode Map に戻す**（確実。他のリマップは WinRemap のまま併用できる）。登録用と解除用の `.reg` を [`examples/registry/`](../../../examples/registry/) に置いた（`capslock-to-lctrl.reg` ／ `capslock-to-lctrl-undo.reg`。管理者権限で取り込み、サインアウトか再起動で反映）
 2. **入力言語を英語 (米国) にしている間だけ使う**（4.4。日本語 IME を使っている間は使えない）
 3. **WinRemap に「仮想修飾キー」方式を実装する**: CapsLock 押下中は LCtrl を注入せず内部の修飾キー状態だけ Ctrl 扱いにし、他キーが押されたときだけ `[LCtrl↓, キー↓]`／`[キー↑, LCtrl↑]` で包む。CapsLock↑の時点で Ctrl が離れているので解放が届く。Ctrl+クリックや Ctrl+ホイールは効かなくなる。ブリーフに無い機能で ADR が要る（未着手）
 4. **`HKLM\...\Keyboard Layouts\00000411` の `Layout File` を `KBDUS.DLL` にする**（未検証）: `kbdus.dll` に NLS テーブルが無いので理屈の上では解放が届くはずだが、再起動が要るため未確認。`Alt + \`` と Ctrl/Shift/Alt + CapsLock の IME 切り替えは失う
