@@ -2,7 +2,9 @@
 //! and resolve exactly as the docs promise (project brief §9, config-spec §3).
 
 use winremap::config;
-use winremap::keymap::{KeyCombo, Layout, Output, RemapTable, Resolution, parse_key_combo};
+use winremap::keymap::{
+    AppFilter, KeyCombo, Layout, Output, RemapTable, Resolution, parse_key_combo,
+};
 
 /// A keyboard whose layout could not be read: no symbol key can be named by
 /// its character, only by its alias (ADR 0063).
@@ -133,13 +135,21 @@ fn personal_example_covers_exclude_and_macros() {
     // Global Emacs bindings apply...
     assert_eq!(chord_target(&table, exe, "C-h"), combo("Back"));
     assert_eq!(chord_target(&table, exe, "A-f"), combo("C-f"));
-    // ...but not in excluded apps (not_emacs_target equivalent).
-    for excluded in ["Illustrator.exe", "photoshop.exe", "InDesign.exe"] {
-        assert!(
-            table.resolve(excluded, combo("C-h")).is_none(),
-            "{excluded} must be excluded"
+    // ...including the Adobe apps, which used to be on the exclude list
+    // (not_emacs_target equivalent) until 2026-10-29. The entries were
+    // commented out rather than deleted, so the list is empty but the global
+    // keymap is still the `*`-with-exclude shape.
+    for adobe in ["Illustrator.exe", "photoshop.exe", "InDesign.exe"] {
+        assert_eq!(
+            chord_target(&table, adobe, "C-h"),
+            combo("Back"),
+            "{adobe} is no longer excluded"
         );
     }
+    assert!(
+        matches!(&table.keymaps[0].apps, AppFilter::All { exclude } if exclude.is_empty()),
+        "the global keymap keeps an (empty) exclude list"
+    );
 
     // Macro outputs (select word / open line).
     match table.resolve(exe, combo("C-t")) {

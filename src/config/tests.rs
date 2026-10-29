@@ -331,7 +331,11 @@ fn personal_example_uses_the_macro_table() {
     let comments = crate::config::comments::parse(source, &us_101());
     assert!(comments.general("macro.delay_ms").is_some());
     let first = comments.keymap(0).expect("first keymap");
-    assert_eq!(first.exclude("photoshop.exe"), Some("アドビフォトショップ"));
+    // The Adobe entries were commented out on 2026-10-29, so there is no
+    // exclude line left to carry a comment — and a commented-out entry must
+    // not be mistaken for a live one.
+    assert_eq!(first.exclude("photoshop.exe"), None);
+    assert!(first.excludes.is_empty(), "{:?}", first.excludes);
 }
 
 // ---- macro recording keys (ADR 0043, design doc §4) -----------------------
