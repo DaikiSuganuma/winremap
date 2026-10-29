@@ -109,7 +109,7 @@ impl Banner {
     /// straight into a paced replay and stop pumping messages for as long
     /// as it lasts (design doc §6.4).
     pub fn show(&self, text: &str, auto_hide_ms: Option<u32>) {
-        let text: Vec<u16> = text.encode_utf16().collect();
+        let text = crate::wide::to_wide(text);
         let work = work_area();
 
         let max_width = (work.right - work.left) * MAX_WIDTH_PERCENT / 100;
@@ -242,13 +242,7 @@ unsafe fn create_banner_font() -> HFONT {
         lfWeight: crate::theme::OVERLAY_FONT_WEIGHT,
         ..Default::default()
     };
-    for (slot, unit) in font_spec
-        .lfFaceName
-        .iter_mut()
-        .zip(crate::theme::OVERLAY_FONT_FACE.encode_utf16())
-    {
-        *slot = unit;
-    }
+    crate::wide::copy_face_name(&mut font_spec.lfFaceName, crate::theme::OVERLAY_FONT_FACE);
     // SAFETY: font_spec is a live, fully initialized local.
     unsafe { CreateFontIndirectW(&font_spec) }
 }

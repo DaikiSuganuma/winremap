@@ -135,7 +135,7 @@ impl Overlay {
             return;
         };
         let size = settings.size as i32;
-        let label_utf16: Vec<u16> = label.unwrap_or_default().encode_utf16().collect();
+        let label_utf16 = crate::wide::to_wide(label.unwrap_or_default());
         let (width, height) = if label_utf16.is_empty() {
             (size, size)
         } else {
@@ -249,13 +249,7 @@ unsafe fn create_panel_font(height: i32) -> HFONT {
         lfWeight: crate::theme::OVERLAY_FONT_WEIGHT,
         ..Default::default()
     };
-    for (slot, unit) in font_spec
-        .lfFaceName
-        .iter_mut()
-        .zip(crate::theme::OVERLAY_FONT_FACE.encode_utf16())
-    {
-        *slot = unit;
-    }
+    crate::wide::copy_face_name(&mut font_spec.lfFaceName, crate::theme::OVERLAY_FONT_FACE);
     // SAFETY: font_spec is a live, fully initialized local.
     unsafe { CreateFontIndirectW(&font_spec) }
 }
