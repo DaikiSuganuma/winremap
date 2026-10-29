@@ -13,14 +13,18 @@
 //! its timers) and `crate::thread_msg` (thread messages); the thread's
 //! lifecycle is `crate::worker` (ADR 0085).
 
+mod decide;
 mod detect;
 mod overlay;
+#[cfg(test)]
+mod tests;
 
 use windows::Win32::UI::WindowsAndMessaging::{WM_APP, WM_TIMER};
 
 use crate::i18n;
 use crate::thread_msg;
 use crate::worker::Worker;
+use decide::{Last, Panel, Verdict, decide};
 use winremap::ime_indicator_settings::IndicatorSettings;
 use winremap::keymap::KeyCombo;
 
@@ -144,10 +148,10 @@ fn report(error: &str) {
 /// The indicator state machine. Triggers arm a short one-shot timer (both
 /// debouncing bursts and letting the IME settle), then a single query
 /// decides: show on "became ON" or "still ON in a newly focused window",
-/// hide as soon as OFF is observed.
+/// hide as soon as OFF is observed. What the query means is `decide`; this
+/// loop is the timer, the Win32 calls and the log lines around it.
 fn run(overlay: &overlay::Overlay) {
-    let mut last_on = false;
-    let mut last_target: isize = 0;
+    let mut last = Last::default();
     let mut query_timer: usize = 0;
     while let Some((message, wparam)) = thread_msg::next_thread_message() {
         match message {
@@ -164,47 +168,33 @@ fn run(overlay: &overlay::Overlay) {
                 if !feature_wanted(&settings) {
                     overlay.hide();
                     crate::cursor::apply(false, settings.cursor_color);
-                    last_on = false;
+                    last.on = false;
                     continue;
                 }
                 let sample = detect::query_foreground();
-                if sample.shell_surface {
-                    // Taskbar/desktop clicks: never flash over the shell
-                    // itself (ADR 0023), but forget the last target so that
-                    // refocusing the previous app re-flashes the panel when
-                    // its IME is still on (ADR 0026).
-                    last_target = 0;
-                    if crate::hook::debug_enabled() {
-                        crate::gui::log::tagged(
-                            crate::gui::log::Kind::Detail,
-                            i18n::t().log_tag_ime,
-                            i18n::t().debug_ime_shell_skip,
-                        );
+                let (verdict, next) = decide(&sample, &settings, last);
+                last = next;
+                let (panel, cursor) = match verdict {
+                    Verdict::ShellSurface => {
+                        if crate::hook::debug_enabled() {
+                            crate::gui::log::tagged(
+                                crate::gui::log::Kind::Detail,
+                                i18n::t().log_tag_ime,
+                                i18n::t().debug_ime_shell_skip,
+                            );
+                        }
+                        continue;
                     }
-                    continue;
-                }
-                let is_on = sample.open == Some(true);
-                // The cursor follows the state itself, not the "became on"
-                // edge the panel flashes on: it is a status light, and it
-                // has to be right when focus moves between applications
-                // whose IME states differ.
-                //
-                // Only a *known* state moves it. The panel treats "unknown"
-                // as "do not show" (design doc §3.2) because a panel that
-                // flashes wrongly is worse than one that stays away — but
-                // the cursor is not a flash, it is a state, and clearing it
-                // asserts "the IME is off", which an unanswered query does
-                // not support. The asymmetry is what makes this matter:
-                // a stale tint is corrected by the next query, while a
-                // cleared one stays cleared until the user toggles the IME
-                // themselves, because nothing re-queries in between
-                // (ADR 0021 — foreground changes and trigger keys only).
-                // v0.8 acceptance M-1, 2026-08-04: composing, moving the
-                // pointer out of the window and confirming left the cursor
-                // plain with the IME still on (ADR 0072).
-                if settings.change_cursor_color
-                    && let Some(open) = sample.open
-                {
+                    Verdict::Query { panel, cursor } => (panel, cursor),
+                };
+                // The cursor before the panel, as it has always been: it is a
+                // status light and has to be right when focus moves between
+                // applications whose IME states differ. v0.8 acceptance M-1,
+                // 2026-08-04: composing, moving the pointer out of the window
+                // and confirming left the cursor plain with the IME still on
+                // (ADR 0072), which is why `decide` only moves it on a known
+                // state.
+                if let Some(open) = cursor {
                     let action = crate::cursor::apply(open, settings.cursor_color);
                     if crate::hook::debug_enabled() {
                         // Not the hook thread: logging here is allowed. The
@@ -218,20 +208,19 @@ fn run(overlay: &overlay::Overlay) {
                         );
                     }
                 }
-                let shown = settings.enabled && is_on && (!last_on || sample.target != last_target);
-                if shown {
-                    // Exe name, not the window title: titles can carry
-                    // sensitive document names and churn constantly
-                    // (ADR 0024).
-                    let label = settings
-                        .show_app_name
-                        .then(|| crate::window::app_display_name(sample.target))
-                        .flatten();
-                    overlay.show(sample.target, &settings, label.as_deref());
-                } else if !is_on {
-                    // Also covers "unknown" (query failed): prefer not
-                    // showing over showing wrongly (design doc §3.2).
-                    overlay.hide();
+                match panel {
+                    Panel::Show => {
+                        // Exe name, not the window title: titles can carry
+                        // sensitive document names and churn constantly
+                        // (ADR 0024).
+                        let label = settings
+                            .show_app_name
+                            .then(|| crate::window::app_display_name(sample.target))
+                            .flatten();
+                        overlay.show(sample.target, &settings, label.as_deref());
+                    }
+                    Panel::Hide => overlay.hide(),
+                    Panel::Keep => {}
                 }
                 if crate::hook::debug_enabled() {
                     // This thread is not the hook: logging here is fine.
@@ -241,17 +230,15 @@ fn run(overlay: &overlay::Overlay) {
                     crate::gui::log::tagged(
                         crate::gui::log::Kind::Detail,
                         i18n::t().log_tag_ime,
-                        &i18n::debug_ime_query(sample.open, shown, sample.via_child),
+                        &i18n::debug_ime_query(sample.open, panel == Panel::Show, sample.via_child),
                     );
                 }
-                last_on = is_on;
-                last_target = sample.target;
             }
             MSG_SETTINGS => {
                 let settings = current_settings();
                 if !settings.enabled {
                     overlay.hide();
-                    last_on = false;
+                    last.on = false;
                 }
                 if !settings.change_cursor_color {
                     crate::cursor::apply(false, settings.cursor_color);
