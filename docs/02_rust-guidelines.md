@@ -32,8 +32,8 @@
 
 ## 3. unsafe の規約
 
-- `unsafe` を書いてよいのは `hook.rs` / `sender.rs` / `window.rs` の 3 ファイルのみ（ブリーフ §5-3）
-- すべての `unsafe` ブロック直前に `// SAFETY:` コメントで安全性の根拠を記載（clippy の `undocumented_unsafe_blocks` 相当の運用）
+- `unsafe` を書いてよいファイルは [`tests/unsafe-allowlist.txt`](../tests/unsafe-allowlist.txt) に列挙したもののみ（ブリーフ §5-3。各行に許可した ADR を併記。ファイルを足す・外すときは ADR を書き、同じコミットで一覧を直す）
+- すべての `unsafe` ブロック直前に `// SAFETY:` コメントで安全性の根拠を記載（clippy の `undocumented_unsafe_blocks` 相当の運用。lint は有効化せず、`tests/invariants.rs` が同じ規則を検査する — [ADR 0083](./v1.1/decisions/0083-invariants-as-tests.md)）
 - unsafe ブロックは**最小スコープ**にする。Win32 API 呼び出し 1 つにつき 1 ブロックが原則。複数呼び出しをまとめて包まない
 - unsafe な API を安全な Rust 型（所有権・Result）で包むラッパー関数を作り、モジュール外には安全なインターフェースのみ公開する
 
