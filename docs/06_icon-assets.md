@@ -71,7 +71,6 @@ packaging/msix/Assets/      30 枚（Square44x44Logo・Square150x150Logo・Store
 | `build.rs` | `assets/kbd-disabled.ico` → **ordinal 2** | トレイの無効時 |
 | `src/gui/win32.rs` | ordinal 1 を `LoadImageW` でサイズ指定 | トレイ・ウィンドウのアイコン |
 | `src/tray.rs` | `assets/png/kbd-enabled-16.png` | トレイメニュー先頭の見出しアイコン |
-| `examples/egui_ime_probe.rs` | `assets/png/kbd-enabled-32.png` | 検証用 |
 | `packaging/msix/build.ps1` | `packaging/msix/Assets/` | Store 掲載・スタートメニュー・タイル |
 
 ### `.ico` が 8 面を持つ理由
