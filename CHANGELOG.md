@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Nothing a user can notice yet. This version reorganizes the code behind the
+same behaviour (`docs/v1.1/01_development-plan.md`); an entry appears here only
+when something changes that a user could see.
+
 ## [1.0.1] - 2026-09-14
 
 A fix-only release for two things about the tray noticed after 1.0.0: how the
