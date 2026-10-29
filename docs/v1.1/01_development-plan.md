@@ -404,3 +404,41 @@ AGENTS.md の優先順位（安定性 > 単純さ > 機能の豊富さ）を前�
 - `tests/ui/`・`tests/acceptance/` の PowerShell の書き直し（調査のみ、F5）
 - `site-src/`、`packaging/`、`installer/`
 - 性能改善。フック経路の処理は「変えない」が目的で、速くする試みはしない
+
+---
+
+## 10. 実施記録（2026-10-29）
+
+承認の当日に M0〜M5 を通した。すべて `develop` へ `--no-ff` でマージ済み（未 push）。
+
+| M | 施策 | ブランチ（マージ順） | 結果 |
+|---|---|---|---|
+| M0 | 版番号、受け入れ表、`refactor/*` | `docs/v1.1-plan-decisions`、`fix/personal-example-tests`（develop で落ちていたテスト 2 件を先に直した）、`chore/bump-to-1.1.0`、`docs/v1.1-acceptance` | 1.1.0 |
+| M1 | F1・H1・A3/F3・A5/H6 | `refactor/invariant-tests`（ADR 0083）、`refactor/tests-to-tests-rs`、`docs/stale-code-comments` | `tests/invariants.rs` 4 件、許可リスト 1 ファイル |
+| M2 | D1・D2・C3・B1・B2・D3・A1・A4・E1・D4・D5 | `refactor/split-config-window`、`refactor/split-i18n`、`refactor/split-cursor`（ADR 0084）、`refactor/split-hook`、`refactor/window-debug-info`、`refactor/gui-app-state`、`refactor/config-compile`、`refactor/split-draft`、`refactor/main-cli`、`refactor/log-window-ui`、`refactor/tray-menu` | 移動のみ。公開 API・egui の ID・文言は不変 |
+| M3 | C1・C2・A2・B4・B6 | `refactor/feature-thread-worker`（ADR 0085）、`refactor/modifier-prefixes`、`refactor/sides-to-lib`、`refactor/wide-strings` | unsafe の配管 12 ブロック → 6 |
+| M4 | B3・C4 | `refactor/hook-engine`（ADR 0086）、`refactor/ime-decide` | `engine/tests.rs` 17 件、`ime_indicator/tests.rs` 4 件 |
+| M5 | G1・G2・G3・H2・H3・H4・H7 | `chore/remove-probes`（ADR 0087）、`docs/eframe-fork-policy`（ADR 0088）、`docs/v1.1-current` | ブリーフ §4・§7 現行化、§5・§8 の正本を AGENTS.md へ、ADR 索引 |
+
+### 数字（before → after）
+
+| 指標 | v1.0.1 | v1.1 |
+|---|---|---|
+| `src/` の行数 | 16,704（39 ファイル） | 18,269（87 ファイル。テストと doc コメントの増分） |
+| 300 行超のファイル | 14（最大 2,322） | 最大は `engine/mod.rs` 679 行（判断ロジック本体）、`gui/log.rs` 572。1,000 行超は無い |
+| 100 行超の関数 | 7（最大 166） | 3 — `engine::on_key_down` 142（旧 `hook::on_key_down` をそのまま移したもの）、`engine::on_event` 108、`ime_indicator::run` 98 |
+| unsafe を含むファイル | 13（＋`examples/ime_probe.rs`） | 19（分割で増えた。ブロック数は 125 → 117。`hook/debug.rs` `hook/record.rs` `cursor/pixels.rs` `worker.rs` `wide.rs` は unsafe なし） |
+| `cargo test` | 160 件（うち 2 件が develop で落ちていた） | 185 件 |
+| unsafe 許可リストの正本 | 3 か所（内容が異なる） | `tests/unsafe-allowlist.txt` 1 か所、CI が検査 |
+
+### 計画からの差分
+
+- **B5（`notify.rs` の状態を 1 つの型に）は見送った。** ★ の施策で、コンソールの経路は受け入れ C-1〜C-5 でしか確かめられず、読みやすさの改善に対して P1 の危険が見合わない。v1.2 以降の候補
+- **F5（`tests/ui` の重複調査）は行っていない。** 書き直しはもともと対象外
+- **G4（`cargo doc` の警告チェックを CI に足す）は見送った。** 分割後も `cargo doc --no-deps` の警告はゼロで、足す理由が出てから
+- **CRLF で入っていたソース 8 ファイルは、触ったときに LF へ揃えた**（`hook.rs` `config/mod.rs` `tray.rs` `overlay.rs` `banner.rs` `macro_record/mod.rs` ほか）。`.gitattributes` には `*.toml` と `*.reg` の指定しか無く、`*.rs` は混在していた。残り（`comments.rs` `raw.rs` `gui/icons.rs` `gui/win32.rs` `theme.rs`）と `*.md` `*.ps1` の混在は未処理 — `.gitattributes` に `*.rs text eol=lf` を足すかはオーナー判断
+- **パニック時の診断文**（英語、通知ダイアログのみ）が `"<thread name> thread panicked"` に揃った（ADR 0085）。利用者から見える変化はこれ以外に無い
+
+### これから（受け入れ）
+
+[03_acceptance-checklist.md](03_acceptance-checklist.md) のとおり。自動側（R-3・R-4、`cargo test`、VM の UI テスト）を先に回し、R-1 の v1.0.1 比較ログを採ってから、H-1・H-2・H-7 を実キーボードで測る。

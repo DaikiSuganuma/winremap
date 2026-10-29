@@ -51,8 +51,9 @@
 
 - モジュール責務はブリーフ §4 の表に従う。責務をまたぐ実装をしない（例: `keymap.rs` から Win32 API を呼ばない）
 - **1 ファイルの記述量が増えたら構造化する**（目安: テスト込みで 300 行超、または責務が複数見えてきたとき）。モジュールをフォルダ化し（`config.rs` → `config/mod.rs` + サブモジュール）、公開 API は `mod.rs` の `pub use` で維持する
-- **`#[cfg(test)]` のテストコードはフォルダ化したモジュールでは `tests.rs` に分離**し、実装ファイルに混在させない
-- `keymap.rs` / `config.rs` は **OS 非依存の純粋ロジック**として書き、`#[cfg(windows)]` を含めない。VK コードは `u16` 等のプレーンな型で扱う
+- **`#[cfg(test)]` のテストコードはフォルダ化したモジュールでは `tests.rs` に分離**し、実装ファイルに混在させない。テストが大きければ `tests.rs` を親にして `tests/<submodule>.rs` に分ける（`config/tests/`、`keymap/tests/`）
+- 分ける基準は 2 軸 — 「Win32 を呼ぶか」と「何の責務か」。純粋な演算・整形・配送は unsafe を含まないファイルに置き、画面は画面単位、設定は読みと書きで分ける（[ADR 0084](./v1.1/decisions/0084-split-unsafe-modules-by-file.md)。v1.1 の `cursor/` `hook/` `gui/config_window/` `config/draft/` がその形）。許可リストには unsafe を実際に含むファイルだけを載せる
+- ライブラリ crate（`src/lib.rs` が宣言する `keymap` / `config` / `engine` / `recorder` / `ime_indicator_settings`）は **OS 非依存の純粋ロジック**として書き、`windows` クレートも `#[cfg(windows)]` も含めない。VK コードは `u16` 等のプレーンな型で扱う。`tests/invariants.rs` が検査する（[ADR 0083](./v1.1/decisions/0083-invariants-as-tests.md)）
 - 公開範囲は最小に。`pub` はモジュール間インターフェースのみ、内部ヘルパーは非公開
 - 共通の文字列変換（UTF-8 ↔ UTF-16）はヘルパーを 1 箇所に集約する（ブリーフ §5-7）
 
