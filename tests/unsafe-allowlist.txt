@@ -1,0 +1,23 @@
+# Files allowed to contain `unsafe` (AGENTS.md invariant 3). One path per
+# line, relative to the repository root, followed by the ADR that admitted it.
+# `tests/invariants.rs` reads this file: a file with `unsafe` that is not
+# listed here fails the build, and so does a listed file that no longer has
+# any — the list has to stay true in both directions (ADR 0083).
+#
+# To add a file: write the ADR first, then the line. To remove one: delete
+# the line in the same commit that removes the last `unsafe` from the file.
+
+src/hook.rs                      # ADR 0009: the hook callback, the single-instance mutex and the message loop
+src/sender.rs                    # ADR 0009: SendInput
+src/window.rs                    # ADR 0009: the foreground window's process name
+src/ime_indicator/detect.rs      # ADR 0020: asking the IME its state
+src/ime_indicator/overlay.rs     # ADR 0020: the indicator panel and its thread messaging
+examples/ime_probe.rs            # ADR 0020: the probe that settled how the IME can be read
+src/notify.rs                    # ADR 0031: console attach/detach and the notification dialog
+src/gui/win32.rs                 # ADR 0038, ADR 0080, ADR 0081: window icons, shell launches, the tray icon at the real DPI
+src/clock.rs                     # ADR 0041: local time for the log's session banners
+src/macro_record/banner.rs       # ADR 0044: the recording/replay banner and its thread messaging
+src/keyname.rs                   # ADR 0058: the character a key prints, for the log
+src/package.rs                   # ADR 0061: MSIX package detection
+src/layout.rs                    # ADR 0063: reading the keyboard layout
+src/cursor.rs                    # ADR 0067: tinting and restoring the system cursors
