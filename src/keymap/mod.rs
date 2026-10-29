@@ -12,6 +12,7 @@
 mod control;
 mod layout;
 mod parse;
+pub mod sides;
 mod table;
 // Visible crate-wide: the reference US and JP keyboards it builds are what
 // let the config tests exercise both layouts too (ADR 0063).
