@@ -18,14 +18,7 @@ use winremap::config;
 
 pub struct Tray {
     icon: TrayIcon,
-    /// The caption naming the config file in force; see [`Tray::reload`] for
-    /// why it is only ever set after a load that worked (ADR 0079).
-    config_item: IconMenuItem,
-    enabled_item: CheckMenuItem,
-    reload_item: IconMenuItem,
-    settings_item: IconMenuItem,
-    log_item: IconMenuItem,
-    quit_item: IconMenuItem,
+    items: MenuItems,
     /// Remembered so re-enabling can restore the "N keymap(s)" tooltip.
     keymap_count: Cell<usize>,
     /// `--macro-delay` beats the config's value even across reloads
@@ -33,7 +26,45 @@ pub struct Tray {
     macro_delay_override: Option<u32>,
 }
 
+/// The menu's items, kept so a click can be told apart by id and so the
+/// captions and the checkbox can be read and rewritten later.
+struct MenuItems {
+    /// The caption naming the config file in force; see [`Tray::reload`] for
+    /// why it is only ever set after a load that worked (ADR 0079).
+    config: IconMenuItem,
+    enabled: CheckMenuItem,
+    reload: IconMenuItem,
+    settings: IconMenuItem,
+    log: IconMenuItem,
+    quit: IconMenuItem,
+}
+
 pub fn init(keymap_count: usize, macro_delay_override: Option<u32>) -> anyhow::Result<Tray> {
+    let (menu, items) = build_menu()?;
+
+    let icon = TrayIconBuilder::new()
+        .with_menu(Box::new(menu))
+        .with_tooltip(i18n::tooltip_status(keymap_count))
+        .with_icon(build_icon(true))
+        .build()
+        .context("failed to create tray icon")?;
+
+    Ok(Tray {
+        icon,
+        items,
+        keymap_count: Cell::new(keymap_count),
+        macro_delay_override,
+    })
+}
+
+/// Builds the menu and hands its items back.
+///
+/// **Items are created in id order, which is not the display order.** `muda`
+/// hands out command ids in creation order, and the UI checks drive this menu
+/// by id — 1003 is "Settings" — precisely so they do not depend on the guest's
+/// display language (ADR 0064). The display order lives in `append_items` at
+/// the end, which is free to differ; see the note on the config caption below.
+fn build_menu() -> anyhow::Result<(Menu, MenuItems)> {
     let texts = i18n::t();
     // Disabled on purpose: a caption, not a command. It also makes the menu
     // self-identifying when several tray icons look alike.
@@ -99,24 +130,17 @@ pub fn init(keymap_count: usize, macro_delay_override: Option<u32>) -> anyhow::R
     ])
     .context("failed to build tray menu")?;
 
-    let icon = TrayIconBuilder::new()
-        .with_menu(Box::new(menu))
-        .with_tooltip(i18n::tooltip_status(keymap_count))
-        .with_icon(build_icon(true))
-        .build()
-        .context("failed to create tray icon")?;
-
-    Ok(Tray {
-        icon,
-        config_item,
-        enabled_item,
-        reload_item,
-        settings_item,
-        log_item,
-        quit_item,
-        keymap_count: Cell::new(keymap_count),
-        macro_delay_override,
-    })
+    Ok((
+        menu,
+        MenuItems {
+            config: config_item,
+            enabled: enabled_item,
+            reload: reload_item,
+            settings: settings_item,
+            log: log_item,
+            quit: quit_item,
+        },
+    ))
 }
 
 impl Tray {
@@ -131,10 +155,10 @@ impl Tray {
 
     fn handle(&self, event: &MenuEvent) {
         let id = event.id();
-        if id == self.enabled_item.id() {
+        if id == self.items.enabled.id() {
             // CheckMenuItem toggles its own checked state on click; the item
             // is the source of truth and the hook flag follows it.
-            let enabled = self.enabled_item.is_checked();
+            let enabled = self.items.enabled.is_checked();
             hook::set_enabled(enabled);
             let _ = self.icon.set_icon(Some(build_icon(enabled)));
             let tooltip = if enabled {
@@ -144,14 +168,14 @@ impl Tray {
             };
             let _ = self.icon.set_tooltip(Some(tooltip));
             crate::gui::log::action(&i18n::toggle_state(enabled));
-        } else if id == self.reload_item.id() {
+        } else if id == self.items.reload.id() {
             crate::gui::log::action(i18n::t().menu_reload);
             self.reload();
-        } else if id == self.settings_item.id() {
+        } else if id == self.items.settings.id() {
             crate::gui::open_config();
-        } else if id == self.log_item.id() {
+        } else if id == self.items.log.id() {
             crate::gui::open_log();
-        } else if id == self.quit_item.id() {
+        } else if id == self.items.quit.id() {
             crate::gui::log::action(i18n::t().menu_quit);
             hook::post_quit();
         }
@@ -198,7 +222,7 @@ impl Tray {
                 // (ADR 0050 decision 3 keeps the live table). Naming the file
                 // that did not load would be the one reading of "currently
                 // loaded" that is untrue.
-                self.config_item.set_text(config_file_name(&config_path));
+                self.items.config.set_text(config_file_name(&config_path));
                 crate::gui::mark_config_loaded();
                 let _ = self.icon.set_tooltip(Some(i18n::tooltip_status(count)));
                 crate::gui::log::action(&i18n::reload_ok(count));
