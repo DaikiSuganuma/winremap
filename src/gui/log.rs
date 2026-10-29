@@ -300,13 +300,21 @@ pub fn show_viewport(ctx: &egui::Context) {
 }
 
 fn window_ui(ui: &mut egui::Ui) {
-    let texts = i18n::t();
-    let mut follow_tail = FOLLOW_TAIL.load(Ordering::Relaxed);
-    let mut detailed = DETAILED.load(Ordering::Relaxed);
-
     // Reading the log is the point of this window, so the top holds only what
     // changes how it reads. The two commands live at the bottom, out of the
     // way of the newest line (owner decision 2026-07-21).
+    let (follow_tail, detailed) = controls_ui(ui);
+    actions_ui(ui, detailed);
+    rows_ui(ui, follow_tail, detailed);
+}
+
+/// The top band: the two checkboxes that change how the log reads. Returns
+/// what they say after this frame's clicks, which is what the rows below are
+/// drawn with.
+fn controls_ui(ui: &mut egui::Ui) -> (bool, bool) {
+    let texts = i18n::t();
+    let mut follow_tail = FOLLOW_TAIL.load(Ordering::Relaxed);
+    let mut detailed = DETAILED.load(Ordering::Relaxed);
     // A filled band with an even margin, so the two ends of the window read
     // as chrome rather than as the first and last lines of the log (owner
     // decision 2026-07-21).
@@ -340,7 +348,12 @@ fn window_ui(ui: &mut egui::Ui) {
                 }
             });
         });
+    (follow_tail, detailed)
+}
 
+/// The bottom band: clear, and copy what is on screen.
+fn actions_ui(ui: &mut egui::Ui, detailed: bool) {
+    let texts = i18n::t();
     egui::Panel::bottom("log-actions")
         .frame(theme::chrome_frame(ui.visuals()))
         .show(ui, |ui| {
@@ -376,7 +389,11 @@ fn window_ui(ui: &mut egui::Ui) {
                 }
             });
         });
+}
 
+/// The log itself, between the two bands: one fixed-height row per visible
+/// line, scrolling both ways.
+fn rows_ui(ui: &mut egui::Ui, follow_tail: bool, detailed: bool) {
     egui::CentralPanel::default().show(ui, |ui| {
         let Ok(lines) = buffer().lock() else { return };
         let rows: Vec<&Line> = lines
