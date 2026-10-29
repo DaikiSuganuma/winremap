@@ -1,4 +1,5 @@
 mod control;
+mod sides;
 
 use std::collections::HashMap;
 

@@ -13,6 +13,13 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     KEYEVENTF_KEYUP, MAP_VIRTUAL_KEY_TYPE, MapVirtualKeyW, SendInput, VIRTUAL_KEY,
 };
 
+// The modifier arithmetic lives in the library (v1.1 plan B4); the names the
+// hook and the macro recorder used to take from here are re-exported so they
+// keep reading as the sender's vocabulary.
+pub use winremap::keymap::sides::{ALT_WIN_SIDES, SideMods, side_bit, side_mods_to_mods};
+use winremap::keymap::sides::{
+    SIDE_VKS, class_left_vks, is_extended, plan_transition, sides_to_lift,
+};
 use winremap::keymap::{KeyCombo, MAX_MACRO_LEN, Mods};
 use winremap::recorder::MAX_RECORDED_LEN;
 
@@ -24,15 +31,6 @@ pub const MARKER_REMAP: usize = 0x57524D00; // "WRM\0"
 /// tracked: they change what applications see, not which chord is logically
 /// held (ADR 0006).
 pub const MARKER_COMPENSATION: usize = 0x57524D01;
-
-/// Physical/logical side-modifier state as a bitset, one bit per L/R key.
-/// Kept separate from [`Mods`] because lifting must release the exact keys
-/// that are down (LCtrl vs RCtrl), which class-level `Mods` cannot express.
-pub type SideMods = u8;
-
-/// Bits in [`SideMods`] covering Alt and Win keys — the modifiers whose lone
-/// press-and-release activates the menu bar / Start menu.
-pub const ALT_WIN_SIDES: SideMods = 0b1111_0000;
 
 /// Reserved VK used as a "menu mask": tapping it between an Alt/Win down and
 /// up breaks the lone-tap pattern Windows uses to trigger the menu bar and
@@ -51,67 +49,6 @@ pub fn set_macro_delay(ms: u32) {
         ms.min(winremap::keymap::MAX_MACRO_DELAY_MS),
         Ordering::Relaxed,
     );
-}
-
-const SIDE_VKS: [u16; 8] = [
-    0xA0, // LShift
-    0xA1, // RShift
-    0xA2, // LCtrl
-    0xA3, // RCtrl
-    0xA4, // LAlt
-    0xA5, // RAlt
-    0x5B, // LWin
-    0x5C, // RWin
-];
-
-/// Bit in [`SideMods`] for a side-specific modifier VK, or `None` for
-/// non-modifier keys.
-pub fn side_bit(vk: u16) -> Option<SideMods> {
-    SIDE_VKS.iter().position(|&s| s == vk).map(|i| 1 << i)
-}
-
-/// Collapses side-level state to the class-level [`Mods`] used for matching.
-pub fn side_mods_to_mods(sides: SideMods) -> Mods {
-    let mut mods = Mods::NONE;
-    if sides & 0b0000_0011 != 0 {
-        mods = mods.with(Mods::SHIFT);
-    }
-    if sides & 0b0000_1100 != 0 {
-        mods = mods.with(Mods::CTRL);
-    }
-    if sides & 0b0011_0000 != 0 {
-        mods = mods.with(Mods::ALT);
-    }
-    if sides & 0b1100_0000 != 0 {
-        mods = mods.with(Mods::WIN);
-    }
-    mods
-}
-
-/// Left-side key per modifier class, used when a target chord needs a
-/// modifier that is not physically held.
-fn class_left_vks(mods: Mods) -> impl Iterator<Item = u16> {
-    [
-        (Mods::SHIFT, 0xA0u16),
-        (Mods::CTRL, 0xA2),
-        (Mods::ALT, 0xA4),
-        (Mods::WIN, 0x5B),
-    ]
-    .into_iter()
-    .filter(move |(class, _)| mods.contains(*class))
-    .map(|(_, vk)| vk)
-}
-
-/// Side bits whose modifier class is NOT wanted by `target_mods`.
-fn sides_to_lift(held: SideMods, target_mods: Mods) -> SideMods {
-    let mut lift = 0;
-    for i in 0..SIDE_VKS.len() {
-        let bit = 1 << i;
-        if held & bit != 0 && !target_mods.contains(side_mods_to_mods(bit)) {
-            lift |= bit;
-        }
-    }
-    lift
 }
 
 /// Precomputed VK→scan-code table. Scan codes matter because terminal apps
@@ -136,18 +73,6 @@ fn scan_code(vk: u16) -> u16 {
     // Fallback 0 only happens if init_scan_codes was skipped; events still
     // work for VK-reading apps, so don't panic inside the hook.
     SCAN_CODES.get().map_or(0, |t| t[usize::from(vk) & 0xFF])
-}
-
-/// Keys whose hardware scan code carries the extended-key prefix; without
-/// this flag apps would see e.g. numpad-Del instead of navigation Del.
-fn is_extended(vk: u16) -> bool {
-    matches!(
-        vk,
-        0x21..=0x28 // PgUp/PgDn/End/Home/arrows
-        | 0x2D | 0x2E // Insert/Delete
-        | 0x5B | 0x5C | 0x5D // LWin/RWin/Apps
-        | 0xA3 | 0xA5 // RCtrl/RAlt
-    )
 }
 
 fn key_input(vk: u16, up: bool, extra_info: usize) -> INPUT {
@@ -317,29 +242,6 @@ pub fn send_key_only(target_vk: u16, up: bool) {
     batch.send();
 }
 
-/// Left-side key and its [`SideMods`] bit per modifier class, used when a
-/// transition must synthesize a modifier that is not physically held.
-const CLASS_LEFT: [(Mods, u16, SideMods); 4] = [
-    (Mods::SHIFT, 0xA0, 1),
-    (Mods::CTRL, 0xA2, 1 << 2),
-    (Mods::ALT, 0xA4, 1 << 4),
-    (Mods::WIN, 0x5B, 1 << 6),
-];
-
-/// Minimal modifier change to make `current` satisfy `target`, as
-/// (releases, presses) side bitmasks. Kept pure for unit testing.
-fn plan_transition(current: SideMods, target: Mods) -> (SideMods, SideMods) {
-    let release = sides_to_lift(current, target);
-    let have = side_mods_to_mods(current & !release);
-    let mut press = 0;
-    for (class, _, bit) in CLASS_LEFT {
-        if target.contains(class) && !have.contains(class) {
-            press |= bit;
-        }
-    }
-    (release, press)
-}
-
 /// Emits the planned transition and returns the new side state. Releases
 /// come first (masked when they involve Alt/Win) so a chord never gains
 /// extra modifiers mid-flight.
@@ -413,47 +315,4 @@ fn send_chords<const N: usize>(sequence: &[KeyCombo], held: SideMods) {
     let press = held & !current;
     transition_mods(&mut batch, current, release, press);
     batch.send();
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const LSHIFT: SideMods = 1;
-    const LCTRL: SideMods = 1 << 2;
-    const RCTRL: SideMods = 1 << 3;
-    const LALT: SideMods = 1 << 4;
-
-    #[test]
-    fn transition_keeps_already_satisfied_modifiers() {
-        // The C-t macro case: Ctrl physically held, element needs Ctrl —
-        // nothing to release or press (ADR 0017).
-        assert_eq!(plan_transition(LCTRL, Mods::CTRL), (0, 0));
-        // Either physical side satisfies the class.
-        assert_eq!(plan_transition(RCTRL, Mods::CTRL), (0, 0));
-    }
-
-    #[test]
-    fn transition_adds_only_the_missing_class() {
-        // C-Right → C-S-Right: keep Ctrl, add Shift.
-        assert_eq!(
-            plan_transition(LCTRL, Mods::CTRL.with(Mods::SHIFT)),
-            (0, LSHIFT)
-        );
-    }
-
-    #[test]
-    fn transition_swaps_unrelated_modifiers() {
-        // A-a's elements: Alt held but the element needs Ctrl only.
-        assert_eq!(plan_transition(LALT, Mods::CTRL), (LALT, LCTRL));
-    }
-
-    #[test]
-    fn transition_releases_everything_for_bare_targets() {
-        assert_eq!(
-            plan_transition(LCTRL | LSHIFT, Mods::NONE),
-            (LCTRL | LSHIFT, 0)
-        );
-        assert_eq!(plan_transition(0, Mods::NONE), (0, 0));
-    }
 }
