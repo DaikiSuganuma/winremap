@@ -5,7 +5,7 @@
 > 環境の構築・保守はそちらが正であり、本書は**このリポジトリ側の使い方**を記述する。
 > **何をテストするかは本リポジトリ側に置く**（被テストアプリの取得・ビルド・検査を共通基盤に置かない）のが基盤側の方針である。
 
-- 作成日: 2026-07-25 ／ 更新日: 2026-07-31（**全面改訂**。操作系を winapp CLI に統一し、AI エージェント版シナリオを廃止した — [ADR 0064](v0.7/decisions/0064-winapp-cli-for-ui-tests.md)）
+- 作成日: 2026-07-25 ／ 更新日: 2026-07-31（**全面改訂**。操作系を winapp CLI に統一し、AI エージェント版シナリオを廃止した — [ADR 0064](v0.7/decisions/0064-winapp-cli-for-ui-tests.md)）／ 2026-10-29（v1.1 の実行記録、パスの現行化、§11 にパスワード期限切れ。AI モデル: claude-fable-5-1）
 - 作成: Claude Code（AI モデル: claude-opus-5[1m]）／レビュー・承認: オーナー
 - 関連: [ADR 0064](v0.7/decisions/0064-winapp-cli-for-ui-tests.md)（操作系の決定）、[ADR 0053](v0.4/decisions/0053-test-inject-mode.md)（注入イベント受理モード）、[ADR 0055](v0.5/decisions/0055-accesskit-for-child-viewports.md)（子ビューポートを UIA に出す）、[winapp CLI 移行検討](v0.5/notes/20260727_winapp-cli-migration.md)（検証計画）
 - 公式: [Windows App Development CLI](https://learn.microsoft.com/en-us/windows/apps/dev-tools/winapp-cli/)／[winappCli ui-automation.md](https://github.com/microsoft/winappCli/blob/main/docs/ui-automation.md)
@@ -69,8 +69,8 @@ run-vm-ui-test.ps1（本リポジトリ）
 VM は `template-win11` の複製で作る（約 4 分。`setup-01`＋`setup-02` の約 30 分が不要）。作り直すときも同じ:
 
 ```powershell
-cd D:\Projects\GitLab\windows-utility\test-vm\scripts
-$cfg = "D:\Projects\GitHub\winremap\.secrets\test-vm.json"
+cd C:\Projects\GitLab\windows-utility\test-vm\scripts
+$cfg = "C:\Projects\GitHub\winremap\.secrets\test-vm.json"
 
 .\clone-vm-vmware.ps1 -NewVMName winremap-test -Snapshot ready `
     -SourceConfigPath ..\..\.secrets\test-vm.template-win11.json -NewConfigPath $cfg
@@ -83,7 +83,7 @@ $cfg = "D:\Projects\GitHub\winremap\.secrets\test-vm.json"
 ## 3. 実行方法
 
 ```powershell
-cd D:\Projects\GitHub\winremap\tests\ui
+cd C:\Projects\GitHub\winremap\tests\ui
 .\run-vm-ui-test.ps1                              # 全検査
 .\run-vm-ui-test.ps1 -Check 05-remap-notepad      # 1 本だけ
 .\run-vm-ui-test.ps1 -Check 01-settings-window,04-log-window
@@ -243,6 +243,7 @@ WinRemap は自己送出ループを防ぐため、注入イベント（`LLKHF_I
 | 2026-08-01 | **修正の確認**。`hwnd` を使う形に直し（[ADR 0065](v0.7/decisions/0065-foreground-window-from-the-event.md)）、**同じスクリプトのまま**測り直して食い違い **2/24 → 0/24**。アプリ別キーマップも打鍵で確認 |
 | 2026-08-01 | **原因調査**。`90-probe-foreground` と `foreground-listener.ps1` を追加し、独立したクライアントとの突き合わせで**イベントは全件届いており 22% が誤った名前を答えている**ことを測った（[調査ノート](v0.7/notes/20260801_foreground-race.md)）。**「ログウィンドウが開いているときだけ」という前日の見立ては誤りだった** |
 | 2026-08-01 | `06-foreground-line` を追加（12 チェック）。**v0.5 からの持ち越しに決着**（§9）。3 件 FAIL で、それが正しい判定である — アプリ側の未解決事項として[受け入れチェックリスト §6.1](v0.7/03_acceptance-checklist.md) に上げた。書いている途中で**こちら側のバグを 2 回踏んだ**（呼び出し元スコープの `$lines` を仮引数 `$Lines` が隠して `Say` が壊れた件、`return , $x` を `@()` で受けて全行が 1 要素になった件）。どちらも最初は「アプリが報告しない」形で現れた |
+| 2026-10-29 | **v1.1.0（リファクタリング版、`develop` 5094314）の受け入れ R-4。10 検査 121/121 PASS、通し 33 分。** 検査スクリプトは v1.0.1 から無変更。初回は revert 後に「10 分待ってもデスクトップに到達しない」で 1 件も走らなかった — ゲスト `tester` の**パスワード期限切れ**（§11）。オーナーがコンソールで同じパスワードを再設定し、`Set-LocalUser -PasswordNeverExpires` を当ててゴールデンを取り直してから通した。ホスト再インストールで windows-utility が `C:\Projects\GitLab` に移ったため、ランナーの `-EntryScript` 既定値と本書のパスを合わせた |
 | 2026-07-31 | 構成を作り直したあとの**通し実行で全 9 検査 PASS**。1 件だけ落ちた `00-log-view` の `the-oem-key-is-named` は**アプリではなく表明が古かった** — v0.7 の [ADR 0063 §5](v0.7/decisions/0063-symbol-keys.md) が `/ (0xBF)` の括弧を外しており、括弧を要求する v0.5 の表明が残っていた。表明を新しい規則へ書き換えて 26/26。**テストの表明も「前バージョンの記述」である** |
 
 移行前後の比較（同じ判定を出すのにかかった時間）:
@@ -262,6 +263,7 @@ WinRemap は自己送出ループを防ぐため、注入イベント（`LLKHF_I
 | 事象 | 対処 |
 |---|---|
 | **revert したのに前回の実行が生き返る／ゲストログが 0 バイトでタイムアウト** | ゴールデンスナップショットが**実行中（メモリ状態込み）で取得**されていると、revert のたびに当時のプロセスが復活し、ログファイルを掴んだまま新しい実行を沈黙させる。根治は `snapshot-golden-vmware.ps1`（電源オフで取得。`-AppProcessNames winremap` 必須）で取り直すこと。§2 参照 |
+| **revert と起動は通るのに「N 分待ってもデスクトップに到達しませんでした」で止まる。ゲストはロック画面のまま、`vmrun … listProcessesInGuest` が「不明なエラー」、わざと誤ったパスワードでは「Invalid user name or password」** | **`tester` のパスワード期限切れ**（2026-10-29）。Windows の既定は最大 42 日で、セットアップは無期限にしていない。ゲストは起動時にホストと時刻同期するので、電源オフのスナップショットへ戻しても暦は進む。直し方: コンソールでサインインしてパスワードを再設定（同じ文字列でよい。履歴制限なし）→ 管理者 PowerShell で `Set-LocalUser -Name tester -PasswordNeverExpires $true` → `snapshot-golden-vmware.ps1 -ConfigPath <本リポジトリの .secrets> -AppProcessNames winremap` でゴールデンを取り直す。`template-win11` も同じアカウントなので、複製する前に同じ処置をしておく |
 | **別プロジェクトのテストが知らない VM に飛ぶ** | 共通基盤の `.secrets/test-vm.json` を書き換える運用をやめ、`-ConfigPath` で明示する方式に統一した（§2） |
 | **revert 直後に検査が「要素が無い」で落ちる** | VMware Tools が資格情報に応答してから、デスクトップが対話プログラムを受け付けるまでには数分の開きがある。固定時間の `Start-Sleep` で埋めてはいけない。ランナーは `run-in-vm-vmware.ps1 -Restore` に委譲し、**実行可能になるまでの待ち**を基盤側の 1 箇所に集約している |
 | **検査が「結果ファイルが無い」で ERROR になる** | ゲストでスクリプトが落ちたか、そもそも配置されていない。ペイロードは `guest\*.ps1` を**ディレクトリごと**送るので後者は起きにくいが、起きたら `C:\Test` の中身を見る |
