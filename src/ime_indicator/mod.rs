@@ -3,27 +3,24 @@
 //! ADR 0020).
 //!
 //! This is a self-contained feature, deliberately isolated from the remapping
-//! core: the only touch points are one notification call each in hook.rs,
+//! core: the only touch points are one notification call each in hook/,
 //! window.rs, tray.rs, and main.rs. All work happens on a dedicated
 //! "indicator thread" owning the overlay window; the hook only posts it a
 //! bounded, non-blocking thread message (invariant 2, explicit exception 3).
 //!
 //! This file is orchestration only and stays `unsafe`-free (invariant 3):
-//! the Win32 calls live in `detect` (IME query) and `overlay` (window,
-//! timers, thread messaging).
+//! the Win32 calls live in `detect` (IME query), `overlay` (the window and
+//! its timers) and `crate::thread_msg` (thread messages); the thread's
+//! lifecycle is `crate::worker` (ADR 0085).
 
 mod detect;
 mod overlay;
 
-use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::mpsc;
-use std::thread::JoinHandle;
-
 use windows::Win32::UI::WindowsAndMessaging::{WM_APP, WM_TIMER};
 
 use crate::i18n;
+use crate::thread_msg;
+use crate::worker::Worker;
 use winremap::ime_indicator_settings::IndicatorSettings;
 use winremap::keymap::KeyCombo;
 
@@ -38,11 +35,9 @@ const MSG_SETTINGS: u32 = WM_APP + 0x23;
 /// needs to process the toggle key itself (design doc §3.1).
 const QUERY_DELAY_MS: u32 = 50;
 
-/// Indicator thread id; 0 while not running. Written by the main thread and
-/// the dying thread itself, read (wait-free) from the hook callback.
-static THREAD_ID: AtomicU32 = AtomicU32::new(0);
-/// Kept so stop() can join. Only touched from the main thread.
-static THREAD_HANDLE: Mutex<Option<JoinHandle<()>>> = Mutex::new(None);
+/// The indicator thread. Its id is 0 while it is not running, which is what
+/// the hook reads (wait-free) to decide whether there is anyone to poke.
+static THREAD: Worker = Worker::new();
 
 /// IME toggle candidates (design doc §3.1): VK_KANA 0x15, VK_IME_ON 0x16,
 /// VK_KANJI 0x19, VK_IME_OFF 0x1A, VK_CONVERT 0x1C, VK_NONCONVERT 0x1D, and
@@ -80,7 +75,7 @@ fn feature_wanted(settings: &IndicatorSettings) -> bool {
 /// `PostThreadMessageW` (AGENTS.md invariant 2, exception 3 / ADR 0020).
 /// The key itself always passes through; this never influences remapping.
 pub fn notify_keydown(input: KeyCombo) {
-    let tid = THREAD_ID.load(Ordering::Relaxed);
+    let tid = THREAD.thread_id();
     if tid == 0 {
         return;
     }
@@ -100,28 +95,28 @@ pub fn notify_keydown(input: KeyCombo) {
     if !is_toggle_candidate(input.vk) && !settings.trigger_keys.contains(&input) {
         return;
     }
-    overlay::post_to_thread(tid, MSG_TOGGLE_POKE);
+    thread_msg::post_to_thread(tid, MSG_TOGGLE_POKE, 0);
 }
 
 /// Foreground-change touch point; runs on the main thread's WinEvent
 /// callback (not the keyboard hook), but is kept just as cheap.
 pub fn notify_foreground_changed() {
-    let tid = THREAD_ID.load(Ordering::Relaxed);
+    let tid = THREAD.thread_id();
     if tid == 0 || !indicator_enabled() {
         return;
     }
-    overlay::post_to_thread(tid, MSG_FOREGROUND);
+    thread_msg::post_to_thread(tid, MSG_FOREGROUND, 0);
 }
 
 /// Starts or updates the feature to match the loaded config. Called at
 /// startup and after every reload (tray). Never started → disabled configs
 /// cost nothing: no thread, no messages, no window.
 pub fn sync_with_config() {
-    let tid = THREAD_ID.load(Ordering::Acquire);
+    let tid = THREAD.thread_id();
     if tid != 0 {
-        overlay::post_to_thread(tid, MSG_SETTINGS);
+        thread_msg::post_to_thread(tid, MSG_SETTINGS, 0);
     } else if feature_wanted(&current_settings()) {
-        start_thread();
+        THREAD.start("ime-indicator", overlay::Overlay::create, run, report);
     }
     // Whatever the config now says, a tint left over from the previous one
     // is not it. Also the unconditional restore of ADR 0067 decision 5 on
@@ -137,62 +132,13 @@ pub fn sync_with_config() {
 /// WinRemap died") a lie (ADR 0067).
 pub fn stop() {
     crate::cursor::restore();
-    let tid = THREAD_ID.swap(0, Ordering::AcqRel);
-    if tid != 0 {
-        overlay::post_quit_to(tid);
-    }
-    if let Ok(mut handle) = THREAD_HANDLE.lock()
-        && let Some(handle) = handle.take()
-    {
-        let _ = handle.join();
-    }
+    THREAD.stop();
 }
 
-fn start_thread() {
-    let (ready_tx, ready_rx) = mpsc::channel();
-    let spawned = std::thread::Builder::new()
-        .name("ime-indicator".into())
-        .spawn(move || thread_main(&ready_tx));
-    let handle = match spawned {
-        Ok(handle) => handle,
-        Err(e) => {
-            crate::notify::error(&i18n::ime_indicator_failed(&e.to_string()));
-            return;
-        }
-    };
-    match ready_rx.recv() {
-        Ok(tid) => {
-            THREAD_ID.store(tid, Ordering::Release);
-            if let Ok(mut slot) = THREAD_HANDLE.lock()
-                && let Some(old) = slot.replace(handle)
-            {
-                // A previous thread that died (panic) was never joined.
-                let _ = old.join();
-            }
-        }
-        // The thread reported its own failure before dropping the sender.
-        Err(_) => {
-            let _ = handle.join();
-        }
-    }
-}
-
-fn thread_main(ready: &mpsc::Sender<u32>) {
-    let overlay = match overlay::Overlay::create() {
-        Ok(overlay) => overlay,
-        Err(e) => {
-            crate::notify::error(&i18n::ime_indicator_failed(&e.to_string()));
-            return; // ready is dropped unsent; start_thread sees the Err
-        }
-    };
-    let _ = ready.send(overlay::current_thread_id());
-    // A panic must stay inside this feature: the remap hook keeps running
-    // (design doc §5, failure isolation).
-    let outcome = catch_unwind(AssertUnwindSafe(|| run(&overlay)));
-    THREAD_ID.store(0, Ordering::Release);
-    if outcome.is_err() {
-        crate::notify::error(&i18n::ime_indicator_failed("indicator thread panicked"));
-    }
+/// What the thread could not do — build its window, start, or keep running
+/// — said where the user can see it.
+fn report(error: &str) {
+    crate::notify::error(&i18n::ime_indicator_failed(error));
 }
 
 /// The indicator state machine. Triggers arm a short one-shot timer (both
@@ -203,16 +149,16 @@ fn run(overlay: &overlay::Overlay) {
     let mut last_on = false;
     let mut last_target: isize = 0;
     let mut query_timer: usize = 0;
-    while let Some((message, wparam)) = overlay::next_thread_message() {
+    while let Some((message, wparam)) = thread_msg::next_thread_message() {
         match message {
             MSG_TOGGLE_POKE | MSG_FOREGROUND => {
                 if query_timer != 0 {
-                    overlay::kill_thread_timer(query_timer);
+                    thread_msg::kill_thread_timer(query_timer);
                 }
-                query_timer = overlay::set_thread_timer(QUERY_DELAY_MS);
+                query_timer = thread_msg::set_thread_timer(QUERY_DELAY_MS);
             }
             WM_TIMER if wparam == query_timer && query_timer != 0 => {
-                overlay::kill_thread_timer(query_timer);
+                thread_msg::kill_thread_timer(query_timer);
                 query_timer = 0;
                 let settings = current_settings();
                 if !feature_wanted(&settings) {

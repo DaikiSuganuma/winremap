@@ -14,22 +14,22 @@
 //! escape either — it runs on the hook's own thread.
 //!
 //! This file is orchestration only and stays `unsafe`-free (invariant 3);
-//! the Win32 calls live in `banner`.
+//! the Win32 calls live in `banner` (the window) and `crate::thread_msg`
+//! (thread messages); the thread's lifecycle is `crate::worker` (ADR 0085).
 
 mod banner;
 
 use std::collections::VecDeque;
-use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::mpsc;
-use std::thread::JoinHandle;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use arc_swap::ArcSwapOption;
 use windows::Win32::UI::WindowsAndMessaging::WM_APP;
 
 use crate::i18n;
 use crate::sender::SideMods;
+use crate::thread_msg;
+use crate::worker::Worker;
 use winremap::keymap::KeyCombo;
 use winremap::recorder::{MAX_RECORDED_LEN, RecordKeys};
 
@@ -63,11 +63,10 @@ enum BannerCommand {
 /// touched from the hook callback, so locking it is fine.
 static BANNER_COMMANDS: Mutex<VecDeque<BannerCommand>> = Mutex::new(VecDeque::new());
 
-/// Macro-record thread id; 0 while not running. Written by the main thread
-/// and the dying thread itself, read (wait-free) from the hook callback.
-static THREAD_ID: AtomicU32 = AtomicU32::new(0);
-/// Kept so stop() can join. Only touched from the main thread.
-static THREAD_HANDLE: Mutex<Option<JoinHandle<()>>> = Mutex::new(None);
+/// The macro-record thread. Its id is 0 while it is not running, which is
+/// what the hook reads (wait-free) to decide whether a replay can be asked
+/// for.
+static THREAD: Worker = Worker::new();
 
 /// True while the replay thread is sending. Read wait-free from the hook so
 /// a play key pressed mid-replay is ignored rather than starting a second
@@ -120,14 +119,14 @@ pub fn banner_hide() {
 }
 
 fn queue_banner(command: BannerCommand) {
-    let tid = THREAD_ID.load(Ordering::Relaxed);
+    let tid = THREAD.thread_id();
     if tid == 0 {
         return;
     }
     if let Ok(mut queue) = BANNER_COMMANDS.lock() {
         queue.push_back(command);
     }
-    banner::post_to_thread(tid, MSG_BANNER, 0);
+    thread_msg::post_to_thread(tid, MSG_BANNER, 0);
 }
 
 /// Stores a finished recording. Runs on the message loop, outside the hook
@@ -142,9 +141,9 @@ pub fn publish(commands: &[KeyCombo]) {
 /// recording banner is actually up, which keeps the "is it showing" state
 /// in one place instead of mirroring it in an atomic here.
 pub fn notify_foreground_changed() {
-    let tid = THREAD_ID.load(Ordering::Relaxed);
+    let tid = THREAD.thread_id();
     if tid != 0 {
-        banner::post_to_thread(tid, MSG_FOREGROUND, 0);
+        thread_msg::post_to_thread(tid, MSG_FOREGROUND, 0);
     }
 }
 
@@ -155,11 +154,11 @@ pub fn notify_foreground_changed() {
 /// whether a replay was requested, so the caller can log why nothing
 /// happened.
 pub fn request_replay(held: SideMods) -> bool {
-    let tid = THREAD_ID.load(Ordering::Relaxed);
+    let tid = THREAD.thread_id();
     if tid == 0 || is_replaying() || RECORDED.load().is_none() {
         return false;
     }
-    banner::post_to_thread(tid, MSG_PLAY, usize::from(held));
+    thread_msg::post_to_thread(tid, MSG_PLAY, usize::from(held));
     true
 }
 
@@ -167,9 +166,8 @@ pub fn request_replay(held: SideMods) -> bool {
 /// and after every reload. A config without recording keys costs nothing:
 /// no thread, no messages.
 pub fn sync_with_config() {
-    let running = THREAD_ID.load(Ordering::Acquire) != 0;
-    match (keys().is_some(), running) {
-        (true, false) => start_thread(),
+    match (keys().is_some(), THREAD.is_running()) {
+        (true, false) => THREAD.start("macro-record", banner::Banner::create, run, report),
         // Recording was switched off by an edit: the thread has nothing left
         // to do, and leaving it parked would keep a stale banner alive.
         (false, true) => stop(),
@@ -181,69 +179,32 @@ pub fn sync_with_config() {
 /// shutdown. The recording itself is memory-only and dies with the process
 /// (ADR 0043 decision 2).
 pub fn stop() {
-    let tid = THREAD_ID.swap(0, Ordering::AcqRel);
-    if tid != 0 {
-        banner::post_quit_to(tid);
-    }
-    if let Ok(mut handle) = THREAD_HANDLE.lock()
-        && let Some(handle) = handle.take()
-    {
-        let _ = handle.join();
-    }
+    THREAD.stop();
 }
 
-fn start_thread() {
-    let (ready_tx, ready_rx) = mpsc::channel();
-    let spawned = std::thread::Builder::new()
-        .name("macro-record".into())
-        .spawn(move || thread_main(&ready_tx));
-    let handle = match spawned {
-        Ok(handle) => handle,
-        Err(e) => {
-            crate::notify::error(&i18n::macro_record_failed(&e.to_string()));
-            return;
-        }
-    };
-    match ready_rx.recv() {
-        Ok(tid) => {
-            THREAD_ID.store(tid, Ordering::Release);
-            if let Ok(mut slot) = THREAD_HANDLE.lock()
-                && let Some(old) = slot.replace(handle)
-            {
-                // A previous thread that died (panic) was never joined.
-                let _ = old.join();
-            }
-        }
-        // The thread reported its own failure before dropping the sender.
-        Err(_) => {
-            let _ = handle.join();
-        }
-    }
+/// What the thread could not do — build its banner, start, or keep running
+/// — said where the user can see it.
+fn report(error: &str) {
+    crate::notify::error(&i18n::macro_record_failed(error));
 }
 
-fn thread_main(ready: &mpsc::Sender<u32>) {
-    let banner = match banner::Banner::create() {
-        Ok(banner) => banner,
-        Err(e) => {
-            crate::notify::error(&i18n::macro_record_failed(&e.to_string()));
-            return; // ready is dropped unsent; start_thread sees the Err
-        }
-    };
-    let _ = ready.send(banner::current_thread_id());
-    // A panic must stay inside this feature: the remap hook keeps running.
-    let outcome = catch_unwind(AssertUnwindSafe(|| run(&banner)));
-    THREAD_ID.store(0, Ordering::Release);
-    REPLAYING.store(false, Ordering::Relaxed);
-    if outcome.is_err() {
-        crate::notify::error(&i18n::macro_record_failed("macro-record thread panicked"));
+/// Lowers [`REPLAYING`] when the thread's body ends, however it ends: a
+/// replay interrupted by a panic must not leave the play key dead for the
+/// rest of the run.
+struct ReplayFlagReset;
+
+impl Drop for ReplayFlagReset {
+    fn drop(&mut self) {
+        REPLAYING.store(false, Ordering::Relaxed);
     }
 }
 
 fn run(banner: &banner::Banner) {
+    let _replay_flag = ReplayFlagReset;
     // The count while a recording banner is up, so a focus change can
     // redraw it against the new app without the hook resending anything.
     let mut recording: Option<usize> = None;
-    while let Some((message, wparam)) = banner::next_thread_message() {
+    while let Some((message, wparam)) = thread_msg::next_thread_message() {
         match message {
             MSG_PLAY => replay(banner, wparam as SideMods),
             MSG_BANNER => {

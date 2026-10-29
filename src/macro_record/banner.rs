@@ -30,14 +30,12 @@ use windows::Win32::Graphics::Gdi::{
     SetBkMode, SetTextColor, SetWindowRgn, TRANSPARENT, UpdateWindow,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetClientRect,
-    GetForegroundWindow, GetMessageW, HWND_TOPMOST, KillTimer, LWA_ALPHA, MSG, PostThreadMessageW,
-    RegisterClassW, SPI_GETWORKAREA, SW_HIDE, SWP_NOACTIVATE, SWP_SHOWWINDOW,
-    SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, SetLayeredWindowAttributes, SetTimer, SetWindowPos,
-    ShowWindow, SystemParametersInfoW, TranslateMessage, WM_PAINT, WM_QUIT, WM_TIMER, WNDCLASSW,
-    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, GetClientRect, GetForegroundWindow,
+    HWND_TOPMOST, KillTimer, LWA_ALPHA, RegisterClassW, SPI_GETWORKAREA, SW_HIDE, SWP_NOACTIVATE,
+    SWP_SHOWWINDOW, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, SetLayeredWindowAttributes, SetTimer,
+    SetWindowPos, ShowWindow, SystemParametersInfoW, WM_PAINT, WM_TIMER, WNDCLASSW, WS_EX_LAYERED,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 use windows::core::{PCWSTR, w};
 
@@ -318,43 +316,4 @@ fn paint(hwnd: HWND) {
             let _ = EndPaint(hwnd, &ps);
         }
     });
-}
-
-// ---- thread-message plumbing used by mod.rs -------------------------------
-
-pub fn current_thread_id() -> u32 {
-    // SAFETY: no preconditions.
-    unsafe { GetCurrentThreadId() }
-}
-
-/// Non-blocking post; failure (queue full, thread gone) is deliberately
-/// ignored. Called from the hook callback, so it must never wait
-/// (invariant 2, explicit exception 4 / ADR 0044).
-pub fn post_to_thread(tid: u32, message: u32, wparam: usize) {
-    // SAFETY: posting to a thread queue is safe for any tid; stale ids fail.
-    let _ = unsafe { PostThreadMessageW(tid, message, WPARAM(wparam), LPARAM(0)) };
-}
-
-pub fn post_quit_to(tid: u32) {
-    post_to_thread(tid, WM_QUIT, 0);
-}
-
-/// Pumps this thread's queue: window messages (paint, hide timer) are
-/// dispatched to the window procedure, thread messages are returned to the
-/// caller as `(message, wParam)`. `None` means WM_QUIT — time to shut down.
-pub fn next_thread_message() -> Option<(u32, usize)> {
-    let mut msg = MSG::default();
-    // SAFETY: msg is a live local; `.0 > 0` also stops on the -1 error
-    // return, which as_bool() would misread as "keep going".
-    while unsafe { GetMessageW(&mut msg, None, 0, 0) }.0 > 0 {
-        if msg.hwnd.is_invalid() {
-            return Some((msg.message, msg.wParam.0));
-        }
-        // SAFETY: msg was filled in by the successful GetMessageW above.
-        unsafe {
-            let _ = TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-    }
-    None
 }

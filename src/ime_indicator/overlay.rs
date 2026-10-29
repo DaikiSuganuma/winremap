@@ -19,13 +19,11 @@ use windows::Win32::Graphics::Gdi::{
     SetBkMode, SetTextColor, SetWindowRgn, TRANSPARENT,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, GetWindowRect,
-    HWND_TOPMOST, KillTimer, LWA_ALPHA, MSG, PostThreadMessageW, RegisterClassW, SW_HIDE,
-    SWP_NOACTIVATE, SWP_SHOWWINDOW, SetLayeredWindowAttributes, SetTimer, SetWindowPos, ShowWindow,
-    TranslateMessage, WM_PAINT, WM_QUIT, WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE,
-    WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowRect, HWND_TOPMOST, KillTimer,
+    LWA_ALPHA, RegisterClassW, SW_HIDE, SWP_NOACTIVATE, SWP_SHOWWINDOW, SetLayeredWindowAttributes,
+    SetTimer, SetWindowPos, ShowWindow, WM_PAINT, WM_TIMER, WNDCLASSW, WS_EX_LAYERED,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 use windows::core::{PCWSTR, w};
 
@@ -378,54 +376,4 @@ fn on_timer(hwnd: HWND, timer_id: usize) {
         }
         _ => {}
     }
-}
-
-// ---- thread-message plumbing used by mod.rs -------------------------------
-
-pub fn current_thread_id() -> u32 {
-    // SAFETY: no preconditions.
-    unsafe { GetCurrentThreadId() }
-}
-
-/// Non-blocking post; failure (queue full, thread gone) is deliberately
-/// ignored — a lost poke only means a missed indicator flash.
-pub fn post_to_thread(tid: u32, message: u32) {
-    // SAFETY: posting to a thread queue is safe for any tid; stale ids fail.
-    let _ = unsafe { PostThreadMessageW(tid, message, WPARAM(0), LPARAM(0)) };
-}
-
-pub fn post_quit_to(tid: u32) {
-    post_to_thread(tid, WM_QUIT);
-}
-
-/// One-shot thread timer (no window); returns the system-chosen id.
-pub fn set_thread_timer(delay_ms: u32) -> usize {
-    // SAFETY: no window handle means a plain thread timer delivered to the
-    // message loop below.
-    unsafe { SetTimer(None, 0, delay_ms, None) }
-}
-
-pub fn kill_thread_timer(timer_id: usize) {
-    // SAFETY: killing an already-fired timer id is harmless (returns Err).
-    let _ = unsafe { KillTimer(None, timer_id) };
-}
-
-/// Pumps this thread's queue: window messages (paint/fade timers) are
-/// dispatched to the wndproc, thread messages are returned to the caller as
-/// `(message, wParam)`. `None` means WM_QUIT — time to shut down.
-pub fn next_thread_message() -> Option<(u32, usize)> {
-    let mut msg = MSG::default();
-    // SAFETY: msg is a live local; `.0 > 0` also stops on the -1 error
-    // return, which as_bool() would misread as "keep going".
-    while unsafe { GetMessageW(&mut msg, None, 0, 0) }.0 > 0 {
-        if msg.hwnd.is_invalid() {
-            return Some((msg.message, msg.wParam.0));
-        }
-        // SAFETY: msg was filled in by the successful GetMessageW above.
-        unsafe {
-            let _ = TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-    }
-    None
 }
