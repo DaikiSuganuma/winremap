@@ -10,6 +10,7 @@
 //! modules it declares) and depend on this crate, never the other way round.
 
 pub mod config;
+pub mod engine;
 pub mod ime_indicator_settings;
 pub mod keymap;
 pub mod recorder;

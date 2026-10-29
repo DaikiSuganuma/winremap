@@ -16,11 +16,10 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 // The modifier arithmetic lives in the library (v1.1 plan B4); the names the
 // hook and the macro recorder used to take from here are re-exported so they
 // keep reading as the sender's vocabulary.
-pub use winremap::keymap::sides::{ALT_WIN_SIDES, SideMods, side_bit, side_mods_to_mods};
-use winremap::keymap::sides::{
-    SIDE_VKS, class_left_vks, is_extended, plan_transition, sides_to_lift,
-};
-use winremap::keymap::{KeyCombo, MAX_MACRO_LEN, Mods};
+use winremap::keymap::sides::ALT_WIN_SIDES;
+pub use winremap::keymap::sides::{ModAdjustment, SideMods};
+use winremap::keymap::sides::{SIDE_VKS, class_left_vks, is_extended, plan_transition};
+use winremap::keymap::{KeyCombo, MAX_MACRO_LEN};
 use winremap::recorder::MAX_RECORDED_LEN;
 
 /// `dwExtraInfo` marker on events we inject as remap output (the substitute
@@ -151,44 +150,28 @@ impl<const N: usize> Batch<N> {
     }
 }
 
-/// What a remapped press changed besides the key itself, needed to undo the
-/// modifier surgery on release.
-#[derive(Clone, Copy, Default)]
-pub struct ModAdjustment {
-    /// Side keys that were physically/logically down and we released.
-    pub lifted: SideMods,
-    /// Left-side keys we pressed because the target chord needed them.
-    pub added: Mods,
-}
-
-/// Emits the press of an exact-rule target: lifts unwanted held modifiers,
-/// presses missing ones, then the target key (ADR 0005).
-pub fn send_exact_down(target: KeyCombo, held: SideMods) -> ModAdjustment {
-    let lifted = sides_to_lift(held, target.mods);
-    let held_mods = side_mods_to_mods(held);
+/// Emits the press of an exact-rule target: lifts the held modifiers the
+/// chord does not want, presses the ones it needs, then the target key
+/// (ADR 0005). `adjustment` is what the engine decided for this press
+/// ([`winremap::keymap::sides::exact_adjustment`]) and will undo on release.
+pub fn send_exact_down(target: KeyCombo, adjustment: ModAdjustment) {
     let mut batch = Batch::<CHORD_BATCH>::new();
 
     // The original chord key was suppressed, so without a mask the injected
     // Alt/Win up would read as a lone tap and pop the menu / Start menu.
-    if lifted & ALT_WIN_SIDES != 0 {
+    if adjustment.lifted & ALT_WIN_SIDES != 0 {
         push_menu_mask(&mut batch);
     }
     for (i, &vk) in SIDE_VKS.iter().enumerate() {
-        if lifted & (1 << i) != 0 {
+        if adjustment.lifted & (1 << i) != 0 {
             batch.push(key_input(vk, true, MARKER_COMPENSATION));
         }
     }
-    let mut added = Mods::NONE;
-    for vk in class_left_vks(target.mods) {
-        let class = side_mods_to_mods(side_bit(vk).unwrap_or(0));
-        if !held_mods.contains(class) {
-            added = added.with(class);
-            batch.push(key_input(vk, false, MARKER_COMPENSATION));
-        }
+    for vk in class_left_vks(adjustment.added) {
+        batch.push(key_input(vk, false, MARKER_COMPENSATION));
     }
     batch.push(key_input(target.vk, false, MARKER_REMAP));
     batch.send();
-    ModAdjustment { lifted, added }
 }
 
 /// Auto-repeat of an already-pressed exact-rule target: modifiers were
