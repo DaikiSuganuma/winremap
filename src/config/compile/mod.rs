@@ -1,6 +1,9 @@
 //! Validation and compilation of raw config sections into the runtime
 //! keymap structures.
 
+pub(super) mod ime;
+pub(super) mod macros;
+
 use std::collections::HashMap;
 
 use toml::Spanned;
