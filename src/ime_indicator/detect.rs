@@ -6,7 +6,8 @@
 //! is banned (it blocks indefinitely on hung windows).
 //!
 //! Verified against the modern Microsoft IME on Windows 11 Pro 26200 in plan
-//! Phase I1; `examples/ime_probe.rs` stays around as a regression check.
+//! Phase I1 (the probe that settled it: `git show v1.0.1:examples/ime_probe.rs`,
+//! removed in 1.1 — ADR 0087).
 
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::UI::Input::Ime::ImmGetDefaultIMEWnd;
