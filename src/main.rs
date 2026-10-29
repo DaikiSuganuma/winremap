@@ -33,6 +33,7 @@ mod sender;
 mod theme;
 mod thread_msg;
 mod tray;
+mod wide;
 mod window;
 mod worker;
 
