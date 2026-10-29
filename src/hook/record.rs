@@ -2,10 +2,6 @@
 //! feature: queued without allocating, published on the message loop
 //! (ADR 0043, ADR 0044).
 
-use windows::Win32::Foundation::{LPARAM, WPARAM};
-use windows::Win32::System::Threading::GetCurrentThreadId;
-use windows::Win32::UI::WindowsAndMessaging::{PostThreadMessageW, WM_APP};
-
 use super::{RECORD_EVENTS, RECORDER};
 use crate::i18n;
 use winremap::keymap::{KeyCombo, Output};
@@ -54,9 +50,7 @@ pub(super) fn queue_record_event(note: RecordNote) {
             ring.len = len + 1;
         }
     });
-    // SAFETY: posts to our own thread's queue; failure (queue full) only
-    // delays the log line and the banner update.
-    let _ = unsafe { PostThreadMessageW(GetCurrentThreadId(), WM_APP, WPARAM(0), LPARAM(0)) };
+    super::message_loop::wake_self();
 }
 
 /// Handles queued recording events on the message loop: logging, and

@@ -8,8 +8,6 @@
 # the line in the same commit that removes the last `unsafe` from the file.
 
 src/hook/mod.rs                  # ADR 0009: the hook callback (split: ADR 0084)
-src/hook/debug.rs                # ADR 0016: the self-wake after queuing a debug event
-src/hook/record.rs               # ADR 0044: the self-wake after queuing a recording event
 src/hook/instance.rs             # ADR 0009: the single-instance mutex
 src/hook/message_loop.rs         # ADR 0009: the message loop and the wakes
 src/sender.rs                    # ADR 0009: SendInput

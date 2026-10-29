@@ -56,3 +56,16 @@ pub fn post_quit() {
     // SAFETY: no preconditions; posts WM_QUIT to the calling thread's queue.
     unsafe { PostQuitMessage(0) };
 }
+
+/// Wakes this thread's own loop from inside the hook callback, after a
+/// debug or recording event was queued: keystrokes queue no message for
+/// this thread, so `GetMessageW` would sit idle and the ring would only be
+/// drained on the next unrelated message (ADR 0016, ADR 0044 — invariant 2's
+/// explicit exceptions 1 and 4).
+///
+/// Non-blocking. A full queue only delays the drain, never the key.
+pub(super) fn wake_self() {
+    // SAFETY: posts to our own thread's queue; failure (queue full) only
+    // delays the drain.
+    let _ = unsafe { PostThreadMessageW(GetCurrentThreadId(), WM_APP, WPARAM(0), LPARAM(0)) };
+}

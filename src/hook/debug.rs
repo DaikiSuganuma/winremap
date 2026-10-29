@@ -1,10 +1,6 @@
 //! The `--debug` commentary: queued inside the callback without allocating,
 //! formatted on the message loop (ADR 0016, ADR 0057).
 
-use windows::Win32::Foundation::{LPARAM, WPARAM};
-use windows::Win32::System::Threading::GetCurrentThreadId;
-use windows::Win32::UI::WindowsAndMessaging::{PostThreadMessageW, WM_APP};
-
 use super::{DEBUG_RING, debug_enabled};
 use crate::gui::log::Kind;
 use crate::i18n;
@@ -95,9 +91,7 @@ pub(super) fn log_debug(prev: Option<KeyCombo>, input: KeyCombo, action: DebugAc
     // Keystrokes do not queue messages for this thread, so GetMessageW would
     // sit idle and the log would only flush on the next unrelated message.
     // A cheap self-posted message wakes the loop; debug mode only.
-    // SAFETY: posts to our own thread's queue; failure (queue full) only
-    // delays output.
-    let _ = unsafe { PostThreadMessageW(GetCurrentThreadId(), WM_APP, WPARAM(0), LPARAM(0)) };
+    super::message_loop::wake_self();
 }
 
 /// Formats and prints queued debug events. Runs on the message loop, outside
