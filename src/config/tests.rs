@@ -1,3 +1,7 @@
+mod comments;
+mod draft;
+mod last_used;
+
 use super::*;
 use crate::keymap::tests::us_101;
 use crate::keymap::{KeyCombo, Layout, Output, Resolution, parse_key_combo};
