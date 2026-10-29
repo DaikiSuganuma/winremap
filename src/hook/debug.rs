@@ -202,3 +202,47 @@ pub(super) fn debug_action_of(output: &Output) -> DebugAction {
         }
     }
 }
+
+/// The `[前面]` lines after a foreground change, called from `window.rs` when
+/// `--debug` is on: the exact `application` value
+/// to use, which configured keymaps would apply, and the full path.
+///
+/// Tagged and stamped like the key traffic it sits among (ADR 0058). It used
+/// to be three untimed lines led by `[debug]`, which is how a report about
+/// the window the user just clicked came to look like part of the previous
+/// keystroke (owner request 2026-07-29).
+pub fn log_foreground(full_path: Option<&str>, basename: &str) {
+    let texts = i18n::t();
+    let Some(full_path) = full_path else {
+        crate::gui::log::tagged(
+            Kind::Action,
+            texts.log_tag_window,
+            texts.debug_foreground_unknown,
+        );
+        return;
+    };
+    let table = super::REMAP_TABLE.load();
+    let names: Vec<&str> = table
+        .as_ref()
+        .map(|t| {
+            t.keymaps
+                .iter()
+                .filter(|k| k.apps.matches(basename))
+                .map(|k| k.name.as_str())
+                .collect()
+        })
+        .unwrap_or_default();
+    let list = if names.is_empty() {
+        texts.debug_none.to_string()
+    } else {
+        names.join(", ")
+    };
+    crate::gui::log::tagged(
+        Kind::Action,
+        texts.log_tag_window,
+        &i18n::debug_foreground(basename, &list),
+    );
+    // The path is the least-read part of the report and the longest, so it
+    // goes under the summary, where the detailed view can hide it.
+    crate::gui::log::tagged(Kind::Detail, texts.log_tag_window, full_path);
+}

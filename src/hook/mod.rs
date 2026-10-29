@@ -20,7 +20,7 @@ mod instance;
 mod message_loop;
 mod record;
 
-pub use debug::drain_debug_log;
+pub use debug::{drain_debug_log, log_foreground};
 pub use instance::acquire_single_instance;
 pub use message_loop::{post_quit, run_message_loop, wake_message_loop};
 pub use record::{abort_recording, drain_record_events};
