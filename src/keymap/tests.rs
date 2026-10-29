@@ -1,3 +1,5 @@
+mod control;
+
 use std::collections::HashMap;
 
 use super::*;
