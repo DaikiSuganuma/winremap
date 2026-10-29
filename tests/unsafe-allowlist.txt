@@ -13,13 +13,14 @@ src/hook/message_loop.rs         # ADR 0009: the message loop and the wakes
 src/sender.rs                    # ADR 0009: SendInput
 src/window.rs                    # ADR 0009: the foreground window's process name
 src/ime_indicator/detect.rs      # ADR 0020: asking the IME its state
-src/ime_indicator/overlay.rs     # ADR 0020: the indicator panel and its thread messaging
+src/ime_indicator/overlay.rs     # ADR 0020: the indicator panel (its thread messaging moved to thread_msg.rs, ADR 0085)
 examples/ime_probe.rs            # ADR 0020: the probe that settled how the IME can be read
 src/notify.rs                    # ADR 0031: console attach/detach and the notification dialog
 src/gui/win32.rs                 # ADR 0038, ADR 0080, ADR 0081: window icons, shell launches, the tray icon at the real DPI
 src/clock.rs                     # ADR 0041: local time for the log's session banners
-src/macro_record/banner.rs       # ADR 0044: the recording/replay banner and its thread messaging
+src/macro_record/banner.rs       # ADR 0044: the recording/replay banner (its thread messaging moved to thread_msg.rs, ADR 0085)
 src/keyname.rs                   # ADR 0058: the character a key prints, for the log
+src/thread_msg.rs                # ADR 0085: thread messages and thread timers for the feature threads
 src/package.rs                   # ADR 0061: MSIX package detection
 src/layout.rs                    # ADR 0063: reading the keyboard layout
 src/cursor/mod.rs                # ADR 0067, ADR 0073: the session's cursor table — install, restore, crash paths (split: ADR 0084)

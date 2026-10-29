@@ -31,8 +31,10 @@ mod notify;
 mod package;
 mod sender;
 mod theme;
+mod thread_msg;
 mod tray;
 mod window;
+mod worker;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
