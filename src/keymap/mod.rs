@@ -97,7 +97,10 @@ pub fn combo_notation(combo: &KeyCombo, layout: &Layout) -> String {
     )
 }
 
-fn modifier_prefixes(mods: Mods) -> String {
+/// The `C-A-S-W-` prefixes a modifier set is written with, in the order the
+/// notation fixes. The one place that spelling lives: `Display`, the log and
+/// the settings window all go through here (v1.1 plan A2).
+pub fn modifier_prefixes(mods: Mods) -> String {
     let mut text = String::new();
     for (flag, prefix) in [
         (Mods::CTRL, "C-"),

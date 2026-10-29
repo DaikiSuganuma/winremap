@@ -32,7 +32,7 @@
 
 use windows::Win32::UI::Input::KeyboardAndMouse::{MAPVK_VK_TO_CHAR, MapVirtualKeyW};
 
-use winremap::keymap::{KeyCombo, Layout, Mods, control_code, key_name};
+use winremap::keymap::{KeyCombo, Layout, Mods, control_code, key_name, modifier_prefixes};
 
 /// One key, as a reader of the log would name it — with the control code it
 /// carries, when it carries one (ADR 0056).
@@ -50,17 +50,7 @@ pub fn key(vk: u16) -> String {
 /// and the config file should spell a chord the same way.
 pub fn combo(combo: &KeyCombo) -> String {
     let layout = crate::layout::current();
-    let mut text = String::new();
-    for (flag, prefix) in [
-        (Mods::CTRL, "C-"),
-        (Mods::ALT, "A-"),
-        (Mods::SHIFT, "S-"),
-        (Mods::WIN, "W-"),
-    ] {
-        if combo.mods.contains(flag) {
-            text.push_str(prefix);
-        }
-    }
+    let mut text = modifier_prefixes(combo.mods);
     text.push_str(&name(combo.vk, &layout));
     // Read from the whole chord rather than the key: Ctrl is what turns `h`
     // into BS, and it is the modifier that carries the answer.

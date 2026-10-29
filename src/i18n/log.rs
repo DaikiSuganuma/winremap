@@ -2,6 +2,10 @@
 //! decided about each key (ADR 0016, ADR 0057).
 
 use super::{Lang, lang, t};
+// Every key in the transcript is named through `keyname` rather than through
+// `KeyCombo`'s `Display`, so that a key the config cannot name yet still says
+// what it is instead of printing `0xBF` (ADR 0058).
+use crate::keyname::combo;
 use winremap::keymap::KeyCombo;
 
 /// A checkbox in the log window. Logged like a tray pick, so that "why did
@@ -48,13 +52,6 @@ fn fmt_input(prev: Option<KeyCombo>, input: KeyCombo) -> String {
         Some(prefix) => format!("{} {input}", combo(&prefix)),
         None => input,
     }
-}
-
-/// Every key in the transcript is named through here rather than through
-/// `KeyCombo`'s `Display`, so that a key the config cannot name yet still
-/// says what it is instead of printing `0xBF` (ADR 0058).
-fn combo(combo: &KeyCombo) -> String {
-    crate::keyname::combo(combo)
 }
 
 // The lines below carry no `[debug]` prefix: the log window draws the tag in
