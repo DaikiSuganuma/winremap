@@ -1,51 +1,10 @@
 //! The `--debug` commentary: queued inside the callback without allocating,
 //! formatted on the message loop (ADR 0016, ADR 0057).
 
-use super::{DEBUG_RING, debug_enabled};
+use super::DEBUG_RING;
 use crate::gui::log::Kind;
 use crate::i18n;
-use winremap::keymap::{KeyCombo, MAX_MACRO_LEN, Mods, Output};
-
-/// Who injected an event observed by the hook (debug echo, ADR 0016).
-#[derive(Clone, Copy)]
-pub(super) enum InjectedSource {
-    Remap,
-    Compensation,
-    External,
-}
-
-/// What the hook decided for one key event, recorded for debug output.
-#[derive(Clone, Copy)]
-pub(super) enum DebugAction {
-    Pass,
-    Chord(KeyCombo),
-    KeyOnly(u16),
-    Macro {
-        elements: [KeyCombo; MAX_MACRO_LEN],
-        len: u8,
-    },
-    Prefix,
-    Swallow,
-    Repeat,
-    /// A press or release as it arrived from the keyboard, logged before any
-    /// decision is taken. Only the detailed view shows these (ADR 0057).
-    Physical {
-        up: bool,
-    },
-    Injected {
-        vk: u16,
-        up: bool,
-        source: InjectedSource,
-    },
-}
-
-#[derive(Clone, Copy)]
-struct DebugEvent {
-    /// The armed prefix when this was a second stroke.
-    prev: Option<KeyCombo>,
-    input: KeyCombo,
-    action: DebugAction,
-}
+use winremap::engine::{DebugAction, DebugEvent, Injected};
 
 const DEBUG_RING_SIZE: usize = 128;
 
@@ -77,17 +36,10 @@ impl DebugRing {
     }
 }
 
-pub(super) fn log_debug(prev: Option<KeyCombo>, input: KeyCombo, action: DebugAction) {
-    if !debug_enabled() {
-        return;
-    }
-    DEBUG_RING.with(|ring| {
-        ring.borrow_mut().push(DebugEvent {
-            prev,
-            input,
-            action,
-        })
-    });
+/// Queues one line for the message loop and wakes it. Hook-safe: a write
+/// into a pre-allocated array plus one non-blocking self-post.
+pub(super) fn log_debug(event: DebugEvent) {
+    DEBUG_RING.with(|ring| ring.borrow_mut().push(event));
     // Keystrokes do not queue messages for this thread, so GetMessageW would
     // sit idle and the log would only flush on the next unrelated message.
     // A cheap self-posted message wakes the loop; debug mode only.
@@ -97,7 +49,7 @@ pub(super) fn log_debug(prev: Option<KeyCombo>, input: KeyCombo, action: DebugAc
 /// Formats and prints queued debug events. Runs on the message loop, outside
 /// the hook callback, where I/O and allocation are fine.
 pub fn drain_debug_log() {
-    if !debug_enabled() {
+    if !super::debug_enabled() {
         return;
     }
     let texts = i18n::t();
@@ -161,9 +113,9 @@ pub fn drain_debug_log() {
                 ),
                 DebugAction::Injected { vk, up, source } => {
                     let source = match source {
-                        InjectedSource::Remap => texts.debug_source_remap,
-                        InjectedSource::Compensation => texts.debug_source_compensation,
-                        InjectedSource::External => texts.debug_source_external,
+                        Injected::Remap => texts.debug_source_remap,
+                        Injected::Compensation => texts.debug_source_compensation,
+                        Injected::External => texts.debug_source_external,
                     };
                     (
                         Kind::Detail,
@@ -184,28 +136,9 @@ pub fn drain_debug_log() {
     });
 }
 
-pub(super) fn debug_action_of(output: &Output) -> DebugAction {
-    match output {
-        Output::Chord(target) => DebugAction::Chord(*target),
-        Output::Seq(sequence) => {
-            let mut elements = [KeyCombo {
-                mods: Mods::NONE,
-                vk: 0,
-            }; MAX_MACRO_LEN];
-            for (slot, combo) in elements.iter_mut().zip(sequence) {
-                *slot = *combo;
-            }
-            DebugAction::Macro {
-                elements,
-                len: sequence.len().min(MAX_MACRO_LEN) as u8,
-            }
-        }
-    }
-}
-
 /// The `[前面]` lines after a foreground change, called from `window.rs` when
-/// `--debug` is on: the exact `application` value
-/// to use, which configured keymaps would apply, and the full path.
+/// `--debug` is on: the exact `application` value to use, which configured
+/// keymaps would apply, and the full path.
 ///
 /// Tagged and stamped like the key traffic it sits among (ADR 0058). It used
 /// to be three untimed lines led by `[debug]`, which is how a report about

@@ -114,3 +114,30 @@ pub fn plan_transition(current: SideMods, target: Mods) -> (SideMods, SideMods) 
     }
     (release, press)
 }
+
+/// What a remapped press changed besides the key itself, needed to undo the
+/// modifier surgery on release.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct ModAdjustment {
+    /// Side keys that were physically/logically down and were released.
+    pub lifted: SideMods,
+    /// Left-side keys pressed because the target chord needed them.
+    pub added: Mods,
+}
+
+/// The surgery an exact-rule target needs against what is held: release the
+/// held sides whose class the target does not want, press a left-side key
+/// for each class it wants that nothing held supplies (ADR 0005). Pure, so
+/// the hook's decision and the sender's batch are built from one answer.
+pub fn exact_adjustment(target: Mods, held: SideMods) -> ModAdjustment {
+    let lifted = sides_to_lift(held, target);
+    let held_mods = side_mods_to_mods(held);
+    let mut added = Mods::NONE;
+    for vk in class_left_vks(target) {
+        let class = side_mods_to_mods(side_bit(vk).unwrap_or(0));
+        if !held_mods.contains(class) {
+            added = added.with(class);
+        }
+    }
+    ModAdjustment { lifted, added }
+}
