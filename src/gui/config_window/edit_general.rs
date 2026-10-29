@@ -20,8 +20,15 @@ use winremap::keymap::MAX_MACRO_DELAY_MS;
 /// ranges — always in-range by construction — checkboxes for the flags, and
 /// key notation as text. The recorded macro stays the live, read-only box.
 pub(super) fn general_edit_ui(ui: &mut egui::Ui, draft: &mut ConfigDraft) {
-    let texts = i18n::t();
     ui.add_space(8.0);
+    macro_edit_ui(ui, draft);
+    ime_edit_ui(ui, draft);
+}
+
+/// `[macro]`, editable: the pacing slider and the three recording keys, plus
+/// the macro held in memory, which is live state rather than a file value.
+fn macro_edit_ui(ui: &mut egui::Ui, draft: &mut ConfigDraft) {
+    let texts = i18n::t();
     section(ui, Icon::Macro, texts.config_macro_section, "[macro]");
     // Show whichever spelling the file uses (ADR 0039); saving keeps it.
     let delay_key = if draft.uses_legacy_delay_key {
@@ -72,7 +79,13 @@ pub(super) fn general_edit_ui(ui: &mut egui::Ui, draft: &mut ConfigDraft) {
     if crate::macro_record::recorded().is_some() {
         recorded_macro_ui(ui);
     }
+}
 
+/// `[ime_indicator]`, editable: the panel's switch and, while it is on, its
+/// sliders, flags and trigger keys; then the cursor tint, which stands on its
+/// own (ADR 0067).
+fn ime_edit_ui(ui: &mut egui::Ui, draft: &mut ConfigDraft) {
+    let texts = i18n::t();
     section(ui, Icon::Ime, texts.config_ime_indicator, "[ime_indicator]");
     let defaults = IndicatorSettings::default();
     let mut enabled = draft.ime.enabled.unwrap_or(defaults.enabled);
