@@ -2,8 +2,14 @@
 //! Win32-facing modules live in the binary; the OS-independent core
 //! (keymap/config) is the `winremap` library crate so it stays testable on
 //! headless CI (project brief §9). This file is `unsafe`-free — Win32 calls
-//! are wrapped by hook.rs / window.rs / notify.rs (AGENTS.md invariant 3,
+//! are wrapped by hook/ / window.rs / notify.rs (AGENTS.md invariant 3,
 //! ADR 0009, ADR 0031).
+//!
+//! `run` is the startup sequence in order. The order is the point — most
+//! steps exist because of what the step before them makes possible or what
+//! the step after them needs — so each stage below says why it sits where it
+//! does, and the stages are functions only so that the sequence reads as one
+//! page (v1.1 plan E1).
 
 // A resident tray app must not flash a console window when launched from
 // Explorer, the Start menu, or the autostart entry. Terminal users still get
@@ -11,6 +17,7 @@
 // (ADR 0029), which run() lets go of again before going resident (ADR 0062).
 #![windows_subsystem = "windows"]
 
+mod cli;
 mod clock;
 mod cursor;
 mod gui;
@@ -31,7 +38,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, bail};
+use cli::CliArgs;
 use winremap::config;
+use winremap::config::last_used::LastUsed;
 
 fn main() {
     // Before any output, so even an early failure can reach the terminal.
@@ -57,8 +66,8 @@ fn run() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     // Language must be known before any user-facing output, including the
     // help text parse_args may print.
-    i18n::init(extract_lang(&args)?);
-    let cli = parse_args(&args)?;
+    i18n::init(cli::extract_lang(&args)?);
+    let cli = cli::parse_args(&args)?;
     // `--debug` streams to a console of WinRemap's own, opened here so that
     // the very first line of startup lands in it — the shell's console is
     // shared with a prompt that repaints over the log, and the log window
@@ -67,40 +76,17 @@ fn run() -> anyhow::Result<()> {
     if cli.debug {
         notify::open_debug_console();
     }
-    // Where the choice of config file is remembered between runs (ADR 0077),
-    // and what it says. Only consulted when this run named no file of its
-    // own: `--config` is an instruction about *this* run and outranks a
-    // choice made in an earlier one.
-    let memory = memory_path().map(package::resolve_config_path);
-    let recalled = match (cli.config_is_default, memory.as_deref()) {
-        (true, Some(memory)) => config::last_used::recall(memory),
-        _ => config::last_used::LastUsed::Nothing,
-    };
-    let chosen = match &recalled {
-        config::last_used::LastUsed::At(path) => path.clone(),
-        // Nothing remembered, or what was remembered is gone: the default
-        // path, which is where every run before 1.0.0 started.
-        _ => cli.config_path,
-    };
-    // Absolute from the start: the settings window's address bar shows the
-    // parent folder and lists its .toml files for switching (ADR 0050), and
-    // a relative `--config x.toml` has no parent to show or read.
-    let config_path = std::path::absolute(&chosen).unwrap_or(chosen);
-    // Once, before anything reads or shows it: inside an MSIX package the
-    // %APPDATA% path this resolves to is private to the package, and the
-    // settings window hands paths to Explorer and to a text editor — neither
-    // of which can see it (ADR 0061). No-op for an unpackaged run.
-    let config_path = package::resolve_config_path(config_path);
+    let chosen = choose_config_file(&cli);
     hook::set_debug(cli.debug);
     #[cfg(feature = "test-inject")]
     hook::set_accept_injected(cli.accept_injected);
     // Remembered so closing the log window restores this instead of
     // silencing a `--debug` session that was running before it opened.
     gui::log::set_cli_debug(cli.debug);
-    gui::set_config_path(config_path.clone());
+    gui::set_config_path(chosen.path.clone());
     // The settings window writes this when the address bar switches files;
     // startup only reads it (ADR 0077).
-    gui::set_config_memory(memory);
+    gui::set_config_memory(chosen.memory.clone());
     // The status bar shows this timestamp for the whole run.
     gui::mark_started();
 
@@ -109,7 +95,102 @@ fn run() -> anyhow::Result<()> {
         bail!("{}", i18n::t().already_running);
     };
 
-    // The session's first line, before anything that can fail from here on.
+    open_session(&chosen);
+
+    // After the session banner so first-run output is part of the transcript,
+    // and before the load, which is what needs the file to be there.
+    ensure_config(&chosen.path, cli.config_is_default)?;
+
+    let keymap_count = load_config(&chosen.path, &cli)?;
+
+    // The copy every later restore is made from, taken while nothing of ours
+    // has replaced anything (ADR 0073 decision 1). Has to be after the
+    // single-instance check above: a second copy of WinRemap clears the tint
+    // on its way through here, and the first copy's is a tint that is
+    // legitimately on.
+    cursor::capture_pristine();
+    // Unconditional, and before anything can tint again: a cursor left over
+    // from a run that was killed is the one thing this feature cannot clear
+    // by itself, and startup is when nothing can legitimately be tinted yet
+    // (ADR 0067 decision 5). Costs one call when the feature is off.
+    cursor::restore();
+
+    let resident = go_resident(keymap_count, &cli)?;
+
+    hook::run_message_loop(|| {
+        resident.tray.pump_events();
+        // The settings window's reload button lands here rather than on the
+        // GUI thread: the tray icon belongs to this one.
+        if gui::take_reload_request() {
+            resident.tray.reload_now();
+        }
+        // Debug key events are queued by the hook (no I/O there) and
+        // formatted here on the message loop (ADR 0016).
+        hook::drain_debug_log();
+        // Recording events are queued by the hook too: publishing a
+        // finished macro allocates, so it happens here (ADR 0044).
+        hook::drain_record_events();
+    });
+
+    hook::uninstall(resident.keyboard_hook);
+    window::uninstall_foreground_watch(resident.event_hook);
+    ime_indicator::stop();
+    macro_record::stop();
+    // Closes the session the startup banner opened, so a terminal transcript
+    // says how long WinRemap was actually up.
+    gui::log::emit(&i18n::session_ended(&clock::local_now()));
+    Ok(())
+}
+
+/// Which config file this run opens, and why.
+struct ChosenConfig {
+    /// Absolute, and resolved to the path every process on the machine
+    /// agrees about (ADR 0061).
+    path: PathBuf,
+    /// Where the choice is remembered between runs (ADR 0077), or `None`
+    /// when there is nowhere to keep it.
+    memory: Option<PathBuf>,
+    /// What the memory said, so the session can say why this file was
+    /// picked — or why the remembered one was not.
+    recalled: LastUsed,
+}
+
+/// Stage 1: decide the config file. `--config` is an instruction about
+/// *this* run and outranks a choice made in an earlier one (ADR 0077).
+fn choose_config_file(cli: &CliArgs) -> ChosenConfig {
+    // Where the choice of config file is remembered between runs (ADR 0077),
+    // and what it says. Only consulted when this run named no file of its
+    // own.
+    let memory = cli::memory_path().map(package::resolve_config_path);
+    let recalled = match (cli.config_is_default, memory.as_deref()) {
+        (true, Some(memory)) => config::last_used::recall(memory),
+        _ => LastUsed::Nothing,
+    };
+    let chosen = match &recalled {
+        LastUsed::At(path) => path.clone(),
+        // Nothing remembered, or what was remembered is gone: the default
+        // path, which is where every run before 1.0.0 started.
+        _ => cli.config_path.clone(),
+    };
+    // Absolute from the start: the settings window's address bar shows the
+    // parent folder and lists its .toml files for switching (ADR 0050), and
+    // a relative `--config x.toml` has no parent to show or read.
+    let path = std::path::absolute(&chosen).unwrap_or(chosen);
+    // Once, before anything reads or shows it: inside an MSIX package the
+    // %APPDATA% path this resolves to is private to the package, and the
+    // settings window hands paths to Explorer and to a text editor — neither
+    // of which can see it (ADR 0061). No-op for an unpackaged run.
+    let path = package::resolve_config_path(path);
+    ChosenConfig {
+        path,
+        memory,
+        recalled,
+    }
+}
+
+/// Stage 2: the session's first lines, before anything that can fail from
+/// here on.
+fn open_session(chosen: &ChosenConfig) {
     // The log window is usually opened long after launch, so it is seeded with
     // this rather than starting mid-session with no idea when "now" began.
     let started = i18n::session_started(&clock::local_now());
@@ -128,20 +209,16 @@ fn run() -> anyhow::Result<()> {
     // Why this run opened a file nobody named on the command line — or why
     // it did not (ADR 0077). Said before the load, so a config error below
     // is read next to the reason that file was picked.
-    match &recalled {
-        config::last_used::LastUsed::At(_) => {
-            gui::log::emit(&i18n::config_from_last_time(&config_path))
-        }
-        config::last_used::LastUsed::Gone(path) => {
-            gui::log::emit(&i18n::config_from_last_time_gone(path))
-        }
-        config::last_used::LastUsed::Nothing => {}
+    match &chosen.recalled {
+        LastUsed::At(_) => gui::log::emit(&i18n::config_from_last_time(&chosen.path)),
+        LastUsed::Gone(path) => gui::log::emit(&i18n::config_from_last_time_gone(path)),
+        LastUsed::Nothing => {}
     }
+}
 
-    // After the session banner so first-run output is part of the transcript,
-    // and before the load, which is what needs the file to be there.
-    ensure_config(&config_path, cli.config_is_default)?;
-
+/// Stage 3: compile the config and hand it to the hook. Returns how many
+/// keymaps it holds, which the tray's tooltip reports.
+fn load_config(config_path: &Path, cli: &CliArgs) -> anyhow::Result<usize> {
     // Which key `;` is depends on the keyboard, so the config cannot be
     // compiled until Windows has been asked (ADR 0063). On the main thread on
     // purpose: the answer is per-thread.
@@ -149,27 +226,27 @@ fn run() -> anyhow::Result<()> {
 
     // A startup config error aborts: better to not run at all than to sit in
     // the tray silently doing nothing the user asked for (config-spec §4).
-    let table = config::load(&config_path, &keyboard)
+    let table = config::load(config_path, &keyboard)
         .with_context(|| format!("failed to load {}", config_path.display()))?;
     let keymap_count = table.keymaps.len();
-    gui::log::emit(&i18n::startup_loaded(keymap_count, &config_path));
+    gui::log::emit(&i18n::startup_loaded(keymap_count, config_path));
     // Precedence: --macro-delay > config's macro_delay_ms > 0 (ADR 0019).
     sender::set_macro_delay(cli.macro_delay_ms.unwrap_or(table.macro_delay_ms));
     hook::REMAP_TABLE.store(Some(Arc::new(table)));
     gui::mark_config_loaded();
+    Ok(keymap_count)
+}
 
-    // The copy every later restore is made from, taken while nothing of ours
-    // has replaced anything (ADR 0073 decision 1). Has to be after the
-    // single-instance check above: a second copy of WinRemap clears the tint
-    // on its way through here, and the first copy's is a tint that is
-    // legitimately on.
-    cursor::capture_pristine();
-    // Unconditional, and before anything can tint again: a cursor left over
-    // from a run that was killed is the one thing this feature cannot clear
-    // by itself, and startup is when nothing can legitimately be tinted yet
-    // (ADR 0067 decision 5). Costs one call when the feature is off.
-    cursor::restore();
+/// What stage 4 installed, and what shutdown has to take down again.
+struct Resident {
+    event_hook: windows::Win32::UI::Accessibility::HWINEVENTHOOK,
+    keyboard_hook: windows::Win32::UI::WindowsAndMessaging::HHOOK,
+    tray: tray::Tray,
+}
 
+/// Stage 4: hooks, tray and feature threads, in the order that lets each
+/// find what it needs already there — then the console is let go.
+fn go_resident(keymap_count: usize, cli: &CliArgs) -> anyhow::Result<Resident> {
     sender::init_scan_codes();
     // Seed the cache before hooking so the first keystrokes resolve against
     // the correct application instead of an empty name.
@@ -194,145 +271,11 @@ fn run() -> anyhow::Result<()> {
     if !cli.debug {
         notify::detach_console();
     }
-
-    hook::run_message_loop(|| {
-        tray.pump_events();
-        // The settings window's reload button lands here rather than on the
-        // GUI thread: the tray icon belongs to this one.
-        if gui::take_reload_request() {
-            tray.reload_now();
-        }
-        // Debug key events are queued by the hook (no I/O there) and
-        // formatted here on the message loop (ADR 0016).
-        hook::drain_debug_log();
-        // Recording events are queued by the hook too: publishing a
-        // finished macro allocates, so it happens here (ADR 0044).
-        hook::drain_record_events();
-    });
-
-    hook::uninstall(keyboard_hook);
-    window::uninstall_foreground_watch(event_hook);
-    ime_indicator::stop();
-    macro_record::stop();
-    // Closes the session the startup banner opened, so a terminal transcript
-    // says how long WinRemap was actually up.
-    gui::log::emit(&i18n::session_ended(&clock::local_now()));
-    Ok(())
-}
-
-/// Pre-scan for `--lang` so i18n can initialize before any other output.
-fn extract_lang(args: &[String]) -> anyhow::Result<Option<i18n::Lang>> {
-    let mut iter = args.iter();
-    while let Some(arg) = iter.next() {
-        if arg == "--lang" {
-            return match iter.next().map(String::as_str) {
-                Some("en") => Ok(Some(i18n::Lang::En)),
-                Some("ja") => Ok(Some(i18n::Lang::Ja)),
-                // English on purpose: i18n is not initialized yet.
-                other => bail!(
-                    "invalid --lang value `{}` (expected `en` or `ja`)",
-                    other.unwrap_or("")
-                ),
-            };
-        }
-    }
-    Ok(None)
-}
-
-struct CliArgs {
-    config_path: PathBuf,
-    /// `false` when `--config` named the path. Decides whether a missing file
-    /// is created or reported (see `ensure_config`).
-    config_is_default: bool,
-    debug: bool,
-    /// `None` when the flag was absent, so the config file's value applies.
-    macro_delay_ms: Option<u32>,
-    /// Test-only remapping of other software's injected events (ADR 0053).
-    #[cfg(feature = "test-inject")]
-    accept_injected: bool,
-}
-
-fn parse_args(args: &[String]) -> anyhow::Result<CliArgs> {
-    let mut config: Option<PathBuf> = None;
-    let mut debug = false;
-    let mut macro_delay_ms: Option<u32> = None;
-    #[cfg(feature = "test-inject")]
-    let mut accept_injected = false;
-    let mut iter = args.iter();
-    while let Some(arg) = iter.next() {
-        match arg.as_str() {
-            "--config" | "-c" => {
-                let value = iter.next().context("--config requires a path")?;
-                config = Some(PathBuf::from(value));
-            }
-            // Already consumed by extract_lang; skip its value here.
-            "--lang" => {
-                iter.next();
-            }
-            "--debug" => debug = true,
-            // Absent from ordinary builds, where it falls to the unknown
-            // argument arm below like any other typo (ADR 0053).
-            #[cfg(feature = "test-inject")]
-            "--accept-injected" => accept_injected = true,
-            "--macro-delay" => {
-                let value = iter.next().context("--macro-delay requires milliseconds")?;
-                let max = winremap::keymap::MAX_MACRO_DELAY_MS;
-                macro_delay_ms = Some(value.parse().ok().filter(|&ms| ms <= max).with_context(
-                    || format!("invalid --macro-delay `{value}` (expected 0-{max})"),
-                )?);
-            }
-            // Both go through notify so a shortcut carrying the flag still
-            // shows something instead of exiting silently.
-            "--version" | "-V" => {
-                notify::info(&format!("winremap {}", env!("CARGO_PKG_VERSION")));
-                std::process::exit(0);
-            }
-            "--help" | "-h" => {
-                notify::info(&i18n::help_text());
-                std::process::exit(0);
-            }
-            other => bail!("{}", i18n::unknown_argument(other)),
-        }
-    }
-    let config_is_default = config.is_none();
-    let config_path = match config {
-        Some(path) => path,
-        None => default_config_path()?,
-    };
-    Ok(CliArgs {
-        config_path,
-        config_is_default,
-        debug,
-        macro_delay_ms,
-        #[cfg(feature = "test-inject")]
-        accept_injected,
+    Ok(Resident {
+        event_hook,
+        keyboard_hook,
+        tray,
     })
-}
-
-/// Where a config lives when `--config` was not given. Existence is not
-/// checked here: `parse_args` stays free of filesystem side effects, and
-/// creating the file is the startup sequence's job (see `ensure_config`).
-fn default_config_path() -> anyhow::Result<PathBuf> {
-    let appdata = std::env::var_os("APPDATA")
-        .context("APPDATA is not set; pass --config <path> explicitly")?;
-    Ok(PathBuf::from(appdata).join("winremap").join("config.toml"))
-}
-
-/// Where the last chosen config file is remembered (ADR 0077): beside the
-/// default config, whatever file this run ends up opening. `None` when
-/// `%APPDATA%` is not set — the same condition that leaves
-/// [`default_config_path`] with nothing to return, and one that makes the
-/// feature quietly absent rather than fatal.
-///
-/// Deliberately not beside the *active* config: a `--config D:\work\keys.toml`
-/// would otherwise leave a memory file in the user's own folder, and the next
-/// plain start — which looks in `%APPDATA%` — would never read it.
-fn memory_path() -> Option<PathBuf> {
-    Some(
-        default_config_path()
-            .ok()?
-            .with_file_name(config::last_used::FILE_NAME),
-    )
 }
 
 /// Makes sure `path` exists before the config is loaded.
@@ -355,54 +298,4 @@ fn ensure_config(path: &Path, is_default: bool) -> anyhow::Result<()> {
     config::create_default(path).with_context(|| format!("failed to create {}", path.display()))?;
     gui::log::emit(&i18n::created_default_config(path));
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// `--config` keeps the cases off %APPDATA%, which may hold a real config.
-    fn parse(extra: &[&str]) -> anyhow::Result<CliArgs> {
-        let mut args = vec!["--config".to_owned(), "x.toml".to_owned()];
-        args.extend(extra.iter().map(|s| (*s).to_owned()));
-        parse_args(&args)
-    }
-
-    /// Decision 2 of ADR 0077: the memory sits beside the **default** config,
-    /// whatever file this run ends up opening. Beside the active one, a
-    /// `--config D:\work\keys.toml` would leave it where the next plain start
-    /// — which looks in `%APPDATA%` — never reads it.
-    #[test]
-    fn the_memory_sits_beside_the_default_config() {
-        let Ok(default) = default_config_path() else {
-            // No %APPDATA%: neither path can be built, and both say so the
-            // same way rather than one of them guessing.
-            assert!(memory_path().is_none());
-            return;
-        };
-        let memory = memory_path().expect("a default config path means a memory path");
-        assert_eq!(memory.parent(), default.parent());
-        assert_eq!(
-            memory.file_name().and_then(|name| name.to_str()),
-            Some(config::last_used::FILE_NAME)
-        );
-    }
-
-    /// The guarantee of ADR 0053: a shipped build does not know the flag. A
-    /// misplaced `#[cfg]` would silently hand it to every user instead.
-    #[test]
-    #[cfg(not(feature = "test-inject"))]
-    fn accept_injected_is_unknown_without_the_feature() {
-        let Err(err) = parse(&["--accept-injected"]) else {
-            panic!("--accept-injected must not be accepted outside a test build");
-        };
-        assert!(err.to_string().contains("--accept-injected"));
-    }
-
-    #[test]
-    #[cfg(feature = "test-inject")]
-    fn accept_injected_is_off_until_asked_for() {
-        assert!(!parse(&[]).unwrap().accept_injected);
-        assert!(parse(&["--accept-injected"]).unwrap().accept_injected);
-    }
 }
