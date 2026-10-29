@@ -56,6 +56,13 @@ pub fn write_atomic(path: &Path, contents: &str) -> std::io::Result<()> {
 }
 
 fn apply_general(doc: &mut DocumentMut, original: &ConfigDraft, edited: &ConfigDraft) {
+    apply_macro(doc, original, edited);
+    apply_ime(doc, original, edited);
+}
+
+/// `[macro]`: the delay, in whichever spelling the file already uses
+/// (ADR 0039), and the three recording keys.
+fn apply_macro(doc: &mut DocumentMut, original: &ConfigDraft, edited: &ConfigDraft) {
     if edited.macro_delay != original.macro_delay {
         if original.uses_legacy_delay_key {
             // Keep the file's own spelling (ADR 0039).
@@ -110,7 +117,12 @@ fn apply_general(doc: &mut DocumentMut, original: &ConfigDraft, edited: &ConfigD
             set_scalar(ensure_table(doc, "macro"), key, Value::from(new.trim()));
         }
     }
+}
 
+/// `[ime_indicator]`: the flags, the numbers, the colour and the trigger
+/// keys. Each key is only touched when its draft value changed, and an
+/// emptied value removes the key rather than writing a blank one.
+fn apply_ime(doc: &mut DocumentMut, original: &ConfigDraft, edited: &ConfigDraft) {
     let bools = [
         ("enabled", original.ime.enabled, edited.ime.enabled),
         (
