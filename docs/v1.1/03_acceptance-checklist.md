@@ -142,6 +142,13 @@ v1.0.1 §4 からそのまま持ち越す。
 - 環境: ホストは Windows 11 Pro 26300 を再インストール後の初回。VMware Workstation（vmrun 1.17）、ゲスト `winremap-test`、ハイパーバイザー停止（ネイティブ動作）。初回の実行はゲスト `tester` のパスワード期限切れで 1 件も走らず、オーナーがコンソールで再設定したあと AI が無期限化とゴールデンの取り直しを行って通した（[05_ui-test-automation.md §11](../05_ui-test-automation.md#11-ハマりどころ)）
 - 実行者: Claude Code（AI モデル: claude-fable-5-1）。ランナーの出力と各検査の結果ファイルは `%TEMP%\winremap-*.txt`
 
+### 2026-10-29 自動側 — R-3（不変条件テスト）と §1.2 の値: 通過
+
+- R-3: ①元の状態で `cargo test --test invariants` 4 件緑 ②`src/tray.rs` の末尾に `let _ = unsafe { windows::Win32::System::Threading::GetCurrentThreadId() };` を持つ関数を足すと**2 件が赤**になり、落ちた理由に `src/tray.rs contains \`unsafe\` but is not in tests/unsafe-allowlist.txt` と `src/tray.rs:305: \`unsafe {\` without a \`// SAFETY:\` comment above it` が出る ③`git checkout -- src/tray.rs` で戻すと 4 件緑
+- `tests/unsafe-allowlist.txt` と `grep -rlE "unsafe \{|unsafe fn|unsafe extern" src examples` の集合: 一致（19 ファイル）
+- `cargo test` の件数: 185（v1.0.1 の 160 以上）
+- 実行者: Claude Code（AI モデル: claude-fable-5-1）。残る自動側は R-1（v1.0.1 の比較用ログが要る）、手動側は R-2 と H-1・H-2・H-7
+
 ---
 
 ## 7. 対話ハーネスの記録
