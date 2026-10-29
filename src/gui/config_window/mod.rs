@@ -361,7 +361,7 @@ fn statusbar_ui(ui: &mut egui::Ui) {
                     .weak(),
                 );
                 ui.separator();
-                ui.label(egui::RichText::new(i18n::status_started(super::started_at())).weak());
+                ui.label(egui::RichText::new(i18n::status_started(&super::started_at())).weak());
                 ui.separator();
                 ui.label(super::status());
             });

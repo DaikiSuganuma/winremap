@@ -29,14 +29,19 @@
 pub mod config_window;
 mod icons;
 pub mod log;
+mod state;
 mod watch;
 mod win32;
 
+pub(crate) use state::choose_config_path;
+pub use state::{
+    active_config_path, loaded_stamp, mark_config_loaded, mark_started, set_config_memory,
+    set_config_path, set_status, started_at, status,
+};
 pub use win32::load_notification_icon;
 
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use eframe::egui;
@@ -64,65 +69,6 @@ static FOCUS_CONFIG: AtomicBool = AtomicBool::new(false);
 /// is picked up by the message loop instead.
 static RELOAD_REQUESTED: AtomicBool = AtomicBool::new(false);
 
-/// The `(mtime, size)` the active config file had when it was last loaded.
-/// The address bar's change mark (●) is "the file no longer matches this"
-/// (v0.4 screen design §2.2).
-fn loaded_stamp_slot() -> &'static Mutex<Option<winremap::config::draft::FileStamp>> {
-    static STAMP: OnceLock<Mutex<Option<winremap::config::draft::FileStamp>>> = OnceLock::new();
-    STAMP.get_or_init(|| Mutex::new(None))
-}
-
-/// Records that the config was just loaded. Called for the startup load and
-/// for every successful reload, whoever asked for it. Stamps the file and
-/// reports to the status bar.
-pub fn mark_config_loaded() {
-    let stamp = winremap::config::draft::stamp(&active_config_path()).ok();
-    if let Ok(mut slot) = loaded_stamp_slot().lock() {
-        *slot = stamp;
-    }
-    set_status(i18n::t().status_loaded);
-}
-
-pub fn loaded_stamp() -> Option<winremap::config::draft::FileStamp> {
-    loaded_stamp_slot().lock().ok().and_then(|stamp| *stamp)
-}
-
-/// When this process started, formatted once for the status bar.
-fn started_at_slot() -> &'static OnceLock<String> {
-    static AT: OnceLock<String> = OnceLock::new();
-    &AT
-}
-
-/// Called once from startup; the status bar shows this for the process's
-/// whole life.
-pub fn mark_started() {
-    let _ = started_at_slot().set(crate::clock::local_now());
-}
-
-pub fn started_at() -> &'static str {
-    started_at_slot().get().map(String::as_str).unwrap_or("")
-}
-
-/// The status bar's message slot: the latest thing that happened, replaced
-/// by the next one, never cleared on its own (v0.4 screen design §5).
-fn status_slot() -> &'static Mutex<String> {
-    static STATUS: OnceLock<Mutex<String>> = OnceLock::new();
-    STATUS.get_or_init(|| Mutex::new(String::new()))
-}
-
-pub fn set_status(text: &str) {
-    if let Ok(mut slot) = status_slot().lock() {
-        *slot = text.to_owned();
-    }
-}
-
-pub fn status() -> String {
-    status_slot()
-        .lock()
-        .map(|slot| slot.clone())
-        .unwrap_or_default()
-}
-
 /// Asks the message loop for a reload; see `RELOAD_REQUESTED`. The wake is
 /// what makes the button feel immediate — that loop is blocked in
 /// `GetMessageW` whenever the user is not typing.
@@ -134,70 +80,6 @@ pub fn request_reload() {
 /// Consumed by the message loop once per pass.
 pub fn take_reload_request() -> bool {
     RELOAD_REQUESTED.swap(false, Ordering::SeqCst)
-}
-
-/// The running loop's context, used to wake it from the tray thread. eframe
-/// paints hidden windows directly (egui Issue #5229), so the host wakes even
-/// while it has nothing on screen.
-fn wake_context() -> &'static Mutex<Option<egui::Context>> {
-    static CTX: OnceLock<Mutex<Option<egui::Context>>> = OnceLock::new();
-    CTX.get_or_init(|| Mutex::new(None))
-}
-
-fn config_path() -> &'static Mutex<PathBuf> {
-    static PATH: OnceLock<Mutex<PathBuf>> = OnceLock::new();
-    PATH.get_or_init(|| Mutex::new(PathBuf::new()))
-}
-
-/// Records which config file this run uses. Set at startup and by the
-/// address bar's file switch (ADR 0050).
-pub fn set_config_path(path: PathBuf) {
-    if let Ok(mut slot) = config_path().lock() {
-        *slot = path;
-    }
-}
-
-/// The active config file — the single source of truth (ADR 0050). Every
-/// reader goes through this: the settings window, the editor launcher, and
-/// the tray's reload, so switching the file switches them all.
-pub fn active_config_path() -> PathBuf {
-    config_path()
-        .lock()
-        .map(|path| path.clone())
-        .unwrap_or_default()
-}
-
-/// Where the choice of config file is remembered between runs (ADR 0077).
-/// `None` when there is nowhere to keep it, which makes a switch last for
-/// this run only — the behaviour of every version before 1.0.0.
-fn config_memory() -> &'static OnceLock<Option<PathBuf>> {
-    static MEMORY: OnceLock<Option<PathBuf>> = OnceLock::new();
-    &MEMORY
-}
-
-/// Called once from startup, before any window can be opened.
-pub fn set_config_memory(path: Option<PathBuf>) {
-    let _ = config_memory().set(path);
-}
-
-/// The address bar's file switch: the file becomes the active one **and** the
-/// one the next start opens (ADR 0077).
-///
-/// Startup does not come through here, on purpose. Choosing a file is
-/// something the user does in this window; a `--config` on the command line
-/// is an instruction for one run, and must not overwrite the choice — the
-/// acceptance probe alone starts WinRemap on a throwaway config half a dozen
-/// times per run.
-pub(crate) fn choose_config_path(path: PathBuf) {
-    if let Some(memory) = config_memory().get().and_then(Option::as_ref)
-        && let Err(e) = winremap::config::last_used::remember(memory, &path)
-    {
-        // Said out loud rather than swallowed: what goes wrong here is
-        // invisible until the *next* start opens the old file, which is the
-        // confusion this feature exists to remove.
-        log::emit(&i18n::remember_config_failed(&e.to_string()));
-    }
-    set_config_path(path);
 }
 
 /// Hides the settings window (close = hide, ADR 0032). For the footer's
@@ -228,11 +110,7 @@ pub fn open_log() {
 /// open is handled now rather than at the next poll.
 fn ensure_loop() {
     if LOOP_RUNNING.load(Ordering::SeqCst) {
-        if let Ok(ctx) = wake_context().lock()
-            && let Some(ctx) = ctx.as_ref()
-        {
-            ctx.request_repaint();
-        }
+        state::wake_gui();
         return;
     }
 
@@ -294,9 +172,7 @@ fn run_loop() {
                     theme::BUTTON_PADDING,
                 );
             });
-            if let Ok(mut ctx) = wake_context().lock() {
-                *ctx = Some(cc.egui_ctx.clone());
-            }
+            state::set_wake_context(Some(cc.egui_ctx.clone()));
             Ok(Box::<HostApp>::default())
         }),
     );
@@ -307,9 +183,7 @@ fn run_loop() {
     // Only reached if the loop failed to start or died. Nothing may set
     // `LOOP_RUNNING` back to false while a loop is alive — a second
     // `EventLoop` in this process is exactly the error this avoids.
-    if let Ok(mut ctx) = wake_context().lock() {
-        *ctx = None;
-    }
+    state::set_wake_context(None);
     LOOP_RUNNING.store(false, Ordering::SeqCst);
     CONFIG_OPEN.store(false, Ordering::SeqCst);
     log::on_closed();
@@ -463,37 +337,4 @@ fn show_config_viewport(ctx: &egui::Context, state: &Arc<Mutex<config_window::Co
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The wiring under the address bar's file switch (ADR 0077 decision 1):
-    /// the file becomes the active one **and** the next start's.
-    ///
-    /// The click itself belongs to the UI checks; what this pins is that the
-    /// switch goes through the path that writes the choice down. Until 1.0.0
-    /// it called `set_config_path`, which does only the first half — and the
-    /// difference is invisible until the *next* start opens the old file.
-    #[test]
-    fn choosing_a_file_records_it_for_the_next_start() {
-        use winremap::config::last_used::{FILE_NAME, LastUsed, recall};
-
-        let dir = std::env::temp_dir().join(format!("winremap-choose-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        let memory = dir.join(FILE_NAME);
-        let chosen = dir.join("personal-ja.toml");
-        std::fs::write(&chosen, "# mine\n").unwrap();
-        // A `OnceLock`, so this is the one test in this binary that sets it.
-        set_config_memory(Some(memory.clone()));
-
-        choose_config_path(chosen.clone());
-
-        assert_eq!(active_config_path(), chosen, "the switch takes effect now");
-        assert_eq!(
-            recall(&memory),
-            LastUsed::At(chosen),
-            "and again at the next start"
-        );
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-}
+mod tests;
