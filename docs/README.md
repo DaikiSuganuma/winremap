@@ -21,6 +21,7 @@
 | [04_git-branching.md](04_git-branching.md) | Git ブランチ運用（git-flow の適用。マージは常に `--no-ff`） |
 | [05_ui-test-automation.md](05_ui-test-automation.md) | UI テスト自動化（VM ＋ AI エージェント）の使い方。実行入口は `tests/ui/` |
 | [06_icon-assets.md](06_icon-assets.md) | アイコン素材の作り方と再生成。正本と生成物の別、サイズの割り当て、Illustrator の設定と描画のルール。**アイコンを描き替える前に必ず読む** |
+| [decisions-index.md](decisions-index.md) | ADR の通し索引（番号・題・版・ステータス）。**新しい ADR を書いたら 1 行足す** |
 
 ## バージョン別
 
@@ -37,7 +38,7 @@
 | [v0.9/](v0.9/) | v0.9 開発計画（[01_development-plan.md](v0.9/01_development-plan.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v0.9/03_acceptance-checklist.md)）、decisions/（ADR 0073-0075）、notes/（[ストア掲載情報 0.9.0](v0.9/notes/20260814_store-listing-0.9.0.md)、[v1.0.0 の方針](v0.9/notes/20260814_v1.0-policy.md)）。スコープは v0.8 で見つかった宿題の片付け — M-2（空の I ビーム）の根治・egui 0.36.1 への載せ替えと upstream PR・MSIX アイコン修正・受け入れとリリース運用の穴塞ぎ。利用者から見える新機能は無し。**2026-08-14 リリース** |
 | [v1.0/](v1.0/) | v1.0 開発計画（[01_development-plan.md](v1.0/01_development-plan.md)）、受け入れチェックリスト（[03_acceptance-checklist.md](v1.0/03_acceptance-checklist.md)）、[Windows トレイアイコン重複防止と表示仕様](v1.0/04_Windows%20トレイアイコン重複防止と表示仕様.md)（外部 AI の調査レポートに実機検証を追記したもの。ADR 0080・0081 の元資料）、decisions/（ADR 0076-0079）。使っていて気づいたことを直した版 — 拡大表示での I ビームの着色・設定ファイルの引き継ぎ・アドレスバーのパスの省略・トレイのメニューへのファイル名。移行の基準は [v0.9/notes/20260814_v1.0-policy.md](v0.9/notes/20260814_v1.0-policy.md)（**2026-08-16 に前倒しを決定**、開発計画 §1）。**2026-08-16 リリース** |
 | [v1.0.1/](v1.0.1/) | 受け入れチェックリスト（[03_acceptance-checklist.md](v1.0.1/03_acceptance-checklist.md)）、decisions/（ADR 0080-0082）、notes/（[リリースノート 1.0.1](v1.0.1/notes/20260914_release-notes-1.0.1.md)、[ストア掲載情報 1.0.1](v1.0.1/notes/20260914_store-listing-1.0.1.md)、[CapsLock → LCtrl で Ctrl が押しっぱなしになる調査](v1.0.1/notes/20260923_capslock-lctrl-japanese-keyboard.md)）。**2026-09-14 リリース。修正だけの版** — v1.0.0 のリリース後に気づいたトレイまわりの 2 件（アイコンが青い塗りつぶしに見える／表示名が小文字の `winremap`）。利用者から見える新機能が無いので SemVer どおりパッチとする（オーナー決定 2026-08-17）。**この版に開発計画（01）は無い** — 計画を書くほどのスコープが無いことがパッチである理由なので、**フォルダーが 3 桁なのは初めてだが正しい** |
-| [v1.1/](v1.1/) | v1.1 開発計画（[01_development-plan.md](v1.1/01_development-plan.md)、**2026-10-29 承認**）。スコープはリファクタリング — カテゴリー別（コア／フック層／機能スレッド／GUI／起動／テスト／ビルド／ドキュメント）の棚卸しと方向性、施策一覧（A1〜H7）、マイルストーン M0〜M5。受け入れチェックリスト（[03_acceptance-checklist.md](v1.1/03_acceptance-checklist.md)、R-1〜R-4 を新設）、decisions/（ADR 0083-）。計画の範囲では利用者から見える機能変更は無し（機能を入れない版にするかは進めながら決める。計画 §8） |
+| [v1.1/](v1.1/) | v1.1 開発計画（[01_development-plan.md](v1.1/01_development-plan.md)、**2026-10-29 承認**）。スコープはリファクタリング — カテゴリー別（コア／フック層／機能スレッド／GUI／起動／テスト／ビルド／ドキュメント）の棚卸しと方向性、施策一覧（A1〜H7）、マイルストーン M0〜M5。受け入れチェックリスト（[03_acceptance-checklist.md](v1.1/03_acceptance-checklist.md)、R-1〜R-4 を新設）、decisions/（ADR 0083-0088）、notes/（[eframe フォークの載せ替え手順](v1.1/notes/20261029_eframe-fork-maintenance.md)）。計画の範囲では利用者から見える機能変更は無し（機能を入れない版にするかは進めながら決める。計画 §8） |
 
 設定ファイルの利用者向け説明は、docs ではなく[ヘルプサイト](../site/)（GitHub Pages）で分かりやすく提供する運用とする（詳細仕様書 `v0.1/02_config-spec.md` は開発者向け）。
 
@@ -49,3 +50,4 @@ ADR とは「なぜその設計にしたか」「却下した代替案は何か�
 - 必須内容: ステータス / 日付 / 作成（AI モデル名）/ 文脈 / 決定 / 理由 / 却下した代替案
 - 新しい設計判断（クレート追加、仕様変更、アルゴリズム選択）を行うたびに 1 件追加する（AGENTS.md ワークフロー 2）
 - 過去の ADR は書き換えず、決定を覆す場合は新しい ADR で上書きし、旧 ADR のステータスを「superseded by NNNN」に変更する
+- 新しい ADR を書いたら [decisions-index.md](decisions-index.md) に 1 行足す（v1.1 開発計画 H4）
