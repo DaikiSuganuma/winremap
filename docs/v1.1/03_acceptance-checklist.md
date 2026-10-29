@@ -132,7 +132,15 @@ v1.0.1 §4 からそのまま持ち越す。
 
 ## 6. 記録欄（散文）
 
-（まだ無い。自動側・手動側それぞれの回ごとに、日付と結果をここへ書く）
+### 2026-10-29 自動側 — R-4（VM の UI テスト）: 通過
+
+- 対象: `develop` 5094314（v1.1.0、M0〜M5 マージ後）。検査スクリプト `tests/ui/` は v1.0.1 から無変更
+- 結果: **10 検査 121/121 PASS、fail 0、終了コード 0**（13:58〜14:32、各検査とも `ready` からの revert 込み）
+  `00-uia-actuation` 5 ／ `00-cli-smoke` 8 ／ `00-regression` 14 ／ `00-log-view` 26 ／ `01-settings-window` 12 ／ `02-config-display` 14 ／ `03-tray-actions` 11 ／ `04-log-window` 9 ／ `05-remap-notepad` 10 ／ `06-foreground-line` 12
+- v1.0.1 の記録（[v1.0.1 §5](../v1.0.1/03_acceptance-checklist.md#5-記録欄散文)）は `02` 9・`03` 14・`04` 11 と書いているが、これは**記録側の転記ずれ**である。[v0.9 §8](../v0.9/03_acceptance-checklist.md#8-記録欄散文) の記録（`02` 14・`03` 11・`04` 9）と今回が一致し、合計 121 も同じ。検査は同じもので同じ結果 — R-4 の ①② を満たす
+- `00-log-view` の 2 枚のスクリーンショット（簡易／全イベント）は目視した。`v1.1.0 started` のバナー、`[decided]`・`[input]`・`[injected]` の列、`C-h (BS 0x08) → remapped to Back (BS 0x08)` の行がいずれも v1.0.1 と同じ形で読める
+- 環境: ホストは Windows 11 Pro 26300 を再インストール後の初回。VMware Workstation（vmrun 1.17）、ゲスト `winremap-test`、ハイパーバイザー停止（ネイティブ動作）。初回の実行はゲスト `tester` のパスワード期限切れで 1 件も走らず、オーナーがコンソールで再設定したあと AI が無期限化とゴールデンの取り直しを行って通した（[05_ui-test-automation.md §11](../05_ui-test-automation.md#11-ハマりどころ)）
+- 実行者: Claude Code（AI モデル: claude-fable-5-1）。ランナーの出力と各検査の結果ファイルは `%TEMP%\winremap-*.txt`
 
 ---
 

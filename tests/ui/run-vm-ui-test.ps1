@@ -33,7 +33,7 @@
     repoints it sends another project's commands to this guest.
 
     Create the VM once with (from windows-utility\test-vm\scripts):
-      $cfg = "D:\Projects\GitHub\winremap\.secrets\test-vm.json"
+      $cfg = "C:\Projects\GitHub\winremap\.secrets\test-vm.json"
       .\clone-vm-vmware.ps1 -NewVMName winremap-test -Snapshot ready `
           -SourceConfigPath ..\..\.secrets\test-vm.template-win11.json `
           -NewConfigPath $cfg
@@ -64,7 +64,7 @@ param(
     # windows-utility's guest-command entry point, used for the revert. It
     # provides the environment; what runs in it — the binary, the fixtures, the
     # checks — is ours.
-    [string]$EntryScript = "D:\Projects\GitLab\windows-utility\test-vm\scripts\run-in-vm-vmware.ps1",
+    [string]$EntryScript = "C:\Projects\GitLab\windows-utility\test-vm\scripts\run-in-vm-vmware.ps1",
     [string]$Snapshot = "ready",
     # Reuses the running guest as-is. For iterating on a check only: results
     # are not reproducible once a check has left state behind.
