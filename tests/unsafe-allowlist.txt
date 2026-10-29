@@ -7,7 +7,9 @@
 # To add a file: write the ADR first, then the line. To remove one: delete
 # the line in the same commit that removes the last `unsafe` from the file.
 
-src/hook.rs                      # ADR 0009: the hook callback, the single-instance mutex and the message loop
+src/hook/mod.rs                  # ADR 0009: the hook callback (split: ADR 0084)
+src/hook/instance.rs             # ADR 0009: the single-instance mutex
+src/hook/message_loop.rs         # ADR 0009: the message loop and the wakes
 src/sender.rs                    # ADR 0009: SendInput
 src/window.rs                    # ADR 0009: the foreground window's process name
 src/ime_indicator/detect.rs      # ADR 0020: asking the IME its state

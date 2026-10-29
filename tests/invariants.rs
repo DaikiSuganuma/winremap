@@ -236,7 +236,7 @@ fn the_library_knows_no_windows() {
 /// `uses_unsafe` would turn every test above green for the wrong reason.
 #[test]
 fn the_scan_sees_the_hook() {
-    assert!(files_using_unsafe().contains("src/hook.rs"));
+    assert!(files_using_unsafe().contains("src/hook/mod.rs"));
     assert!(!uses_unsafe(code_only(
         "// this comment mentions unsafe { on purpose"
     )));
