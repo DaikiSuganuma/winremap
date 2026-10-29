@@ -9,7 +9,6 @@
 
 use std::cell::RefCell;
 
-use crate::gui::log::Kind;
 use windows::Win32::Foundation::{CloseHandle, HWND, MAX_PATH};
 use windows::Win32::System::Threading::{
     OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
@@ -77,51 +76,8 @@ fn set_foreground_cache(hwnd: HWND) {
         cache.push_str(&basename);
     });
     if crate::hook::debug_enabled() {
-        print_debug_info(full_path.as_deref(), &basename);
+        crate::hook::log_foreground(full_path.as_deref(), &basename);
     }
-}
-
-/// Debug-mode helper for writing config.toml: the exact `application` value
-/// to use, which configured keymaps would apply, and the full path.
-///
-/// Tagged and stamped like the key traffic it sits among (ADR 0058). It used
-/// to be three untimed lines led by `[debug]`, which is how a report about
-/// the window the user just clicked came to look like part of the previous
-/// keystroke (owner request 2026-07-29).
-fn print_debug_info(full_path: Option<&str>, basename: &str) {
-    let texts = crate::i18n::t();
-    let Some(full_path) = full_path else {
-        crate::gui::log::tagged(
-            Kind::Action,
-            texts.log_tag_window,
-            texts.debug_foreground_unknown,
-        );
-        return;
-    };
-    let table = crate::hook::REMAP_TABLE.load();
-    let names: Vec<&str> = table
-        .as_ref()
-        .map(|t| {
-            t.keymaps
-                .iter()
-                .filter(|k| k.apps.matches(basename))
-                .map(|k| k.name.as_str())
-                .collect()
-        })
-        .unwrap_or_default();
-    let list = if names.is_empty() {
-        texts.debug_none.to_string()
-    } else {
-        names.join(", ")
-    };
-    crate::gui::log::tagged(
-        Kind::Action,
-        texts.log_tag_window,
-        &crate::i18n::debug_foreground(basename, &list),
-    );
-    // The path is the least-read part of the report and the longest, so it
-    // goes under the summary, where the detailed view can hide it.
-    crate::gui::log::tagged(Kind::Detail, texts.log_tag_window, full_path);
 }
 
 /// Lowercase exe basename for an arbitrary window, for display purposes
