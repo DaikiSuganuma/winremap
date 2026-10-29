@@ -34,17 +34,21 @@ toml = "0.9"
 toml_edit = "0.25.13"
 tray-icon = "0.24.1"
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Input_Ime", "Win32_UI_Accessibility", "Win32_System_Threading", "Win32_System_LibraryLoader", "Win32_System_Console", "Win32_System_Diagnostics_Debug", "Win32_System_Kernel", "Win32_System_SystemInformation", "Win32_System_Time", "Win32_Storage_FileSystem", "Win32_Storage_Packaging_Appx", "Win32_Security", "Win32_Graphics_Gdi", "Win32_UI_Shell", "Win32_UI_HiDpi"] }
+# Only for `EventLoopBuilderExtWindows::with_any_thread` in gui/mod.rs. Must be
+# the version eframe itself uses, or the trait does not apply to its builder
+# (a compile error, not a silent bug) — see the fork note referenced below.
 winit = "0.30.13"
 
-# Until eframe creates an AccessKit adapter for child viewports and not only
-# the root, the settings and log windows expose nothing to UI Automation —
-# they are deferred child viewports (ADR 0037). The branch is 0.36.1 plus that
-# one change, for both backends (ADR 0055, ADR 0074).
+# eframe creates an AccessKit adapter for the root viewport only, so the
+# settings and log windows — deferred child viewports (ADR 0037) — would expose
+# nothing to UI Automation, which the UI tests read (ADR 0064). The fork is the
+# egui tag plus that one change, for both backends (ADR 0055).
 #
-# REMOVE THIS once the change is upstream and in a published eframe: the pin
-# is a stopgap, and leaving it would silently hold the whole egui stack at
-# whatever the fork was last rebased onto. It held 0.35.0 for two versions
-# that way; rebasing is not a substitute for landing it upstream.
+# The upstream PR was closed unanswered (ADR 0074), so the fork is kept on
+# purpose and moved to each new egui minor by hand (ADR 0088). The procedure —
+# a new `accesskit-child-viewports-<minor>` branch, the cherry-pick, and the
+# `winit` version below that has to match eframe's — is in
+# docs/v1.1/notes/20261029_eframe-fork-maintenance.md.
 [patch.crates-io]
 eframe = { git = "https://github.com/DaikiSuganuma/egui", branch = "accesskit-child-viewports-0.36" }
 
